@@ -15,14 +15,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{3C5B2B
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{B2C11145-11DB-4DDF-9B56-DEAC902F505F}"
 	ProjectSection(SolutionItems) = preProject
-		Examples\BCryptGenRandom.cpp = BCryptGenRandom.cpp
-		Examples\RDRAND.c = RDRAND.c
-		Examples\RDSEED.rs = RDSEED.rs
-		Examples\Reseeding.pas = Reseeding.pas
-		Examples\RNDR.asm = RNDR.asm
-		Examples\SecRandomCopyBytes.py = SecRandomCopyBytes.py
-		Examples\TimerBasedSeeding.vb = TimerBasedSeeding.vb
-		Examples\urandom.pl = urandom.pl
+		Examples\BCryptGenRandom.cpp = Examples\BCryptGenRandom.cpp
+		Examples\RDRAND.c = Examples\RDRAND.c
+		Examples\RDSEED.rs = Examples\RDSEED.rs
+		Examples\Reseeding.pas = Examples\Reseeding.pas
+		Examples\RNDR.asm = Examples\RNDR.asm
+		Examples\SecRandomCopyBytes.py = Examples\SecRandomCopyBytes.py
+		Examples\TimerBasedSeeding.vb = Examples\TimerBasedSeeding.vb
+		Examples\urandom.pl = Examples\urandom.pl
 	EndProjectSection
 EndProject
 Global

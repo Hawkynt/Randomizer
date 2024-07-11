@@ -1,17 +1,27 @@
 ﻿using System.Diagnostics;
 using Randomizer;
 
-ulong seedNumber = 540;
-var generator = new MiddleSquare();
+var generator = new XorShift();
+const ulong seedNumber = 131;
+generator.Seed(seedNumber);
 
 var alreadySeen = new HashSet<ulong>();
 var counter = 0;
 ulong number;
-var timer = Stopwatch.StartNew();
+var timer = new Stopwatch();
+var lastStats = Stopwatch.StartNew();
 do {
+  timer.Start();
   number = generator.Next();
-  Console.WriteLine($"#{counter++}: {number}");
-} while (!alreadySeen.Add(number));
+  timer.Stop();
+
+  if (lastStats.Elapsed.TotalSeconds > 0.25) {
+    Console.WriteLine($"#{counter}: {number} which took {timer.ElapsedMilliseconds}ms ({counter / timer.Elapsed.TotalSeconds:#,###.0} per second).");
+    lastStats.Restart();
+  } 
+  
+  ++counter;
+} while (alreadySeen.Add(number));
 timer.Stop();
 
-Console.WriteLine($"We seeded with {seedNumber} and have repeated ourselves after {counter} steps with {number} which took {timer.ElapsedMilliseconds}ms ({counter/timer.Elapsed.TotalSeconds} per second).");
+Console.WriteLine($"We seeded with {seedNumber} and have repeated ourselves after {counter} steps with {number} which took {timer.ElapsedMilliseconds}ms ({counter / timer.Elapsed.TotalSeconds} per second).");
