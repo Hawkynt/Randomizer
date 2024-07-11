@@ -970,7 +970,7 @@ public class Mixmax : IRandomNumberGenerator {
 }
 ```
 
-### Multiply with Carry (MWC)
+### Multiply with Carry (MWC) [1](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
 
 tbd
 
@@ -1033,6 +1033,16 @@ tbd
 ### Yarrow (YAR)
 
 tbd
+
+## Drinking Bit-Soup
+
+### When you need less bits than the RNG provides
+
+tbd: extraction, sponge
+
+### When you need more bits than the RNG provides
+
+tbd: concatenation, splitmix, spreadbits
 
 # Points of Interest
 
