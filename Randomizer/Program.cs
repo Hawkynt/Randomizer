@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Randomizer;
 
-var generator = new XorShift();
+var generator = new Mixmax();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
