@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34825.169
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{3C5B2B72-BA8D-4058-9D5D-15211B190E9F}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{B2C11145-11DB-4DDF-9B56-DEAC902F505F}"
+	ProjectSection(SolutionItems) = preProject
+		Examples\BCryptGenRandom.cpp = BCryptGenRandom.cpp
+		Examples\RDRAND.c = RDRAND.c
+		Examples\RDSEED.rs = RDSEED.rs
+		Examples\Reseeding.pas = Reseeding.pas
+		Examples\RNDR.asm = RNDR.asm
+		Examples\SecRandomCopyBytes.py = SecRandomCopyBytes.py
+		Examples\TimerBasedSeeding.vb = TimerBasedSeeding.vb
+		Examples\urandom.pl = urandom.pl
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {09FC203F-BDA4-4E74-A6B1-E9B87D24B8E1}
+	EndGlobalSection
+EndGlobal
