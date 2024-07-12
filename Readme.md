@@ -448,7 +448,7 @@ public class MiddleSquare : IRandomNumberGenerator {
 
 This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic Middle Square method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the Middle Square method with an additional Weyl sequence to improve randomness quality and performance.
 
-The Weyl sequence is an integer stepping sequence of period \(2^{64}\), which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs.
+The Weyl sequence is an integer stepping sequence of period $2^{64}$, which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs.
 
 ```cs
 public class MiddleSquareWeylSequence : IRandomNumberGenerator {
@@ -473,12 +473,12 @@ public class MiddleSquareWeylSequence : IRandomNumberGenerator {
 
 ### XorShift (XS) [1](https://www.jstatsoft.org/index.php/jss/article/view/v008i14/916)
 
-This method was introduced by George Marsaglia in 2003, and is a class of extremely fast and simple RNGs. These generators operate by repeatedly applying the exclusive-or (xor) operation combined with bit shifts to produce sequences of random numbers. XorShift RNGs can generate sequences of integers with periods \(2^k - 1\) for values of \(k\) like 32, 64, 96, 128, 160, and 192.
+This method was introduced by George Marsaglia in 2003, and is a class of extremely fast and simple RNGs. These generators operate by repeatedly applying the exclusive-or (xor) operation combined with bit shifts to produce sequences of random numbers. XorShift RNGs can generate sequences of integers with periods $2^k - 1$ for values of $k$ like 32, 64, 96, 128, 160, and 192.
 
 The algorithm uses a binary vector space model where each step involves applying a linear transformation over the binary vectors. The primary operations involve xor'ing a computer word with a shifted version of itself, either left or right. For instance, the operations
 
-\(y \oplus ( y << a )\) shifts \(y\) left by \(a\) bits and xor's the result with \(y\) whereas
-\(y \oplus ( y >> a )\) shifts \(y\) right by \(a\) bits and xor's the result with \(y\).
+$y \oplus ( y << a )$ shifts $y$ left by $a$ bits and xor's the result with $y$ whereas
+$y \oplus ( y >> a )$ shifts $y$ right by $a$ bits and xor's the result with $y$.
 
 ```cs
 public class XorShift : IRandomNumberGenerator {
@@ -500,7 +500,7 @@ public class XorShift : IRandomNumberGenerator {
 ### XorShift+ (XS+) [1](https://arxiv.org/pdf/1404.0390)
 
 This method, introduced by Sebastiano Vigna, is an extension of XS generators. Instead of using a multiplication operation, XS+ returns the sum of two consecutive outputs from the XS generator. This approach helps to eliminate linear artifacts typically associated with linear operations in
-\(\mathbb{Z}/2^{32}\mathbb{Z}\). The XS+ generators have been adopted in various JavaScript engines, including those in Chrome, Firefox, Safari, and Microsoft Edge. They are faster and have better statistical properties than some earlier RNGs, passing rigorous tests like BigCrush from the TestU01 suite.
+$\mathbb{Z}/2^{32}\mathbb{Z}$. The XS+ generators have been adopted in various JavaScript engines, including those in Chrome, Firefox, Safari, and Microsoft Edge. They are faster and have better statistical properties than some earlier RNGs, passing rigorous tests like BigCrush from the TestU01 suite.
 
 It is also designed to avoid weaknesses in lower bits that were observed in some other RNGs, ensuring a uniform distribution of random numbers.
 
@@ -605,7 +605,7 @@ public class XorWow : IRandomNumberGenerator {
 
 ### SplitMix (SM) [1](https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf)
 
-This generator is a simple and fast pseudo-random number generator designed by Sebastiano Vigna. It combines adding the golden gamma constant (\(2^{64}/\phi\) where \(\phi = \frac{1 + \sqrt{5}}{2}\)) to David Stafford’s Mix13 variant of the MurmurHash3 finalizer. It's primarily used for initializing the states of other more complex generators, such as Xoroshiro and Xoshiro. It is particularly well-suited for this purpose because of its excellent statistical properties and simplicity.
+This generator is a simple and fast pseudo-random number generator designed by Sebastiano Vigna. It combines adding the golden gamma constant ($2^{64}/\phi$ where $\phi = \frac{1 + \sqrt{5}}{2}$) to David Stafford’s Mix13 variant of the MurmurHash3 finalizer. It's primarily used for initializing the states of other more complex generators, such as Xoroshiro and Xoshiro. It is particularly well-suited for this purpose because of its excellent statistical properties and simplicity.
 
 ```cs
 public class SplitMix64 : IRandomNumberGenerator {
@@ -718,14 +718,14 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 
 Originally introduced by D.H. Lehmer in 1951, the Multiplicative Linear Congruential Generator (MLCG) is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
 
-\[X_{n+1} = (a \cdot X_n) \mod m\]
+$$X_{n+1} = (a \cdot X_n) \mod m$$
 
-* \(X\) is the sequence of pseudo-random values.
-* \(m\) is the modulus, \(0 < m\).
-* \(a\) is the multiplier, \(0 < a < m\).
-* \(X_0\) is the seed or start value, \(0 \leq X_0 < m\).
+* $X$ is the sequence of pseudo-random values.
+* $m$ is the modulus, $0 < m$.
+* $a$ is the multiplier, $0 < a < m$.
+* $X_0$ is the seed or start value, $0 \leq X_0 < m$.
 
-In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: \(a = 16807\) and \(m=2^{31}-1\) (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of \(2^{31}-2\), good statistical properties, and efficient computation.
+In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation.
 
 ```cs
 public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -744,15 +744,15 @@ public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator 
 
 This is one of the oldest and most well-known PRNG algorithms. Introduced by W. E. Thomson and A. Rotenberg in 1958, it generates a sequence of numbers using a piecewise linear equation. The generator is defined by the recurrence relation:
 
-\[X_{n+1} = (a \cdot X_n + c) \mod m\]
+$$X_{n+1} = (a \cdot X_n + c) \mod m$$
 
 Where:
 
-* \(X\) is the sequence of pseudo-random values.
-* \(m\) is the modulus, \(0 < m\).
-* \(a\) is the multiplier, \(0 < a < m\).
-* \(c\) is the increment, \(0 \leq c < m\).
-* \(X_0\) is the seed or start value, \(0 \leq X_0 < m\).
+* $X$ is the sequence of pseudo-random values.
+* $m$ is the modulus, $0 < m$.
+* $a$ is the multiplier, $0 < a < m$.
+* $c$ is the increment, $0 \leq c < m$.
+* $X_0$ is the seed or start value, $0 \leq X_0 < m$.
 
 The Linear Congruential Generator is a simple and efficient way to produce pseudo-random numbers. However, the quality of the output is highly dependent on the choice of parameters $a$, $c$, and $m$. Properly chosen parameters ensure a long period and good statistical properties, making the LCG suitable for many applications, although it is generally not recommended for cryptographic purposes due to its predictability.
 
@@ -776,24 +776,24 @@ This is an extension of the LCG designed to improve the statistical properties a
 
 In a CLCG, multiple LCGs are run in parallel, and their outputs are combined using addition or XOR operations to produce the final random number. The combination of multiple generators with carefully chosen parameters ensures that the resulting sequence has a much longer period and better statistical properties than any individual LCG.
 
-Each \(X_{n,i}\) is generated by an individual LCG with its own set of parameters:
+Each $X_{n,i}$ is generated by an individual LCG with its own set of parameters:
 
-\[X_{n+1,i} = (a_i \cdot X_{n,i} + c_i) \mod m_i\]
+$$X_{n+1,i} = (a_i \cdot X_{n,i} + c_i) \mod m_i$$
 
-The CLCG can be defined using one of the following formulas, where \(k\) LCGs are combined:
+The CLCG can be defined using one of the following formulas, where $k$ LCGs are combined:
 
-\[X_{n+1} = \left [ \sum_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \sum_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1}+\cdots+X_{n+1,k}] \mod m\]
-\[X_{n+1} = \left [ \prod_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \prod_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1} \cdot \cdots \cdot X_{n+1,k}] \mod m\]
+$$X_{n+1} = \left [ \sum_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \sum_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1}+\cdots+X_{n+1,k}] \mod m$$
+$$X_{n+1} = \left [ \prod_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \prod_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1} \cdot \cdots \cdot X_{n+1,k}] \mod m$$
 
 Where:
 
-* \(X\) is the sequence of pseudo-random values.
-* \(X_{n,i}\) is the sequence of pseudo-random values from the \(i\)-th LCG.
-* \(m\) is the modulus of the CLCG.
-* \(m_i\) is the modulus of the \(i\)-th LCG.
-* \(a_i\) is the multiplier of the \(i\)-th LCG.
-* \(c_i\) is the increment of the \(i\)-th LCG.
-* \(X_{0,i}\) is the seed of the \(i\)-th LCG.
+* $X$ is the sequence of pseudo-random values.
+* $X_{n,i}$ is the sequence of pseudo-random values from the $i$-th LCG.
+* $m$ is the modulus of the CLCG.
+* $m_i$ is the modulus of the $i$-th LCG.
+* $a_i$ is the multiplier of the $i$-th LCG.
+* $c_i$ is the increment of the $i$-th LCG.
+* $X_{0,i}$ is the seed of the $i$-th LCG.
 
 ```cs
 public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -824,25 +824,25 @@ public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
 
 These are a type of nonlinear congruential pseudorandom number generator that use the modular multiplicative inverse to generate the next number in a sequence. These generators offer excellent uniformity properties and longer periods compared to LCGs.
 
-The standard formula for an ICG, modulo a prime number \(q\), is:
+The standard formula for an ICG, modulo a prime number $q$, is:
 
-\[
+$$
 X_{i+1} =
 \begin{cases}
 (a \cdot X_i^{-1} + c) \mod q & \text{if } X_i \neq 0 \\
 c & \text{if } X_i = 0
 \end{cases}
-\]
+$$
 
 Where:
 
-* \(X_i\) is the current value in the sequence.
-* \(a\) is the multiplier.
-* \(c\) is the increment.
-* \(q\) is the modulus.
-* \(X_i^{-1}\) is the modular multiplicative inverse of \(X_i\) modulo \(q\).
+* $X_i$ is the current value in the sequence.
+* $a$ is the multiplier.
+* $c$ is the increment.
+* $q$ is the modulus.
+* $X_i^{-1}$ is the modular multiplicative inverse of $X_i$ modulo $q$.
 
-The maximum period for an ICG is \(q\), provided \(a\) and \(c\) are chosen appropriately, such that the polynomial \(f(x) = x^2 - cx - a\) is primitive over the finite field \(\mathbb{F}_q\).
+The maximum period for an ICG is $q$, provided $a$ and $c$ are chosen appropriately, such that the polynomial $f(x) = x^2 - cx - a$ is primitive over the finite field $\mathbb{F}_q$.
 
 ```cs
 public class InversiveCongruentialGenerator : IRandomNumberGenerator {
@@ -883,20 +883,20 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
 
 ### MIXMAX [1](https://arxiv.org/pdf/1403.5355)
 
-This generator is based on the properties of Kolmogorov-Anosov C-systems, which are a class of chaotic dynamical systems known for their excellent mixing properties. This generator utilizes an integer-valued unimodular matrix of size NxN and arithmetic defined on a Galois field GF[p] with a large prime modulus p. The primary idea is to leverage the dynamics of linear automorphisms on the unit hypercube in \(\mathbb{R}^N\), which can be expressed as:
+This generator is based on the properties of Kolmogorov-Anosov C-systems, which are a class of chaotic dynamical systems known for their excellent mixing properties. This generator utilizes an integer-valued unimodular matrix of size NxN and arithmetic defined on a Galois field GF[p] with a large prime modulus p. The primary idea is to leverage the dynamics of linear automorphisms on the unit hypercube in $\mathbb{R}^N$, which can be expressed as:
 
-\[u_i(t + 1) = \sum_{j=1}^{N} A_{ij} u_j(t) \mod 1\]
+$$u_i(t + 1) = \sum_{j=1}^{N} A_{ij} u_j(t) \mod 1$$
 
-Here, \(u\) represents the vector in the unit interval [0, 1), and \(A\) is the defining matrix whose entries are integers, \(A_{ij} \in \mathbb{Z}\). The conditions for the matrix \(A\) to ensure the desired properties are:
+Here, $u$ represents the vector in the unit interval [0, 1), and $A$ is the defining matrix whose entries are integers, $A_{ij} \in \mathbb{Z}$. The conditions for the matrix $A$ to ensure the desired properties are:
 
-* \(\det A = 1\)
-* The eigenvalues \(\lambda_k\) of \(A\) must not lie on the unit circle, i.e., \(|\lambda_k| \neq 1\) for all \(k = 1, 2, ..., N\).
+* $\det A = 1$
+* The eigenvalues $\lambda_k$ of $A$ must not lie on the unit circle, i.e., $|\lambda_k| \neq 1$ for all $k = 1, 2, ..., N$.
 
-These conditions ensure that the map defined by \(A\) is volume-preserving and exhibits exponential divergence of nearby trajectories, creating a highly chaotic and mixing behavior necessary for generating high-quality pseudo-random numbers.
+These conditions ensure that the map defined by $A$ is volume-preserving and exhibits exponential divergence of nearby trajectories, creating a highly chaotic and mixing behavior necessary for generating high-quality pseudo-random numbers.
 
 The specific form of the MIXMAX matrix used in the generator is:
 
-\[ A =
+$$ A =
 \begin{pmatrix}
 1 & 1 & 1 & 1 & \cdots & 1 \\
 1 & 2 & 1 & 1 & \cdots & 1 \\
@@ -905,11 +905,11 @@ The specific form of the MIXMAX matrix used in the generator is:
 \vdots & \vdots & \vdots & \vdots & \ddots & \vdots \\
 1 & N & N-1 & N-2 & \cdots & 2 \\
 \end{pmatrix}
-\]
+$$
 
-The matrix is recursively defined, and the only variable entry is \( A_{32} = 3 + s \), where \( s \) is a small integer chosen to avoid eigenvalues lying on the unit circle.
+The matrix is recursively defined, and the only variable entry is $ A_{32} = 3 + s $, where $ s $ is a small integer chosen to avoid eigenvalues lying on the unit circle.
 
-In practice, the MIXMAX RNG is implemented using modular arithmetic with a large prime modulus \( p \), ensuring that the state vectors remain within a finite field \( GF[p] \). The period of the generator is determined by the characteristic polynomial of the matrix \( A \), and the maximal period is attained when this polynomial is primitive in the extended Galois field \( GF[p^N] \).
+In practice, the MIXMAX RNG is implemented using modular arithmetic with a large prime modulus $ p $, ensuring that the state vectors remain within a finite field $ GF[p] $. The period of the generator is determined by the characteristic polynomial of the matrix $ A $, and the maximal period is attained when this polynomial is primitive in the extended Galois field $ GF[p^N] $.
 
 ```cs
 public class Mixmax : IRandomNumberGenerator {
@@ -978,20 +978,20 @@ The key difference between MWC and LCG is the introduction of a carry value in M
 
 The general formula for an MWC generator is as follows:
 
-\[X_{n+1} = (A \cdot X_{n} + C_n) \mod m\]
+$$X_{n+1} = (A \cdot X_{n} + C_n) \mod m$$
 
 Where:
 
-* \(X_{n}\) is the current state.
-* \(A\) is the multiplier.
-* \(C_n\) is the carry from the previous step.
-* \(m\) is the modulus.
+* $X_{n}$ is the current state.
+* $A$ is the multiplier.
+* $C_n$ is the carry from the previous step.
+* $m$ is the modulus.
 
-The carry value \(C_n\) is updated in each step as follows:
+The carry value $C_n$ is updated in each step as follows:
 
-\[C_{n+1} = \left\lfloor \frac{X_{n+1}}{m} \right\rfloor\]
+$$C_{n+1} = \left\lfloor \frac{X_{n+1}}{m} \right\rfloor$$
 
-In this mechanism, the next state \(X_{n+1}\) depends not only on the current state \(X_n\) and the multiplier \(A\), but also on the carry value \(C_n\), which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
+In this mechanism, the next state $X_{n+1}$ depends not only on the current state $X_n$ and the multiplier $A$, but also on the carry value $C_n$, which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
 
 Here is an example implementation of an MWC generator in C#:
 
@@ -1099,4 +1099,3 @@ tbd: Practical examples and real-world applications.
 
 * 20240711 - Initial GitHub Version
 * 20240624 - Initial Version
-
