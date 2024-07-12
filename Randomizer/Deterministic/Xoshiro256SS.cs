@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Randomizer;
+namespace Randomizer.Deterministic;
 
 public class Xoshiro256SS : IRandomNumberGenerator {
   private ulong _w, _x, _y, _z;

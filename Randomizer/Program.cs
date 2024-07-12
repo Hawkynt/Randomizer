@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
-using Randomizer;
+using Randomizer.Deterministic;
 
-var generator = new Mixmax();
+var generator = new MultiplyWithCarry();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 

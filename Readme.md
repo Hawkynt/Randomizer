@@ -972,7 +972,47 @@ public class Mixmax : IRandomNumberGenerator {
 
 ### Multiply with Carry (MWC) [1](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
 
-tbd
+These are a class of PRNGs that combines multiplication, addition, and a carry mechanism to produce sequences of random numbers, introduced by George Marsaglia in 1994.
+
+The key difference between MWC and LCG is the introduction of a carry value in MWC. This carry value is carried over to the next step, which helps in achieving longer periods and better statistical properties compared to traditional LCGs.
+
+The general formula for an MWC generator is as follows:
+
+\[X_{n+1} = (A \cdot X_{n} + C_n) \mod m\]
+
+Where:
+
+* \(X_{n}\) is the current state.
+* \(A\) is the multiplier.
+* \(C_n\) is the carry from the previous step.
+* \(m\) is the modulus.
+
+The carry value \(C_n\) is updated in each step as follows:
+
+\[C_{n+1} = \left\lfloor \frac{X_{n+1}}{m} \right\rfloor\]
+
+In this mechanism, the next state \(X_{n+1}\) depends not only on the current state \(X_n\) and the multiplier \(A\), but also on the carry value \(C_n\), which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
+
+Here is an example implementation of an MWC generator in C#:
+
+```cs
+public class MultiplyWithCarry : IRandomNumberGenerator {
+    private const ulong A = 6364136223846793005UL;  // Multiplier
+    private ulong _state;                           // Current state
+    private ulong _carry;                           // Carry value
+
+    public void Seed(ulong seed) {
+        _state = seed;
+        _carry = ~seed;
+    }
+
+    public ulong Next() { // implicit mod 2^64
+        ulong product = A * _state + _carry;
+        _carry = product >> 32;
+        return _state;
+    }
+}
+```
 
 ### Complementary Multiply with Carry (MWC)
 

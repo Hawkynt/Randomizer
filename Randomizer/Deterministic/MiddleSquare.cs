@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Randomizer;
+namespace Randomizer.Deterministic;
 
 public class MiddleSquare : IRandomNumberGenerator {
 

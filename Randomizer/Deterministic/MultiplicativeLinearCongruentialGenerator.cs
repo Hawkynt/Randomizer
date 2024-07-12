@@ -1,4 +1,4 @@
-﻿namespace Randomizer;
+﻿namespace Randomizer.Deterministic;
 
 public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
 
