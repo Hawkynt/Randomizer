@@ -1007,9 +1007,14 @@ public class MultiplyWithCarry : IRandomNumberGenerator {
     }
 
     public ulong Next() { // implicit mod 2^64
-        ulong product = A * _state + _carry;
-        _carry = product >> 32;
-        return _state;
+      UInt128 state = this._state;
+      state *= A;
+      state += this._carry;
+
+      this._state = (ulong)state;
+      this._carry = (ulong)(state >> 64);
+
+      return _state;
     }
 }
 ```
