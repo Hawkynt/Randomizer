@@ -783,6 +783,7 @@ $$X_{n+1,i} = (a_i \cdot X_{n,i} + c_i) \mod m_i$$
 The CLCG can be defined using one of the following formulas, where $k$ LCGs are combined:
 
 $$X_{n+1} = \left [ \sum_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \sum_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1}+\cdots+X_{n+1,k}] \mod m$$
+
 $$X_{n+1} = \left [ \prod_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \prod_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1} \cdot \cdots \cdot X_{n+1,k}] \mod m$$
 
 Where:
