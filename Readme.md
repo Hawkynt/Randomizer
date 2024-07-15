@@ -993,8 +993,6 @@ The carry value \(C_n\) is updated in each step as follows:
 
 In this mechanism, the next state \(X_{n+1}\) depends not only on the current state \(X_n\) and the multiplier \(A\), but also on the carry value \(C_n\), which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
 
-Here is an example implementation of an MWC generator in C#:
-
 ```cs
 public class MultiplyWithCarry : IRandomNumberGenerator {
     private const ulong A = 6364136223846793005UL;  // Multiplier
@@ -1019,9 +1017,75 @@ public class MultiplyWithCarry : IRandomNumberGenerator {
 }
 ```
 
-### Complementary Multiply with Carry (MWC)
+### Complementary Multiply with Carry (CMWC)
 
-tbd
+This generator is a refinement of the MWC method. In a CMWC generator, a sequence of random numbers is produced using a multiplier and a carry value, similar to the MWC method. However, the CMWC method maintains an array of states and updates them in a more sophisticated manner to improve the quality of the generated random numbers.
+
+The CMWC generator is defined by the following parameters:
+
+* $a$: Multiplier
+* $m$: Modulus (typically a power of 2 for computational efficiency)
+* $r$: The size of the state array
+* $c$: Carry value
+* $Q$: State array of size $r$
+
+The generator produces the next random number using the following steps:
+
+1. Select an index $i$ from the state array.
+2. Calculate the new value of the state $Q_i$ using the formula:
+
+   $$ t = a \cdot Q_i + c $$
+
+3. The new state value is given by the lower bits of $t$:
+
+   $$ Q_i = t \mod m $$
+
+4. The carry value is updated using the upper bits of $t$:
+
+   $$ c = \left\lfloor \frac{t}{m} \right\rfloor $$
+
+5. The new random number is the complement of the new state value:
+
+   $$ X_{n+1} = (m - 1) - Q_i $$
+
+This process ensures that the state values are updated in a way that maintains a high-quality sequence of random numbers with a long period.
+
+```cs
+public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
+  private static readonly UInt128 A = 6364136223846793005UL;
+  private const int R = 4096;
+  private readonly ulong[] _state = new ulong[R];
+  private ulong _carry;
+  private int _index = R - 1;
+
+  public void Seed(ulong seed) {
+    for (var i = 0; i < R; ++i)
+      this._state[i] = SplitMix64(ref seed);
+
+    this._carry = SplitMix64(ref seed);
+    return;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static ulong SplitMix64(ref ulong z) {
+      z += 0x9E3779B97F4A7C15;
+      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
+      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
+      return z ^= (z >> 31);
+    }
+
+  }
+
+  public ulong Next() { // implicit mod 2^64
+    this._index = (this._index + 1) % R;
+    var t = A * this._state[this._index] + this._carry;
+
+    this._carry = (ulong)(t >> 64);
+    this._state[this._index] = (ulong)t;
+
+    return ulong.MaxValue - this._state[this._index];
+  }
+}
+```
 
 ### Subtract with Carry (SWC)
 
@@ -1094,6 +1158,11 @@ tbd: concatenation, splitmix, spreadbits
 tbd: comparison table of all in the mentioned test categories and suites
 tbd: charts and visualizations
 tbd: Practical examples and real-world applications.
+
+# Links
+
+* [RNG Engines](https://pracrand.sourceforge.net/RNG_engines.txt)
+
 
 # History
 
