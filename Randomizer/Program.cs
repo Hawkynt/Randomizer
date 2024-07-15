@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Randomizer.Deterministic;
 
-var generator = new ComplementaryMultiplyWithCarry();
+var generator = new SubtractWithBorrow();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
