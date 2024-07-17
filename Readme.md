@@ -414,6 +414,8 @@ public interface IRandomNumberGenerator {
 }
 ```
 
+If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on overflow and underflow. Mathematically, this results in all arithmetic being performed in the finite fields $\mathbb{F}_{2^{32}}$ or $\mathbb{F}_{2^{64}}$.
+
 ### Middle Square (MS) [1](http://bit-player.org/2022/the-middle-of-the-square)
 
 This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is 8n. It is defined by this formula:
@@ -1283,7 +1285,52 @@ public class KeepItSimpleStupid:IRandomNumberGenerator {
 
 ### Additive Congruential Random Number Generator (ACORN) [1](https://acorn.wikramaratna.org/concept.html)
 
-tbd
+This generator that uses modular arithmetic and addition to produce a sequence of random numbers. The generator can achieve good statistical properties and is relatively simple to implement.
+
+The ACORN generator is defined by the following parameters:
+
+* $M$: Modulus (a large integer, typically a power of 2)
+* $k$: Order of the generator
+* $Y_0$: Initial seed, where $0 < Y_0 < M$
+* $Y^m_0$: Initial values for $m = 1, \ldots, k$, where $0 \leq Y^m_0 < M$
+
+The sequence is generated using the following steps:
+
+For $n \geq 1$ and $m = 1, \ldots, k$:
+
+$$ Y^m_{n+1} = \left(Y^m_n + Y^{m-1}_{n+1} \right) \mod M $$
+
+$$ X_{n+1} = Y^k_{n+1} $$
+
+```cs
+public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator {
+  private const int K = 12;
+  private readonly ulong[] _state = new ulong[AdditiveCongruentialRandomNumberGenerator.K + 1];
+
+  public void Seed(ulong seed) {
+    for (var m = 0; m <= AdditiveCongruentialRandomNumberGenerator.K; ++m)
+      this._state[m] = SplitMix64(ref seed);
+    
+    return;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static ulong SplitMix64(ref ulong z) {
+      z += 0x9E3779B97F4A7C15;
+      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
+      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
+      return z ^= (z >> 31);
+    }
+  }
+
+  public ulong Next() { // implicit mod 2^64
+    for (var m = 1; m <= AdditiveCongruentialRandomNumberGenerator.K; ++m)
+      this._state[m] = (this._state[m] + this._state[m - 1]);
+
+    return this._state[AdditiveCongruentialRandomNumberGenerator.K];
+  }
+
+}
+```
 
 ### Permutated Congruential Generator (PCG)
 

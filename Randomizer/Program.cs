@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Randomizer.Deterministic;
 
-var generator = new KeepItSimpleStupid();
+var generator = new AdditiveCongruentialRandomNumberGenerator();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
