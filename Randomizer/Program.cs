@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Randomizer.Deterministic;
 
-var generator = new SubtractWithBorrow();
+var generator = new FeedbackWithCarryShiftRegister();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 

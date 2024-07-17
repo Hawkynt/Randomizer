@@ -1087,7 +1087,7 @@ public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 }
 ```
 
-### Subtract with Borrow (SWB)
+### Subtract with Borrow (SWB) [1](https://projecteuclid.org/journals/annals-of-applied-probability/volume-1/issue-3/A-New-Class-of-Random-Number-Generators/10.1214/aoap/1177005878.full)
 
 This is a type of pseudorandom number generator in the family of lagged Fibonacci generators, introduced by George Marsaglia and Arif Zaman in 1991. These generators produce sequences of random numbers by using two preceding numbers at specified offsets or "lags" along with a carry value to influence the computation.
 
@@ -1162,7 +1162,91 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
 
 ### Feedback with Carry Shift Register (FCSR)
 
-tbd
+This is a type of pseudorandom number generator that extends the concept of Linear Feedback Shift Registers (LFSRs) by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
+
+The FCSR generator operates by shifting bits through a register and using feedback to update the state of the register. The key difference between FCSR and LFSR is the addition of a carry value, which adds non-linearity to the generator and improves the randomness of the output sequence.
+
+The FCSR generator is defined by the following parameters:
+
+* $n$: The size of the shift register
+* $Q$: A feedback polynomial with coefficients in $\{0, 1\}$
+* $r$: A carry value
+* $s$: The state of the shift register, represented as a binary vector of length $n$
+
+The generator produces the next random number using the following steps:
+
+1. Calculate the feedback value using the feedback polynomial:
+   $$
+   f = \sum_{i=0}^{n-1} q_i \cdot s_i \mod 2
+   $$
+   where $q_i$ are the coefficients of the feedback polynomial $Q$ and $s_i$ are the bits of the state vector $s$.
+
+2. Add the carry value $r$ to the feedback value $f$:
+   $$
+   c = f + r
+   $$
+
+3. Update the carry value $r$:
+   $$
+   r = \left\lfloor \frac{c}{2} \right\rfloor
+   $$
+
+4. Update the state of the shift register by shifting all bits to the right and inserting the new bit (the least significant bit of $c$) at the leftmost position:
+   $$
+   s = (c \mod 2) \, || \, s_{0} \, || \, s_{1} \, || \, \ldots \, || \, s_{n-2}
+   $$
+
+5. The new random number is the bit that was shifted out of the register (the rightmost bit of the original state).
+
+```cs
+public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
+  private ulong _state;
+  private byte _carryBit;
+  
+  private const ulong POLY = 0b1000_1101__0101_1101__1100_1011__1101_1011__0110_0111__1100_1010__1101_1011__0110_0111;
+  
+  public void Seed(ulong seed) {
+    this._carryBit = (byte)(seed & 1);
+    this._state = seed;
+  }
+
+  public ulong Next() {
+    var qword = 0UL;
+    for (var i = 0; i < 64; ++i)
+      qword |= (ulong)GetNextBit() << i;
+
+    return qword;
+
+    byte GetNextBit() {
+      var feedbackBit = ComputeFeedbackBit();
+      var feedbackCarrySum = (feedbackBit + this._carryBit);
+      this._carryBit = (byte)(feedbackCarrySum >> 1);
+
+      // get one bit out of state
+      var result = (byte)(this._state & 1);
+      this._state >>= 1;
+
+      // and rotate the feedbackCarrySum in
+      this._state |= (ulong)(feedbackCarrySum & 1) << 63;
+
+      return result;
+    }
+
+    byte ComputeFeedbackBit() {
+      var result = this._state & FeedbackWithCarryShiftRegister.POLY;
+      result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
+      result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
+      result ^= result >> 4;  // 00000000000000000000000000000000000000000000000000000000HHHHLLLL -> XXXX
+      result ^= result >> 2;  // 000000000000000000000000000000000000000000000000000000000000HHLL -> XX
+      result ^= result >> 1;  // 00000000000000000000000000000000000000000000000000000000000000HL -> X
+      return (byte)(result & 1);
+    }
+
+  }
+
+}
+```
 
 ### Keep it simple stupid (KISS)
 
