@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Randomizer.Deterministic;
 
-var generator = new PermutedCongruentialGenerator();
+var generator = new MersenneTwister();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
