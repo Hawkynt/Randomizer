@@ -1332,9 +1332,54 @@ public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator 
 }
 ```
 
-### Permutated Congruential Generator (PCG)
+### Permuted Congruential Generator (PCG)
 
-tbd
+This is a pseudorandom number generation algorithm developed in 2014 by Dr. Melissa E. O'Neill. PCG applies an output permutation function to improve the statistical properties of a modulo-$2^n$ LCG.
+
+The key features of PCG are:
+
+* **Large Modulus and State**: The LCG modulus and state are usually twice the size of the desired output.
+* **Power-of-2 Modulus**: Uses a power-of-2 modulus for efficient implementation.
+* **Output Permutation**: The state is not output directly; instead, it is permuted to improve randomness.
+
+The permutation step typically involves a combination of bitwise rotations, shifts, and xors, ensuring that the generated numbers have good statistical properties.
+
+The PCG family includes several different output transformations, each with specific characteristics:
+
+* **XSH-RR**: An xorshift followed by a random rotation.
+* **XSH-RS**: An xorshift followed by a random shift.
+* **XSL-RR**: A simplified xorshift followed by a random rotation, optimized for 128-bit states.
+* **RXS-M-XS**: An xorshift by a random amount, followed by a multiplication and another xorshift. This is the slowest and strongest output transformation when producing half-size output.
+* **XSL-RR-RR**: A combination of xorshift and double random rotations, producing 128-bit output from 128-bit state.
+
+```cs
+public class PermutedCongruentialGenerator : IRandomNumberGenerator {
+  private UInt128 _state;
+  
+  private static readonly UInt128 MULTIPLIER = UInt128.Parse("110282366920938463463374607431768211471",NumberStyles.Integer,CultureInfo.InvariantCulture);
+  private static readonly UInt128 INCREMENT = 1442695040888963407UL;
+
+  public void Seed(ulong seed) => this._state = (UInt128)seed << 64 | ~seed;
+
+  public ulong Next() {
+    this._state = this._state * MULTIPLIER + INCREMENT;
+
+    return Permute(this._state);
+
+    // Apply RXS-M-XS permutation
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static ulong Permute(UInt128 state) {
+      var count = (int)(state >> 122);
+      state ^= state >> (5 + count);
+      state *= 12605985483714917081UL;
+      state ^= state >> 43;
+
+      return (ulong)state;
+    }
+  }
+
+}
+```
 
 ### Mersenne Twister (MT)
 

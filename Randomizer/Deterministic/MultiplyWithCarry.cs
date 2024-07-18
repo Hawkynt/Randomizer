@@ -1,4 +1,6 @@
-﻿namespace Randomizer.Deterministic;
+﻿using System;
+
+namespace Randomizer.Deterministic;
 
 public class MultiplyWithCarry : IRandomNumberGenerator {
   private const ulong A = 6364136223846793005UL;  // Multiplier

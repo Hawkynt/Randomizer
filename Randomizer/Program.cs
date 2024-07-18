@@ -1,7 +1,9 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using Randomizer.Deterministic;
 
-var generator = new AdditiveCongruentialRandomNumberGenerator();
+var generator = new PermutedCongruentialGenerator();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 

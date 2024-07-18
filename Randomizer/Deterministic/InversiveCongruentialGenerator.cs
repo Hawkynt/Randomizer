@@ -1,4 +1,6 @@
-﻿namespace Randomizer.Deterministic;
+﻿using System.Runtime.CompilerServices;
+
+namespace Randomizer.Deterministic;
 
 public class InversiveCongruentialGenerator : IRandomNumberGenerator {
 
@@ -12,6 +14,7 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
   public ulong Next() {
     return this._state = this._state == 0 ? InversiveCongruentialGenerator._c : (InversiveCongruentialGenerator._a * ModInverse(this._state, InversiveCongruentialGenerator._q) + InversiveCongruentialGenerator._c) % InversiveCongruentialGenerator._q;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     ulong ModInverse(ulong value, ulong modulus) {
       ulong t = 0, newT = 1;
       ulong r = modulus, newR = value;

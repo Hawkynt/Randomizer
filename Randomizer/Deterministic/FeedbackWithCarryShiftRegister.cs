@@ -1,4 +1,6 @@
-﻿namespace Randomizer.Deterministic;
+﻿using System.Runtime.CompilerServices;
+
+namespace Randomizer.Deterministic;
 
 public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
   private ulong _state;
@@ -18,6 +20,7 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 
     return qword;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte GetNextBit() {
       var feedbackBit = ComputeFeedbackBit();
       var feedbackCarrySum = (feedbackBit + this._carryBit);
@@ -33,6 +36,7 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
       return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte ComputeFeedbackBit() {
       var result = this._state & FeedbackWithCarryShiftRegister.POLY;
       result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
