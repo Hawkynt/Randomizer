@@ -369,7 +369,7 @@ The period length of an RNG is the number of values it produces before the seque
 
 ### Test-Suites
 
-#### Diehard [1](https://github.com/eltonlaw/diehard)
+#### Diehard [^](https://github.com/eltonlaw/diehard)
 
 These tests are a suite of statistical tests designed by George Marsaglia to assess the quality of RNGs. These tests evaluate various aspects of randomness, including distribution uniformity, independence, and the occurrence of patterns.
 
@@ -381,7 +381,7 @@ These tests are a suite of statistical tests designed by George Marsaglia to ass
 
 * **Rank of Matrices:** Evaluates the rank of matrices constructed from random numbers.
 
-#### TestU01 [1](https://simul.iro.umontreal.ca/testu01/tu01.html)
+#### TestU01 [^](https://simul.iro.umontreal.ca/testu01/tu01.html)
 
 This is a comprehensive software library developed by Pierre L'Ecuyer for testing RNGs. It includes several batteries of tests, ranging from small (Crush) to large (BigCrush), providing a thorough evaluation of an RNG's statistical properties.
 
@@ -391,7 +391,7 @@ This is a comprehensive software library developed by Pierre L'Ecuyer for testin
 * **Crush:** A moderate battery of tests suitable for initial evaluations.
 * **BigCrush:** A large and highly stringent battery for thorough testing.
 
-#### NIST Statistical Test Suite [1](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-22r1a.pdf)
+#### NIST Statistical Test Suite [^](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-22r1a.pdf)
 
 The NIST Statistical Test Suite is a set of tests developed by the National Institute of Standards and Technology to evaluate the quality of random numbers, particularly for cryptographic applications. This suite assesses the randomness of binary sequences.
 
@@ -414,9 +414,11 @@ public interface IRandomNumberGenerator {
 }
 ```
 
+TODO: separate interface for Bit, UInt and ULong generators in the demo code. The 64 generators may use them.
+
 If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on overflow and underflow. Mathematically, this results in all arithmetic being performed in the finite fields $\mathbb{F}_{2^{32}}$ or $\mathbb{F}_{2^{64}}$.
 
-### Middle Square (MS) [1](http://bit-player.org/2022/the-middle-of-the-square)
+### Middle Square (MS) [^](http://bit-player.org/2022/the-middle-of-the-square)
 
 This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is 8n. It is defined by this formula:
 
@@ -455,7 +457,7 @@ public class MiddleSquare : IRandomNumberGenerator {
 }
 ```
 
-### Middle Square Weyl Sequence (MSWS) [1](https://arxiv.org/pdf/1704.00358)
+### Middle Square Weyl Sequence (MSWS) [^](https://arxiv.org/pdf/1704.00358)
 
 This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic Middle Square method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the Middle Square method with an additional Weyl sequence to improve randomness quality and performance.
 
@@ -482,7 +484,7 @@ public class MiddleSquareWeylSequence : IRandomNumberGenerator {
 }
 ```
 
-### XorShift (XS) [1](https://www.jstatsoft.org/index.php/jss/article/view/v008i14/916)
+### XorShift (XS) [^](https://www.jstatsoft.org/index.php/jss/article/view/v008i14/916)
 
 This method was introduced by George Marsaglia in 2003, and is a class of extremely fast and simple RNGs. These generators operate by repeatedly applying the exclusive-or (xor) operation combined with bit shifts to produce sequences of random numbers. XorShift RNGs can generate sequences of integers with periods $2^k - 1$ for values of $k$ like 32, 64, 96, 128, 160, and 192.
 
@@ -508,7 +510,7 @@ public class XorShift : IRandomNumberGenerator {
 }
 ```
 
-### XorShift+ (XS+) [1](https://arxiv.org/pdf/1404.0390)
+### XorShift+ (XS+) [^](https://arxiv.org/pdf/1404.0390)
 
 This method, introduced by Sebastiano Vigna, is an extension of XS generators. Instead of using a multiplication operation, XS+ returns the sum of two consecutive outputs from the XS generator. This approach helps to eliminate linear artifacts typically associated with linear operations in
 $\mathbb{Z}/2^{32}\mathbb{Z}$. The XS+ generators have been adopted in various JavaScript engines, including those in Chrome, Firefox, Safari, and Microsoft Edge. They are faster and have better statistical properties than some earlier RNGs, passing rigorous tests like BigCrush from the TestU01 suite.
@@ -539,7 +541,7 @@ public class XorShiftPlus : IRandomNumberGenerator {
 }
 ```
 
-### XorShift* (XS*) [1](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
+### XorShift* (XS*) [^](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
 
 These generators are an enhancement over the basic XS generators, incorporating an invertible multiplication (modulo the word size) as a non-linear transformation to the output. This technique was suggested by Marsaglia to address linear artifacts inherent in pure XS generators. The multiplication step ensures that the output sequence is equidistributed in the maximum possible dimension, which means it spans all possible values in its range more uniformly than the basic XS. These generators are designed to produce high-quality pseudorandom numbers and are widely used due to their simplicity and efficiency.
 
@@ -614,7 +616,7 @@ public class XorWow : IRandomNumberGenerator {
 }
 ```
 
-### SplitMix (SM) [1](https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf)
+### SplitMix (SM) [^](https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf)
 
 This generator is a simple and fast pseudo-random number generator designed by Sebastiano Vigna. It combines adding the golden gamma constant ($2^{64}/\phi$ where $\phi = \frac{1 + \sqrt{5}}{2}$) to David Stafford’s Mix13 variant of the MurmurHash3 finalizer. It's primarily used for initializing the states of other more complex generators, such as Xoroshiro and Xoshiro. It is particularly well-suited for this purpose because of its excellent statistical properties and simplicity.
 
@@ -637,7 +639,7 @@ public class SplitMix64 : IRandomNumberGenerator {
 }
 ```
 
-### XoShiRo (XSR) [1](https://prng.di.unimi.it/)
+### XoShiRo (XSR) [^](https://prng.di.unimi.it/)
 
 This algorithm is designed for high performance and quality. It uses a combination of XOR operations, bitwise shifts, and bitwise rotations to generate random numbers. XSR256** is used in various software implementations, including the GNU Fortran compiler, Lua 5.4, and the .NET framework from version 6.0 onwards.
 
@@ -684,7 +686,7 @@ public class Xoshiro256SS : IRandomNumberGenerator {
 }
 ```
 
-### XoRoShiRo (XRSR) [1](https://vigna.di.unimi.it/ftp/papers/ScrambledLinear.pdf)
+### XoRoShiRo (XRSR) [^](https://vigna.di.unimi.it/ftp/papers/ScrambledLinear.pdf)
 
 The name stands for XOR/rotate/shift/rotate, which describes the core operations used in these generators. These generators are designed to provide high performance utilizing less memory while maintaining excellent statistical properties
 
@@ -725,7 +727,7 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 }
 ```
 
-### Multiplicative Linear Congruential Generator (MLCG) [1](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
+### Multiplicative Linear Congruential Generator (MLCG) [^](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
 
 Originally introduced by D.H. Lehmer in 1951, the Multiplicative Linear Congruential Generator (MLCG) is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
 
@@ -751,7 +753,7 @@ public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator 
 }
 ```
 
-### Linear Congruential Generator (LCG) [1](https://en.wikipedia.org/wiki/Linear_congruential_generator)
+### Linear Congruential Generator (LCG) [^](https://en.wikipedia.org/wiki/Linear_congruential_generator)
 
 This is one of the oldest and most well-known PRNG algorithms. Introduced by W. E. Thomson and A. Rotenberg in 1958, it generates a sequence of numbers using a piecewise linear equation. The generator is defined by the recurrence relation:
 
@@ -781,7 +783,7 @@ public class LinearCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Combined Linear Congruential Generator (CLCG) [1](https://en.wikipedia.org/wiki/Combined_linear_congruential_generator)
+### Combined Linear Congruential Generator (CLCG) [^](https://en.wikipedia.org/wiki/Combined_linear_congruential_generator)
 
 This is an extension of the LCG designed to improve the statistical properties and period length by combining multiple LCGs. This method aims to mitigate the weaknesses inherent in single LCGs, such as short periods and poor distribution, by combining several generators with different parameters.
 
@@ -831,7 +833,7 @@ public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Inversive Congruential Generator (ICG) [1](https://www.ams.org/journals/mcom/1991-56-193/S0025-5718-1991-1052092-X/S0025-5718-1991-1052092-X.pdf)
+### Inversive Congruential Generator (ICG) [^](https://www.ams.org/journals/mcom/1991-56-193/S0025-5718-1991-1052092-X/S0025-5718-1991-1052092-X.pdf)
 
 These are a type of nonlinear congruential pseudorandom number generator that use the modular multiplicative inverse to generate the next number in a sequence. These generators offer excellent uniformity properties and longer periods compared to LCGs.
 
@@ -892,7 +894,7 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### MIXMAX [1](https://arxiv.org/pdf/1403.5355)
+### MIXMAX [^](https://arxiv.org/pdf/1403.5355)
 
 This generator is based on the properties of Kolmogorov-Anosov C-systems, which are a class of chaotic dynamical systems known for their excellent mixing properties. This generator utilizes an integer-valued unimodular matrix of size NxN and arithmetic defined on a Galois field GF[p] with a large prime modulus p. The primary idea is to leverage the dynamics of linear automorphisms on the unit hypercube in $\mathbb{R}^N$, which can be expressed as:
 
@@ -981,7 +983,7 @@ public class Mixmax : IRandomNumberGenerator {
 }
 ```
 
-### Multiply with Carry (MWC) [1](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
+### Multiply with Carry (MWC) [^](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
 
 These are a class of PRNGs that combines multiplication, addition, and a carry mechanism to produce sequences of random numbers, introduced by George Marsaglia in 1994.
 
@@ -1098,7 +1100,7 @@ public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 }
 ```
 
-### Subtract with Borrow (SWB) [1](https://projecteuclid.org/journals/annals-of-applied-probability/volume-1/issue-3/A-New-Class-of-Random-Number-Generators/10.1214/aoap/1177005878.full)
+### Subtract with Borrow (SWB) [^](https://projecteuclid.org/journals/annals-of-applied-probability/volume-1/issue-3/A-New-Class-of-Random-Number-Generators/10.1214/aoap/1177005878.full)
 
 This is a type of pseudorandom number generator in the family of lagged Fibonacci generators, introduced by George Marsaglia and Arif Zaman in 1991. These generators produce sequences of random numbers by using two preceding numbers at specified offsets or "lags" along with a carry value to influence the computation.
 
@@ -1283,7 +1285,7 @@ public class KeepItSimpleStupid:IRandomNumberGenerator {
 }
 ```
 
-### Additive Congruential Random Number Generator (ACORN) [1](https://acorn.wikramaratna.org/concept.html)
+### Additive Congruential Random Number Generator (ACORN) [^](https://acorn.wikramaratna.org/concept.html)
 
 This generator that uses modular arithmetic and addition to produce a sequence of random numbers. The generator can achieve good statistical properties and is relatively simple to implement.
 
@@ -1332,7 +1334,7 @@ public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator 
 }
 ```
 
-### Permuted Congruential Generator (PCG)
+### Permuted Congruential Generator (PCG) [^](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
 
 This is a pseudorandom number generation algorithm developed in 2014 by Dr. Melissa E. O'Neill. PCG applies an output permutation function to improve the statistical properties of a modulo-$2^n$ LCG.
 
@@ -1447,13 +1449,111 @@ public class MersenneTwister : IRandomNumberGenerator {
 }
 ```
 
-### Well Equidistributed Long-Period Linear (WELL)
+### Well Equidistributed Long-Period Linear (WELL) [^](https://www.iro.umontreal.ca/~lecuyer/myftp/papers/lfsr04.pdf)
 
-tbd
+The family of this generators was developed to improve upon MT by offering better equidistribution properties and faster recovery from bad states. Introduced by François Panneton and Pierre L'Ecuyer, WELL generators aim to provide high-quality random numbers for computational statistics and simulation.
 
-### Marsaglia Polar Method (MP)
+Characteristics
 
-tbd
+* **Equidistribution**: WELL generators offer better equidistribution in high dimensions compared to the Mersenne Twister, ensuring a more uniform distribution of generated numbers.
+* **Bit-Mixing**: WELL generators perform more bit transformations, leading to better statistical properties and reducing the impact of dependencies among successive output values.
+* **Performance**: They maintain competitive performance in terms of speed while improving the quality of the random numbers.
+* **Period Length**: WELL generators have extremely long periods, similar to MT, making them suitable for applications requiring extensive random data.
+Algorithm
+
+The WELL generators are based on linear recurrences modulo 2, specifically designed to improve the equidistribution and bit-mixing properties of the generated sequences. The state transition function uses a series of matrix transformations to update the state and produce the next random number.
+
+```cs
+public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
+  private const int R = 32;
+  private const int M1 = 3;
+  private const int M2 = 24;
+  private const int M3 = 10;
+
+  private uint index;
+  private readonly uint[] _state = new uint[R];
+  
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static uint MAT0POS(int t, uint v) => v ^ (v >> t);
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static uint MAT0NEG(int t, uint v) => v ^ (v << -t);
+
+  private uint V0 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    get => this._state[this.index];
+  }
+
+  private uint VM1 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    get => this._state[(this.index + M1) % R];
+  }
+
+  private uint VM2 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    get => this._state[(this.index + M2) % R];
+  }
+
+  private uint VM3 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    get => this._state[(this.index + M3) % R];
+  }
+
+  private uint VRm1 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    get => this._state[(this.index + R - 1) % R]; 
+  }
+
+  private uint newV0 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    set => this._state[(this.index + R - 1) % R] = value;
+  }
+
+  private uint newV1 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    set => this._state[this.index] = value;
+  }
+
+  public void Seed(ulong seed) {
+    this.index = 0;
+    for (var i = 0; i < this._state.Length; ++i)
+      this._state[i] = (uint)SplitMix64(ref seed);
+    
+    return;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static ulong SplitMix64(ref ulong z) {
+      z += 0x9E3779B97F4A7C15;
+      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
+      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
+      return z ^= (z >> 31);
+    }
+  }
+
+  public ulong Next() {
+    return (ulong)Next32() << 32 | Next32();
+
+    uint Next32() {
+      const int T1 = 8;
+      const int T2 = -19;
+      const int T3 = -14;
+      const int T4 = -11;
+      const int T5 = -7;
+      const int T6 = -13;
+      
+      var z0 = this.VRm1;
+      var z1 = this.V0 ^ MAT0POS(T1, this.VM1);
+      var z2 = MAT0NEG(T2, this.VM2) ^ MAT0NEG(T3, this.VM3);
+      var z3 = z1 ^ z2;
+
+      this.newV1 = z3;
+      this.newV0 = MAT0NEG(T4, z0) ^ MAT0NEG(T5, z1) ^ MAT0NEG(T6, z2);
+      this.index = (this.index + R - 1) % R;
+      return this._state[this.index];
+    }
+  }
+}
+```
 
 ### Ziggurat (ZIG)
 
@@ -1483,25 +1583,25 @@ tbd
 
 ### When you need less bits than the RNG provides
 
-tbd: extraction, sponge
+tbd: extraction, xor-sponge
+tbd: code for Generic class consuming IRandomNumberGenerator and providing it itself
 
 ### When you need more bits than the RNG provides
 
 tbd: concatenation, splitmix, spreadbits
+tbd: code for Generic class consuming IRandomNumberGenerator and providing it itself
 
 # Points of Interest
 
 tbd: comparison table of all in the mentioned test categories and suites
-tbd: charts and visualizations
+tbd: charts and visualizations (esp. randogram 16x16 (visualizing an 8-bit part of the output) or 256x256 (visualizing a 16-bit part of the output) pixel grayscale images) [^](https://www.pcg-random.org/posts/visualizing-the-heart-of-some-prngs.html)
 tbd: Practical examples and real-world applications.
 
 # Links
 
 * [RNG Engines](https://pracrand.sourceforge.net/RNG_engines.txt)
 
-
 # History
 
 * 20240711 - Initial GitHub Version
 * 20240624 - Initial Version
-
