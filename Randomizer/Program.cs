@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using Randomizer.Cryptographic;
 using Randomizer.Deterministic;
 
-var generator = new WellEquidistributedLongperiodLinear();
+var generator = new SelfShrinkingGenerator();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 

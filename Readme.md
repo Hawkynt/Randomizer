@@ -1555,13 +1555,73 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 }
 ```
 
-### Ziggurat (ZIG)
+### Marsaglia Polar Method (MP) [^](https://www.jstor.org/stable/2027592)
 
 tbd
 
-### Self-shrinking Generator (SSG)
+### Ziggurat (ZIG) [^](https://www.jstatsoft.org/article/view/v005i08)
 
 tbd
+
+### Self-shrinking Generator (SSG) [^](https://link.springer.com/book/10.1007/BFb0053418)
+
+### Self-Shrinking Generator
+
+This is a type of PRNG that operates based on the principles of linear feedback shift registers (LFSRs). Introduced by Meier and Staffelbach in 1994, the SSG is particularly known for its simplicity and the inherent cryptographic properties derived from its LFSR-based design. This generator shrinks the output of an LFSR by selecting bits in a specific manner, thus providing a more secure and less predictable output sequence. It works by using the output of an LFSR in pairs of bits. Depending on the values of these pairs, it either includes or excludes certain bits from the final output sequence. Here's how the SSG operates in detail:
+
+* **LFSR Step**: The LFSR is stepped to produce a new bit.
+* **Pairing Bits**: The generator looks at pairs of bits produced by consecutive steps of the LFSR.
+* **Output Rule**: If the first bit of the pair is `1`, the second bit is used as part of the output. If the first bit is `0`, the second bit is discarded.
+
+This process effectively "shrinks" the sequence of bits by removing some based on the predefined rule, hence the name "Self-Shrinking Generator".
+
+```cs
+public class SelfShrinkingGenerator : IRandomNumberGenerator {
+  private const ulong POLYNOM = 0b110110010010001001010;
+  private ulong _state;
+
+  public void Seed(ulong seed) => this._state = seed;
+
+  public ulong Next() {
+    ulong result = 0;
+    var resultBits = 0;
+
+    while (resultBits < 64) {
+      var x = StepLFSR();
+      var y = StepLFSR();
+
+      switch (x) {
+        case 1 when y==1:
+          result |= (1UL << resultBits);
+          ++resultBits;
+          break;
+        case 1 when y==0:
+          ++resultBits;
+          break;
+      }
+    }
+
+    return result;
+    
+    byte StepLFSR() {
+      this._state = (ulong)CalculateFeedback() << 63 | (this._state >> 1);
+      return (byte)(this._state & 1);
+
+      byte CalculateFeedback() {
+        var masked = this._state & POLYNOM;
+        masked ^= masked >> 32;
+        masked ^= masked >> 16;
+        masked ^= masked >> 8;
+        masked ^= masked >> 4;
+        masked ^= masked >> 2;
+        masked ^= masked >> 1;
+        return (byte)(masked & 1);
+      }
+    }
+  }
+
+}
+```
 
 ### Wichmann-Hill (WH)
 
