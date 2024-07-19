@@ -7,7 +7,7 @@ public class SelfShrinkingGenerator : IRandomNumberGenerator {
   public void Seed(ulong seed) => this._state = seed;
 
   public ulong Next() {
-    ulong result = 0;
+    var result = 0UL;
     var resultBits = 0;
 
     while (resultBits < 64) {
@@ -15,11 +15,11 @@ public class SelfShrinkingGenerator : IRandomNumberGenerator {
       var y = StepLFSR();
 
       switch (x) {
-        case 1 when y==1:
+        case 1 when y == 1:
           result |= (1UL << resultBits);
           ++resultBits;
           break;
-        case 1 when y==0:
+        case 1 when y == 0:
           ++resultBits;
           break;
       }

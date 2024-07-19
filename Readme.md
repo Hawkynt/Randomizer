@@ -491,6 +491,7 @@ This method was introduced by George Marsaglia in 2003, and is a class of extrem
 The algorithm uses a binary vector space model where each step involves applying a linear transformation over the binary vectors. The primary operations involve xor'ing a computer word with a shifted version of itself, either left or right. For instance, the operations
 
 $y \leftarrow y \oplus ( y << a )$ shifts $y$ left by $a$ bits and xor's the result with $y$ whereas
+
 $y \leftarrow y \oplus ( y >> b )$ shifts $y$ right by $b$ bits and xor's the result with $y$.
 
 ```cs
@@ -920,9 +921,9 @@ $$ A =
 \end{pmatrix}
 $$
 
-The matrix is recursively defined, and the only variable entry is $ A_{32} = 3 + s $, where $ s $ is a small integer chosen to avoid eigenvalues lying on the unit circle.
+The matrix is recursively defined, and the only variable entry is $A_{32} = 3 + s$, where $s$ is a small integer chosen to avoid eigenvalues lying on the unit circle.
 
-In practice, the MIXMAX RNG is implemented using modular arithmetic with a large prime modulus $ p $, ensuring that the state vectors remain within a finite field $ GF[p] $. The period of the generator is determined by the characteristic polynomial of the matrix $ A $, and the maximal period is attained when this polynomial is primitive in the extended Galois field $ GF[p^N] $.
+In practice, the MIXMAX RNG is implemented using modular arithmetic with a large prime modulus $p$, ensuring that the state vectors remain within a finite field $GF[p]$. The period of the generator is determined by the characteristic polynomial of the matrix $A$, and the maximal period is attained when this polynomial is primitive in the extended Galois field $GF[p^N]$.
 
 ```cs
 public class Mixmax : IRandomNumberGenerator {
@@ -1047,19 +1048,19 @@ The generator produces the next random number using the following steps:
 1. Select an index $i$ from the state array.
 2. Calculate the new value of the state $Q_i$ using the formula:
 
-   $$ t = a \cdot Q_i + c $$
+   $$t = a \cdot Q_i + c$$
 
 3. The new state value is given by the lower bits of $t$:
 
-   $$ Q_i = t \mod m $$
+   $$Q_i = t \mod m$$
 
 4. The carry value is updated using the upper bits of $t$:
 
-   $$ c = \left\lfloor \frac{t}{m} \right\rfloor $$
+   $$c = \left\lfloor \frac{t}{m} \right\rfloor$$
 
 5. The new random number is the complement of the new state value:
 
-   $$ X_{n+1} = (m - 1) - Q_i $$
+   $$X_{n+1} = (m - 1) - Q_i$$
 
 This process ensures that the state values are updated in a way that maintains a high-quality sequence of random numbers with a long period.
 
@@ -1118,14 +1119,14 @@ The generator produces the next random number using the following steps:
 1. Select two indices, $i - S$ and $i - L$, from the state array.
 2. Calculate the new value using the formula:
 
-   $$ X_i = (X_{i-S} - X_{i-L} - c) \mod m $$
+   $$X_i = (X_{i-S} - X_{i-L} - c) \mod m$$
 
 3. Update the carry value $c$ based on the result:
 
-   $$ c = \begin{cases}
+   $$c = \begin{cases}
    1 & \text{if } X_{i-S} - X_{i-L} - c < 0 \\
    0 & \text{otherwise}
-   \end{cases} $$
+   \end{cases}$$
 
 4. Update the state array at index $i$ with the new value $X_i$.
 
@@ -1189,25 +1190,22 @@ The FCSR generator is defined by the following parameters:
 The generator produces the next random number using the following steps:
 
 1. Calculate the feedback value using the feedback polynomial:
-   $$
-   f = \sum_{i=0}^{n-1} q_i \cdot s_i \mod 2
-   $$
+
+   $$f = \sum_{i=0}^{n-1} q_i \cdot s_i \mod 2$$
+
    where $q_i$ are the coefficients of the feedback polynomial $Q$ and $s_i$ are the bits of the state vector $s$.
 
 2. Add the carry value $r$ to the feedback value $f$:
-   $$
-   c = f + r
-   $$
+
+   $$c = f + r$$
 
 3. Update the carry value $r$:
-   $$
-   r = \left\lfloor \frac{c}{2} \right\rfloor
-   $$
+
+   $$r = \left\lfloor \frac{c}{2} \right\rfloor$$
 
 4. Update the state of the shift register by shifting all bits to the right and inserting the new bit (the least significant bit of $c$) at the leftmost position:
-   $$
-   s = (c \mod 2) \, || \, s_{0} \, || \, s_{1} \, || \, \ldots \, || \, s_{n-2}
-   $$
+
+   $$s = (c \mod 2) \, || \, s_{0} \, || \, s_{1} \, || \, \ldots \, || \, s_{n-2}$$
 
 5. The new random number is the bit that was shifted out of the register (the rightmost bit of the original state).
 
@@ -1336,7 +1334,7 @@ public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator 
 
 ### Permuted Congruential Generator (PCG) [^](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
 
-This is a pseudorandom number generation algorithm developed in 2014 by Dr. Melissa E. O'Neill. PCG applies an output permutation function to improve the statistical properties of a modulo-$2^n$ LCG.
+This is a pseudorandom number generation algorithm developed in 2014 by Dr. Melissa E. O'Neill. PCG applies an output permutation function to improve the statistical properties of a modulo- $2^n$ LCG.
 
 The key features of PCG are:
 
@@ -1583,7 +1581,7 @@ public class SelfShrinkingGenerator : IRandomNumberGenerator {
   public void Seed(ulong seed) => this._state = seed;
 
   public ulong Next() {
-    ulong result = 0;
+    var result = 0UL;
     var resultBits = 0;
 
     while (resultBits < 64) {
@@ -1591,11 +1589,11 @@ public class SelfShrinkingGenerator : IRandomNumberGenerator {
       var y = StepLFSR();
 
       switch (x) {
-        case 1 when y==1:
+        case 1 when y == 1:
           result |= (1UL << resultBits);
           ++resultBits;
           break;
-        case 1 when y==0:
+        case 1 when y == 0:
           ++resultBits;
           break;
       }
@@ -1644,17 +1642,21 @@ tbd
 ### When you need less bits than the RNG provides
 
 tbd: extraction, xor-sponge
+
 tbd: code for Generic class consuming IRandomNumberGenerator and providing it itself
 
 ### When you need more bits than the RNG provides
 
 tbd: concatenation, splitmix, spreadbits
+
 tbd: code for Generic class consuming IRandomNumberGenerator and providing it itself
 
 # Points of Interest
 
 tbd: comparison table of all in the mentioned test categories and suites
+
 tbd: charts and visualizations (esp. randogram 16x16 (visualizing an 8-bit part of the output) or 256x256 (visualizing a 16-bit part of the output) pixel grayscale images) [^](https://www.pcg-random.org/posts/visualizing-the-heart-of-some-prngs.html)
+
 tbd: Practical examples and real-world applications.
 
 # Links
