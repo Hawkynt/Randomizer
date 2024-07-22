@@ -10,7 +10,7 @@ public class WichmannHill : IRandomNumberGenerator {
   private const ulong _MULTIPLIER_Y = 1442695040888963407;
   private const ulong _MULTIPLIER_Z = 1229782938247303441;
 
-  private ulong _x, _y, _z;
+  private UInt128 _x, _y, _z;
   
   public void Seed(ulong seed) {
     var (q, r) = Math.DivRem(seed, _MODULUS_X);
@@ -25,6 +25,6 @@ public class WichmannHill : IRandomNumberGenerator {
     this._y = this._y * _MULTIPLIER_Y % _MODULUS_Y;
     this._z = this._z * _MULTIPLIER_Z % _MODULUS_Z;
 
-    return this._x + this._y + this._z;
+    return (ulong)(this._x + this._y + this._z);
   }
 }

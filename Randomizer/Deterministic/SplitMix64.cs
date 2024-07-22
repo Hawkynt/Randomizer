@@ -8,10 +8,10 @@ public class SplitMix64 : IRandomNumberGenerator {
   public void Seed(ulong seed) => this._state = seed;
 
   public ulong Next() {
-    var z = (this._state += SplitMix64._GOLDEN_GAMMA);
+    var z = this._state += _GOLDEN_GAMMA;
     z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
     z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-    z ^= (z >> 31);
+    z ^= z >> 31;
     return this._state = z;
   }
 

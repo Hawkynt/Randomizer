@@ -23,7 +23,7 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte GetNextBit() {
       var feedbackBit = ComputeFeedbackBit();
-      var feedbackCarrySum = (feedbackBit + this._carryBit);
+      var feedbackCarrySum = feedbackBit + this._carryBit;
       this._carryBit = (byte)(feedbackCarrySum >> 1);
 
       // get one bit out of state
@@ -38,7 +38,7 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte ComputeFeedbackBit() {
-      var result = this._state & FeedbackWithCarryShiftRegister.POLY;
+      var result = this._state & POLY;
       result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
       result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
       result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX

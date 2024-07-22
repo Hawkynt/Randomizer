@@ -13,7 +13,7 @@ public class XorShiftStar : IRandomNumberGenerator {
     s ^= s << 25;
     s ^= s >> 27;
 
-    return (this._state = s) * XorShiftStar._MULTIPLICATOR;
+    return (this._state = s) * _MULTIPLICATOR;
   }
 
 }

@@ -8,8 +8,8 @@ public class MultiplyWithCarry : IRandomNumberGenerator {
   private ulong _carry;                           // Carry value
 
   public void Seed(ulong seed) {
-    _state = seed;
-    _carry = ~seed;
+    this._state = seed;
+    this._carry = ~seed;
   }
 
   public ulong Next() { // implicit mod 2^64
@@ -20,6 +20,6 @@ public class MultiplyWithCarry : IRandomNumberGenerator {
     this._state = (ulong)state;
     this._carry = (ulong)(state >> 64);
 
-    return _state;
+    return this._state;
   }
 }

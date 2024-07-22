@@ -5,14 +5,14 @@ namespace Randomizer.Deterministic;
 public class InversiveCongruentialGenerator : IRandomNumberGenerator {
 
   private ulong _state;
-  private const ulong _a = 6364136223846793005;
-  private const ulong _c = 1; // 1442695040888963407;
-  private const ulong _q = 18446744073709551557;
+  private const ulong _A = 6364136223846793005;
+  private const ulong _C = 1442695040888963407;
+  private const ulong _Q = 18446744073709551557;
 
-  public void Seed(ulong seed) => this._state = seed % InversiveCongruentialGenerator._q;
+  public void Seed(ulong seed) => this._state = seed % _Q;
 
   public ulong Next() {
-    return this._state = this._state == 0 ? InversiveCongruentialGenerator._c : (InversiveCongruentialGenerator._a * ModInverse(this._state, InversiveCongruentialGenerator._q) + InversiveCongruentialGenerator._c) % InversiveCongruentialGenerator._q;
+    return this._state = this._state == 0 ? _C : (_A * ModInverse(this._state, _Q) + _C) % _Q;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     ulong ModInverse(ulong value, ulong modulus) {

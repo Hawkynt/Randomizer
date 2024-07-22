@@ -8,16 +8,16 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
   private const int S = 63;
   private const int L = 4093;
   private const int R = 4096;
-  private readonly ulong[] _state = new ulong[SubtractWithBorrow.R];
+  private readonly ulong[] _state = new ulong[R];
   private ulong _carry;
   private int _index;
 
   public void Seed(ulong seed) {
-    for (var i = 0; i < SubtractWithBorrow.R; ++i)
+    for (var i = 0; i < R; ++i)
       this._state[i] = SplitMix64(ref seed);
 
     this._carry = SplitMix64(ref seed);
-    this._index = SubtractWithBorrow.R - 1;
+    this._index = R - 1;
     return;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -25,19 +25,19 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
       z += 0x9E3779B97F4A7C15;
       z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
       z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
+      return z ^= z >> 31;
     }
   }
 
   public ulong Next() {
-    this._index = (this._index + 1) % SubtractWithBorrow.R;
-    var j = (this._index + SubtractWithBorrow.R - SubtractWithBorrow.S) % SubtractWithBorrow.R;
-    var k = (this._index + SubtractWithBorrow.R - SubtractWithBorrow.L) % SubtractWithBorrow.R;
+    this._index = (this._index + 1) % R;
+    var j = (this._index + R - S) % R;
+    var k = (this._index + R - L) % R;
 
     var t = (Int128)this._state[j] - this._state[k] - this._carry;
     this._carry = t < 0 ? 1UL : 0UL;
     if (t < 0)
-      t += SubtractWithBorrow.M;
+      t += M;
 
     this._state[this._index] = (ulong)t;
 

@@ -1,4 +1,6 @@
-﻿namespace Randomizer.Deterministic;
+﻿using System;
+
+namespace Randomizer.Deterministic;
 
 public class LinearCongruentialGenerator(ulong multiplier, ulong increment, ulong modulo) : IRandomNumberGenerator {
 
@@ -9,9 +11,9 @@ public class LinearCongruentialGenerator(ulong multiplier, ulong increment, ulon
   }
 
   private struct LCGWithModulo(ulong multiplier, ulong increment, ulong modulo) : IRandomNumberGenerator {
-    private ulong _state;
+    private UInt128 _state;
     public void Seed(ulong seed) => this._state = seed % modulo;
-    public ulong Next() => this._state = (this._state * multiplier + increment) % modulo;
+    public ulong Next() => (ulong)(this._state = (this._state * multiplier + increment) % modulo);
   }
 
   private readonly IRandomNumberGenerator _instance = modulo <= 1 

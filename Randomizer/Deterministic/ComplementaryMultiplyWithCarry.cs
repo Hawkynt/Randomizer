@@ -6,12 +6,12 @@ namespace Randomizer.Deterministic;
 public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
   private static readonly UInt128 A = 6364136223846793005UL;
   private const int R = 4096;
-  private readonly ulong[] _state = new ulong[ComplementaryMultiplyWithCarry.R];
+  private readonly ulong[] _state = new ulong[R];
   private ulong _carry;
-  private int _index = ComplementaryMultiplyWithCarry.R - 1;
+  private int _index = R - 1;
 
   public void Seed(ulong seed) {
-    for (var i = 0; i < ComplementaryMultiplyWithCarry.R; ++i)
+    for (var i = 0; i < R; ++i)
       this._state[i] = SplitMix64(ref seed);
 
     this._carry = SplitMix64(ref seed);
@@ -22,14 +22,14 @@ public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
       z += 0x9E3779B97F4A7C15;
       z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
       z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
+      return z ^= z >> 31;
     }
 
   }
 
   public ulong Next() { // implicit mod 2^64
-    this._index = (this._index + 1) % ComplementaryMultiplyWithCarry.R;
-    var t = ComplementaryMultiplyWithCarry.A * this._state[this._index] + this._carry;
+    this._index = (this._index + 1) % R;
+    var t = A * this._state[this._index] + this._carry;
 
     this._carry = (ulong)(t >> 64);
     this._state[this._index] = (ulong)t;
