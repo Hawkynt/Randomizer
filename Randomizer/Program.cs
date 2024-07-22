@@ -4,7 +4,7 @@ using System.Diagnostics;
 using Randomizer.Cryptographic;
 using Randomizer.Deterministic;
 
-var generator = new SelfShrinkingGenerator();
+var generator = new LinearFeedbackShiftRegister();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 

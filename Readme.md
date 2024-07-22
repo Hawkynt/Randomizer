@@ -1174,9 +1174,65 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
 }
 ```
 
+### Linear Feedback Shift Register (LFSR)
+
+This is basically a shift register whose input bit is a linear function of its previous state. The most commonly used linear function of single bits is the exclusive-or (XOR). LFSRs are commonly used in applications such as cryptography, error detection and correction, and pseudorandom number generation due to their ability to produce sequences of bits with good statistical properties.
+
+An LFSR is defined by its feedback polynomial, which determines how the previous bits of the register affect the new bit shifted into the register. The polynomial is typically represented in the form:
+
+$$P(x) = x^n + c_{n-1}x^{n-1} + \cdots + c_1x + c_0$$
+
+where $c_i$ are coefficients that are either `0` or `1`. This polynomial is used to compute the feedback bit for the register. The state of the LFSR at step $i$ can be represented as a binary vector $X_i$, and the next state $X_{i+1}$ is computed by shifting all bits of $X_i$ to the right and inserting the new feedback bit at the leftmost position.
+
+The feedback bit $f_i$ is calculated as follows:
+
+$$f_i = X_{i,0} \oplus X_{i,k_1} \oplus \cdots \oplus X_{i,k_m} $$
+
+where $k_{1..m}$ are the positions of the bits that correspond to the non-zero coefficients of the feedback polynomial.
+
+Consider the polynomial $P(x) = x^{21} + x^{20} + x^{18} + x^{14} + x^{13} + x^{11} + x^9 + x^8 + x^6 + x^5 + x^2 + 1$. This polynomial can be represented as a binary number:
+
+$$\text{POLYNOM} = 0b110100011010110110011$$
+
+This polynomial will be used to compute the feedback bit for the LFSR.
+
+```cs
+public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
+  private const ulong POLYNOM = 0b110100011010110110011;
+  private ulong _state;
+
+  public void Seed(ulong seed) => this._state = seed;
+
+  public ulong Next() {
+    var result = 0UL;
+    for (var i = 0; i < 64; ++i)
+      result |= (ulong)StepLFSR() << i;
+
+    return result;
+
+    byte StepLFSR() {
+      this._state = (ulong)CalculateFeedback() << 63 | (this._state >> 1);
+      return (byte)(this._state & 1);
+
+      byte CalculateFeedback() {
+        var masked = this._state & POLYNOM;
+        masked ^= masked >> 32;
+        masked ^= masked >> 16;
+        masked ^= masked >> 8;
+        masked ^= masked >> 4;
+        masked ^= masked >> 2;
+        masked ^= masked >> 1;
+        return (byte)(masked & 1);
+      }
+    }
+  }
+
+}
+```
+
 ### Feedback with Carry Shift Register (FCSR)
 
-This is a type of pseudorandom number generator that extends the concept of Linear Feedback Shift Registers (LFSRs) by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
+This is a type of pseudorandom number generator that extends the concept of LFSRs by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
 
 The FCSR generator operates by shifting bits through a register and using feedback to update the state of the register. The key difference between FCSR and LFSR is the addition of a carry value, which adds non-linearity to the generator and improves the randomness of the output sequence.
 

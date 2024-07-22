@@ -1,6 +1,6 @@
-﻿namespace Randomizer.Cryptographic;
+﻿namespace Randomizer.Deterministic;
 
-public class SelfShrinkingGenerator : IRandomNumberGenerator {
+public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
   private const ulong POLYNOM = 0b110110010010001001010;
   private ulong _state;
 
@@ -8,21 +8,11 @@ public class SelfShrinkingGenerator : IRandomNumberGenerator {
 
   public ulong Next() {
     var result = 0UL;
-    var resultBits = 0;
-
-    while (resultBits < 64) {
-      var x = StepLFSR();
-      var y = StepLFSR();
-
-      if (x == 0)
-        continue;
-
-      result |= ((ulong)y << resultBits);
-      ++resultBits;
-    }
+    for (var i = 0; i < 64; ++i)
+      result |= (ulong)StepLFSR() << i;
 
     return result;
-    
+
     byte StepLFSR() {
       this._state = (ulong)CalculateFeedback() << 63 | (this._state >> 1);
       return (byte)(this._state & 1);
