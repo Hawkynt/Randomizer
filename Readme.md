@@ -594,7 +594,9 @@ public class XorWow : IRandomNumberGenerator {
       x ^= x >> 2;
       x ^= x << 1;
 
-      (this._x, this._y, this._z, this._w) = (this._y, this._z, this._w, this._v);
+      (this._x, this._y, this._z, this._w) 
+      = (this._y, this._z, this._w, this._v)
+      ;
 
       var v = this._v;
       v ^= v << 4;
@@ -822,7 +824,7 @@ public class LinearCongruentialGenerator : IRandomNumberGenerator {
 
   public void Seed(ulong seed) => this._state = seed;
 
-  public ulong Next() => this._state = (_MULTIPLIER * _state + _INCREMENT); // implicit mod 2^64
+  public ulong Next() => this._state = _MULTIPLIER * _state + _INCREMENT; // implicit mod 2^64
 
 }
 ```
@@ -858,11 +860,11 @@ public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
   private ulong _state1;
   private ulong _state2;
 
-  private const ulong _a1 = 6364136223846793005;  // Multiplier for LCG1
-  private const ulong _c1 = 1442695040888963407;  // Increment  for LCG1
+  private const ulong _A1 = 6364136223846793005;  // Multiplier for LCG1
+  private const ulong _C1 = 1442695040888963407;  // Increment  for LCG1
   
-  private const ulong _a2 = 3935559000370003845;  // Multiplier for LCG2
-  private const ulong _c2 = 2691343689449507681;  // Increment  for LCG2
+  private const ulong _A2 = 3935559000370003845;  // Multiplier for LCG2
+  private const ulong _C2 = 2691343689449507681;  // Increment  for LCG2
   
   public void Seed(ulong seed) {
     this._state1 = seed;
@@ -870,9 +872,9 @@ public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
   }
 
   public ulong Next() // implicit mod 2^64
-    => (this._state1 = (_a1 * this._state1 + _c1)) 
-     + (this._state2 = (_a2 * this._state2 + _c2))
-     ;
+    => (this._state1 = _A1 * this._state1 + _C1) 
+       + (this._state2 = _A2 * this._state2 + _C2)
+  ;
     
 }
 ```
@@ -905,36 +907,33 @@ The maximum period for an ICG is $q$, provided $a$ and $c$ are chosen appropriat
 public class InversiveCongruentialGenerator : IRandomNumberGenerator {
 
   private ulong _state;
-  private const ulong _a = 6364136223846793005;
-  private const ulong _c = 1442695040888963407;
-  private const ulong _q = 18446744073709551557;
+  private const ulong _A = 6364136223846793005;
+  private const ulong _C = 1442695040888963407;
+  private const ulong _Q = 18446744073709551557;
 
-  public void Seed(ulong seed) => this._state = seed % _q;
+  public void Seed(ulong seed) => this._state = seed % _Q;
 
   public ulong Next() {
-    if (_state == 0) {
-      _state = _c;
-    } else {
-      _state = (_a * ModInverse(_state, _q) + _c) % _q;
+    return this._state = this._state == 0 ? _C : (_A * ModInverse(this._state, _Q) + _C) % _Q;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    ulong ModInverse(ulong value, ulong modulus) {
+      ulong t = 0, newT = 1;
+      ulong r = modulus, newR = value;
+
+      while (newR != 0) {
+        var quotient = r / newR;
+        var tProduct = quotient * newT;
+        var rProduct = quotient * newR;
+        
+        (t, newT) = (newT, tProduct > t ? modulus + t - tProduct : t - tProduct);
+        (r, newR) = (newR, rProduct > t ? modulus + r - rProduct : r - rProduct);
+      }
+
+      return r > 1 ? 0 : t;
     }
-    return _state;
   }
 
-  private ulong ModInverse(ulong value, ulong modulus) {
-    ulong t = 0, newT = 1;
-    ulong r = modulus, newR = value;
-    
-    while (newR != 0) {
-      ulong quotient = r / newR;
-      (t, newT) = (newT, t - quotient * newT);
-      (r, newR) = (newR, r - quotient * newR);
-    }
-
-    if (r > 1) throw new ArithmeticException("Value has no modular inverse.");
-    if (t < 0) t += modulus;
-
-    return t;
-  }
 }
 ```
 
@@ -1712,9 +1711,53 @@ tbd
 
 tbd
 
-### Blum Blum Shub (BBS)
+### Blum Blum Shub (BBS) [^](https://www.cs.miami.edu/home/burt/learning/Csc609.062/docs/bbs.pdf) [^](https://people.tamu.edu/~rojas//bbs.pdf)
 
-tbd
+This generator is a cryptographically secure pseudorandom number generator based on the difficulty of factoring large composite numbers. It was proposed by Lenore Blum, Manuel Blum, and Michael Shub in 1986. The generator is particularly known for its security properties, making it suitable for cryptographic applications.
+
+The BBS is defined by the following parameters:
+
+* Two large prime numbers, $p$ and $q$, where both $p$ and $q$ are congruent to 3 modulo 4.
+* The modulus $n = p \cdot q$ .
+* An initial seed $s$ such that $s$ is relatively prime to $n$ (i.e., $\gcd(s, n) = 1$).
+
+The generator produces the next state using the recurrence relation:
+$$X_{n+1} = X_n^2 \mod n$$
+
+To generate pseudorandom bits, the least significant bit (LSB) of each $X_n$ is used. For more bits, several of the least significant bits can be extracted.
+
+```cs
+public class BlumBlumShub : IRandomNumberGenerator {
+  private UInt128 _state;
+  private readonly UInt128 _modulus;
+
+  public BlumBlumShub() : this(18446744073709551559, 30064771079) { }
+
+  public BlumBlumShub(ulong p, ulong q) {
+    if (p % 4 != 3 || q % 4 != 3)
+      throw new ArgumentException("Both p and q must be congruent to 3 modulo 4.");
+
+    this._modulus = (UInt128)p * q;
+  }
+
+  public void Seed(ulong seed) {
+    this._state = seed % this._modulus;
+    
+    // Ensure seed is relatively prime to modulus
+    while (BigInteger.GreatestCommonDivisor(this._state, this._modulus) != 1)
+      this._state = (this._state + 1) % this._modulus;
+  }
+
+  public ulong Next() {
+    ulong result = 0;
+    for (var i = 0; i < 64; i += 8) { // extract 8 bits at a time
+      this._state = this._state * this._state % this._modulus;
+      result |= (ulong)(this._state & 0xff) << i;
+    }
+    return result;
+  }
+}
+```
 
 ### ChaCha20
 
