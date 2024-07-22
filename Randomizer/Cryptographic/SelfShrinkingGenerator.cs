@@ -10,16 +10,14 @@ public class SelfShrinkingGenerator : IRandomNumberGenerator {
     var result = 0UL;
     var resultBits = 0;
 
-    while (resultBits < 64) {
-      var x = StepLFSR();
-      var y = StepLFSR();
-
+    do {
+      var (x, y) = (StepLFSR(), StepLFSR());
       if (x == 0)
         continue;
 
       result |= ((ulong)y << resultBits);
       ++resultBits;
-    }
+    } while (resultBits < 64);
 
     return result;
     

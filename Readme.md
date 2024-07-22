@@ -438,47 +438,37 @@ The code example will work on binary instead of decimal digits.
 ```cs
 public class MiddleSquare : IRandomNumberGenerator {
 
-  private ulong _state;
+  private UInt128 _state;
 
-  public void Seed(ulong seed) => this._state = seed;
+  public void Seed(ulong seed) => this._state = (UInt128)seed << 64 | ~seed;
 
-  public ulong Next() {
-    var high = Next32();
-    var low = Next32();
-    return (ulong)high << 32 | low;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    uint Next32() {
-      this._state *= this._state;
-      return (uint)(this._state >> 16);
-    }
-  }
-
+  public ulong Next() => (ulong)((this._state *= this._state) >> 32);
+  
 }
 ```
 
 ### Middle Square Weyl Sequence (MSWS) [^](https://arxiv.org/pdf/1704.00358)
 
-This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic Middle Square method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the Middle Square method with an additional Weyl sequence to improve randomness quality and performance.
+This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic Middle Square method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the Middle Square method with an additional [Weyl sequence](https://en.wikipedia.org/wiki/Weyl_sequence) to improve randomness quality and performance.
 
-The Weyl sequence is an integer stepping sequence of period $2^{64}$, which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs.
+The Weyl sequence is an integer stepping sequence $0, w, 2w, 3w, ...$ of period $2^{64}$, requiring $w$ to be odd, which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs.
 
 ```cs
 public class MiddleSquareWeylSequence : IRandomNumberGenerator {
 
   private const ulong _WEYL_CONSTANT = 0xB5AD4ECEDA1CE2A9;
-  private ulong _state;
-  private ulong _weyl;
-  
-  public void Seed(ulong seed) => this._state = this._weyl = seed;
-  
+  private UInt128 _state;
+  private UInt128 _weyl;
+
+  public void Seed(ulong seed) {
+    this._state = (UInt128)seed << 64 | ~seed;
+    this._weyl = 0;
+  }
+
   public ulong Next() {
     this._state *= this._state;
     this._state += this._weyl += _WEYL_CONSTANT;
-    var register = this._state;
-    var high = (register >> 32);
-    var low = register << 32;
-    return this._state = low | high;
+    return (ulong)(this._state >> 32);
   }
 
 }
@@ -730,16 +720,16 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 
 ### Multiplicative Linear Congruential Generator (MLCG) [^](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
 
-Originally introduced by D.H. Lehmer in 1951, the Multiplicative Linear Congruential Generator (MLCG) is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
+Originally introduced by D.H. Lehmer in 1951, this is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
 
 $$X_{n+1} = (a \cdot X_n) \mod m$$
 
 * $X$ is the sequence of pseudo-random values.
-* $m$ is the modulus, $0 < m$.
-* $a$ is the multiplier, $0 < a < m$.
-* $X_0$ is the seed or start value, $0 \leq X_0 < m$.
+* $m$ is the modulus, $1 < m$.
+* $a$ is the multiplier, $1 < a < m$.
+* $X_0$ is the seed or start value, $1 \leq X_0 < m$.
 
-In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation.
+In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_n$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
 
 ```cs
 public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -751,6 +741,59 @@ public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator 
 
   public ulong Next() => _state *= _MULTIPLIER; // implicit mod 2^64
 
+}
+```
+
+### Wichmann-Hill (WH) [^](https://www.researchgate.net/publication/220055967_Generating_good_pseudo-random_numbers)
+
+This generator combines three separate MLCGs to produce a sequence of pseudorandom numbers with a very long period and good statistical properties. This generator was introduced by B. A. Wichmann and I. D. Hill in 1982.
+
+The WH uses three individual MLCGs, each with its own modulus, multiplier, and seed. The output of these three generators is combined to produce a single pseudorandom number. The mathematical definitions of the three LCGs are as follows:
+
+**First LCG:**
+
+   $$x_{n+1} = (171 \cdot x_n) \mod 30269$$
+
+**Second LCG:**
+
+   $$y_{n+1} = (172 \cdot y_n) \mod 30307$$
+
+**Third LCG:**
+
+   $$z_{n+1} = (170 \cdot z_n) \mod 30323$$
+
+The combined output $X_n$ of the Wichmann-Hill generator at step $n$ is given by:
+
+$$X_n = x_n+y_n+z_n $$
+
+This combination ensures that the resulting sequence has a very long period, specifically the least common multiple of the three moduli, which is approximately $2.8 \times 10^{12}$ however it can only produce numbers between `0` and the sum of the three moduli `90899`.
+
+```cs
+public class WichmannHill : IRandomNumberGenerator {
+  private const ulong _MODULUS_X = 18446744073709551557;
+  private const ulong _MODULUS_Y = 18446744073709551533;
+  private const ulong _MODULUS_Z = 18446744073709551521;
+  private const ulong _MULTIPLIER_X = 6364136223846793005;
+  private const ulong _MULTIPLIER_Y = 1442695040888963407;
+  private const ulong _MULTIPLIER_Z = 1229782938247303441;
+
+  private ulong _x, _y, _z;
+  
+  public void Seed(ulong seed) {
+    var (q, r) = Math.DivRem(seed, _MODULUS_X);
+    this._x = r == 0 ? ~r : r;
+    (q, r) = Math.DivRem(q, _MODULUS_Y);
+    this._y = r == 0 ? ~r : r;
+    this._z = q == 0 ? ~q : q;
+  }
+
+  public ulong Next() {
+    this._x = this._x * _MULTIPLIER_X % _MODULUS_X;
+    this._y = this._y * _MULTIPLIER_Y % _MODULUS_Y;
+    this._z = this._z * _MULTIPLIER_Z % _MODULUS_Z;
+
+    return this._x + this._y + this._z;
+  }
 }
 ```
 
@@ -895,95 +938,6 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### MIXMAX [^](https://arxiv.org/pdf/1403.5355)
-
-This generator is based on the properties of Kolmogorov-Anosov C-systems, which are a class of chaotic dynamical systems known for their excellent mixing properties. This generator utilizes an integer-valued unimodular matrix of size NxN and arithmetic defined on a Galois field GF[p] with a large prime modulus p. The primary idea is to leverage the dynamics of linear automorphisms on the unit hypercube in $\mathbb{R}^N$, which can be expressed as:
-
-$$u_i(t + 1) = \sum_{j=1}^{N} A_{ij} u_j(t) \mod 1$$
-
-Here, $u$ represents the vector in the unit interval [0, 1), and $A$ is the defining matrix whose entries are integers, $A_{ij} \in \mathbb{Z}$. The conditions for the matrix $A$ to ensure the desired properties are:
-
-* $\det A = 1$
-* The eigenvalues $\lambda_k$ of $A$ must not lie on the unit circle, i.e., $|\lambda_k| \neq 1$ for all $k = 1, 2, ..., N$.
-
-These conditions ensure that the map defined by $A$ is volume-preserving and exhibits exponential divergence of nearby trajectories, creating a highly chaotic and mixing behavior necessary for generating high-quality pseudo-random numbers.
-
-The specific form of the MIXMAX matrix used in the generator is:
-
-$$ A =
-\begin{pmatrix}
-1 & 1 & 1 & 1 & \cdots & 1 \\
-1 & 2 & 1 & 1 & \cdots & 1 \\
-1 & 3 + s & 2 & 1 & \cdots & 1 \\
-1 & 4 & 3 & 2 & \cdots & 1 \\
-\vdots & \vdots & \vdots & \vdots & \ddots & \vdots \\
-1 & N & N-1 & N-2 & \cdots & 2 \\
-\end{pmatrix}
-$$
-
-The matrix is recursively defined, and the only variable entry is $A_{32} = 3 + s$, where $s$ is a small integer chosen to avoid eigenvalues lying on the unit circle.
-
-In practice, the MIXMAX RNG is implemented using modular arithmetic with a large prime modulus $p$, ensuring that the state vectors remain within a finite field $GF[p]$. The period of the generator is determined by the characteristic polynomial of the matrix $A$, and the maximal period is attained when this polynomial is primitive in the extended Galois field $GF[p^N]$.
-
-```cs
-public class Mixmax : IRandomNumberGenerator {
-  
-  private const int _matrixSize = 256;
-  private const long _magicNumber = -3;
-  private ulong[] _state;
-  private readonly ulong[,] _matrix;
-
-  public Mixmax() {
-    this._state = new ulong[Mixmax._matrixSize];
-    this._matrix = new ulong[Mixmax._matrixSize, Mixmax._matrixSize];
-    this.InitializeMatrix();
-  }
-
-  private void InitializeMatrix() {
-    for (var row = 0; row < Mixmax._matrixSize; ++row) {
-      this._matrix[row, 0] = 1;
-      for (var column = 1; column < Mixmax._matrixSize; ++column)
-        if (column > row)
-          this._matrix[row, column] = 1;
-        else
-          this._matrix[row, column] = (ulong)(row - column + 2);
-    }
-
-    this._matrix[2, 1]+= unchecked((ulong)Mixmax._magicNumber);
-  }
-
-  public void Seed(ulong seed) {
-    for (var i = 0; i < Mixmax._matrixSize; ++i)
-      this._state[i] = SplitMix64(ref seed);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
-  }
-
-  public ulong Next() { // implicit mod 2^64
-
-    ulong result = 0;
-    for (var i = 0; i < Mixmax._matrixSize; ++i)
-      result += this._state[i];
-
-    var newState = new ulong[Mixmax._matrixSize];
-    for (var i = 0; i < Mixmax._matrixSize; ++i) {
-      newState[i] = 0;
-      for (var j = 0; j < Mixmax._matrixSize; ++j)
-        newState[i] += this._matrix[i, j] * this._state[j];
-    }
-
-    this._state = newState;
-    return result;
-  }
-}
-```
-
 ### Multiply with Carry (MWC) [^](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
 
 These are a class of PRNGs that combines multiplication, addition, and a carry mechanism to produce sequences of random numbers, introduced by George Marsaglia in 1994.
@@ -1028,6 +982,30 @@ public class MultiplyWithCarry : IRandomNumberGenerator {
 
       return _state;
     }
+}
+```
+
+### Keep it simple stupid (KISS)
+
+This generator is a combination of several simple and fast pseudorandom number generators. It was introduced by George Marsaglia to create a generator with a longer period and better statistical properties by combining the outputs of multiple generators. The idea behind KISS is to use the strengths of different RNGs to compensate for each other's weaknesses.
+
+A typical KISS generator combines LCG, XORShift, and a MWC. Each of these generators produces a sequence of pseudorandom numbers independently, and their outputs are combined using a simple bitwise operation to produce the final random number.
+
+```cs
+public class KeepItSimpleStupid:IRandomNumberGenerator {
+
+  private readonly LinearCongruentialGenerator _lcg = new();
+  private readonly XorShift _xs = new();
+  private readonly MultiplyWithCarry _mwc = new();
+
+  public void Seed(ulong seed) {
+    this._lcg.Seed(seed);
+    this._xs.Seed(seed);
+    this._mwc.Seed(seed);
+  }
+
+  public ulong Next() => this._lcg.Next() ^ this._xs.Next() ^ this._mwc.Next();
+
 }
 ```
 
@@ -1230,6 +1208,58 @@ public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
 }
 ```
 
+### Self-shrinking Generator (SSG) [^](https://link.springer.com/book/10.1007/BFb0053418)
+
+This is a type of PRNG that operates based on the principles of LFSRs. Introduced by Meier and Staffelbach in 1994, the SSG is particularly known for its simplicity and the inherent cryptographic properties derived from its LFSR-based design. This generator shrinks the output of an LFSR by selecting bits in a specific manner, thus providing a more secure and less predictable output sequence. It works by using the output of an LFSR in pairs of bits. Depending on the values of these pairs, it either includes or excludes certain bits from the final output sequence. Here's how the SSG operates in detail:
+
+* **LFSR Step**: The LFSR is stepped to produce a new bit.
+* **Pairing Bits**: The generator looks at pairs of bits $(x, y)$ produced by consecutive steps of the LFSR.
+* **Output Rule**: If the first bit of the pair is `1`, the second bit is used as part of the output. If the first bit is `0`, the second bit is discarded.
+
+This process effectively "shrinks" the sequence of bits by removing some based on the predefined rule, hence the name "Self-Shrinking Generator".
+
+```cs
+public class SelfShrinkingGenerator : IRandomNumberGenerator {
+  private const ulong POLYNOM = 0b110110010010001001010;
+  private ulong _state;
+
+  public void Seed(ulong seed) => this._state = seed;
+
+  public ulong Next() {
+    var result = 0UL;
+    var resultBits = 0;
+
+    do {
+      var (x, y) = (StepLFSR(), StepLFSR());
+      if (x == 0)
+        continue;
+
+      result |= ((ulong)y << resultBits);
+      ++resultBits;
+    } while (resultBits < 64);
+
+    return result;
+    
+    byte StepLFSR() {
+      this._state = (ulong)CalculateFeedback() << 63 | (this._state >> 1);
+      return (byte)(this._state & 1);
+
+      byte CalculateFeedback() {
+        var masked = this._state & POLYNOM;
+        masked ^= masked >> 32;
+        masked ^= masked >> 16;
+        masked ^= masked >> 8;
+        masked ^= masked >> 4;
+        masked ^= masked >> 2;
+        masked ^= masked >> 1;
+        return (byte)(masked & 1);
+      }
+    }
+  }
+
+}
+```
+
 ### Feedback with Carry Shift Register (FCSR)
 
 This is a type of pseudorandom number generator that extends the concept of LFSRs by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
@@ -1311,30 +1341,6 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
     }
 
   }
-
-}
-```
-
-### Keep it simple stupid (KISS)
-
-This generator is a combination of several simple and fast pseudorandom number generators. It was introduced by George Marsaglia to create a generator with a longer period and better statistical properties by combining the outputs of multiple generators. The idea behind KISS is to use the strengths of different RNGs to compensate for each other's weaknesses.
-
-A typical KISS generator combines LCG, XORShift, and a MWC. Each of these generators produces a sequence of pseudorandom numbers independently, and their outputs are combined using a simple bitwise operation to produce the final random number.
-
-```cs
-public class KeepItSimpleStupid:IRandomNumberGenerator {
-
-  private readonly LinearCongruentialGenerator _lcg = new();
-  private readonly XorShift _xs = new();
-  private readonly MultiplyWithCarry _mwc = new();
-
-  public void Seed(ulong seed) {
-    this._lcg.Seed(seed);
-    this._xs.Seed(seed);
-    this._mwc.Seed(seed);
-  }
-
-  public ulong Next() => this._lcg.Next() ^ this._xs.Next() ^ this._mwc.Next();
 
 }
 ```
@@ -1434,6 +1440,95 @@ public class PermutedCongruentialGenerator : IRandomNumberGenerator {
     }
   }
 
+}
+```
+
+### MIXMAX [^](https://arxiv.org/pdf/1403.5355)
+
+This generator is based on the properties of Kolmogorov-Anosov C-systems, which are a class of chaotic dynamical systems known for their excellent mixing properties. This generator utilizes an integer-valued unimodular matrix of size NxN and arithmetic defined on a Galois field GF[p] with a large prime modulus p. The primary idea is to leverage the dynamics of linear automorphisms on the unit hypercube in $\mathbb{R}^N$, which can be expressed as:
+
+$$u_i(t + 1) = \sum_{j=1}^{N} A_{ij} u_j(t) \mod 1$$
+
+Here, $u$ represents the vector in the unit interval [0, 1), and $A$ is the defining matrix whose entries are integers, $A_{ij} \in \mathbb{Z}$. The conditions for the matrix $A$ to ensure the desired properties are:
+
+* $\det A = 1$
+* The eigenvalues $\lambda_k$ of $A$ must not lie on the unit circle, i.e., $|\lambda_k| \neq 1$ for all $k = 1, 2, ..., N$.
+
+These conditions ensure that the map defined by $A$ is volume-preserving and exhibits exponential divergence of nearby trajectories, creating a highly chaotic and mixing behavior necessary for generating high-quality pseudo-random numbers.
+
+The specific form of the MIXMAX matrix used in the generator is:
+
+$$ A =
+\begin{pmatrix}
+1 & 1 & 1 & 1 & \cdots & 1 \\
+1 & 2 & 1 & 1 & \cdots & 1 \\
+1 & 3 + s & 2 & 1 & \cdots & 1 \\
+1 & 4 & 3 & 2 & \cdots & 1 \\
+\vdots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & N & N-1 & N-2 & \cdots & 2 \\
+\end{pmatrix}
+$$
+
+The matrix is recursively defined, and the only variable entry is $A_{32} = 3 + s$, where $s$ is a small integer chosen to avoid eigenvalues lying on the unit circle.
+
+In practice, the MIXMAX RNG is implemented using modular arithmetic with a large prime modulus $p$, ensuring that the state vectors remain within a finite field $GF[p]$. The period of the generator is determined by the characteristic polynomial of the matrix $A$, and the maximal period is attained when this polynomial is primitive in the extended Galois field $GF[p^N]$.
+
+```cs
+public class Mixmax : IRandomNumberGenerator {
+  
+  private const int _matrixSize = 256;
+  private const long _magicNumber = -3;
+  private ulong[] _state;
+  private readonly ulong[,] _matrix;
+
+  public Mixmax() {
+    this._state = new ulong[Mixmax._matrixSize];
+    this._matrix = new ulong[Mixmax._matrixSize, Mixmax._matrixSize];
+    this.InitializeMatrix();
+  }
+
+  private void InitializeMatrix() {
+    for (var row = 0; row < Mixmax._matrixSize; ++row) {
+      this._matrix[row, 0] = 1;
+      for (var column = 1; column < Mixmax._matrixSize; ++column)
+        if (column > row)
+          this._matrix[row, column] = 1;
+        else
+          this._matrix[row, column] = (ulong)(row - column + 2);
+    }
+
+    this._matrix[2, 1]+= unchecked((ulong)Mixmax._magicNumber);
+  }
+
+  public void Seed(ulong seed) {
+    for (var i = 0; i < Mixmax._matrixSize; ++i)
+      this._state[i] = SplitMix64(ref seed);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static ulong SplitMix64(ref ulong z) {
+      z += 0x9E3779B97F4A7C15;
+      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
+      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
+      return z ^= (z >> 31);
+    }
+  }
+
+  public ulong Next() { // implicit mod 2^64
+
+    ulong result = 0;
+    for (var i = 0; i < Mixmax._matrixSize; ++i)
+      result += this._state[i];
+
+    var newState = new ulong[Mixmax._matrixSize];
+    for (var i = 0; i < Mixmax._matrixSize; ++i) {
+      newState[i] = 0;
+      for (var j = 0; j < Mixmax._matrixSize; ++j)
+        newState[i] += this._matrix[i, j] * this._state[j];
+    }
+
+    this._state = newState;
+    return result;
+  }
 }
 ```
 
@@ -1614,70 +1709,6 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 tbd
 
 ### Ziggurat (ZIG) [^](https://www.jstatsoft.org/article/view/v005i08)
-
-tbd
-
-### Self-shrinking Generator (SSG) [^](https://link.springer.com/book/10.1007/BFb0053418)
-
-### Self-Shrinking Generator
-
-This is a type of PRNG that operates based on the principles of linear feedback shift registers (LFSRs). Introduced by Meier and Staffelbach in 1994, the SSG is particularly known for its simplicity and the inherent cryptographic properties derived from its LFSR-based design. This generator shrinks the output of an LFSR by selecting bits in a specific manner, thus providing a more secure and less predictable output sequence. It works by using the output of an LFSR in pairs of bits. Depending on the values of these pairs, it either includes or excludes certain bits from the final output sequence. Here's how the SSG operates in detail:
-
-* **LFSR Step**: The LFSR is stepped to produce a new bit.
-* **Pairing Bits**: The generator looks at pairs of bits produced by consecutive steps of the LFSR.
-* **Output Rule**: If the first bit of the pair is `1`, the second bit is used as part of the output. If the first bit is `0`, the second bit is discarded.
-
-This process effectively "shrinks" the sequence of bits by removing some based on the predefined rule, hence the name "Self-Shrinking Generator".
-
-```cs
-public class SelfShrinkingGenerator : IRandomNumberGenerator {
-  private const ulong POLYNOM = 0b110110010010001001010;
-  private ulong _state;
-
-  public void Seed(ulong seed) => this._state = seed;
-
-  public ulong Next() {
-    var result = 0UL;
-    var resultBits = 0;
-
-    while (resultBits < 64) {
-      var x = StepLFSR();
-      var y = StepLFSR();
-
-      switch (x) {
-        case 1 when y == 1:
-          result |= (1UL << resultBits);
-          ++resultBits;
-          break;
-        case 1 when y == 0:
-          ++resultBits;
-          break;
-      }
-    }
-
-    return result;
-    
-    byte StepLFSR() {
-      this._state = (ulong)CalculateFeedback() << 63 | (this._state >> 1);
-      return (byte)(this._state & 1);
-
-      byte CalculateFeedback() {
-        var masked = this._state & POLYNOM;
-        masked ^= masked >> 32;
-        masked ^= masked >> 16;
-        masked ^= masked >> 8;
-        masked ^= masked >> 4;
-        masked ^= masked >> 2;
-        masked ^= masked >> 1;
-        return (byte)(masked & 1);
-      }
-    }
-  }
-
-}
-```
-
-### Wichmann-Hill (WH)
 
 tbd
 

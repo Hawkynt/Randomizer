@@ -1,23 +1,12 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
 
 namespace Randomizer.Deterministic;
 
 public class MiddleSquare : IRandomNumberGenerator {
 
-  private ulong _state;
+  private UInt128 _state;
 
-  public void Seed(ulong seed) => this._state = seed;
+  public void Seed(ulong seed) => this._state = (UInt128)seed << 64 | ~seed;
 
-  public ulong Next() {
-    var high = Next32();
-    var low = Next32();
-    return (ulong)high << 32 | low;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    uint Next32() {
-      this._state *= this._state;
-      return (uint)(this._state >> 16);
-    }
-  }
-
+  public ulong Next() => (ulong)((this._state *= this._state) >> 32);
 }

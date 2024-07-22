@@ -4,7 +4,7 @@ using System.Diagnostics;
 using Randomizer.Cryptographic;
 using Randomizer.Deterministic;
 
-var generator = new LinearFeedbackShiftRegister();
+var generator = new WichmannHill();
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 

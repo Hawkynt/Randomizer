@@ -1,13 +1,28 @@
 ﻿namespace Randomizer.Deterministic;
 
-public class LinearCongruentialGenerator : IRandomNumberGenerator {
+public class LinearCongruentialGenerator(ulong multiplier, ulong increment, ulong modulo) : IRandomNumberGenerator {
 
-  private const ulong _MULTIPLIER = 6364136223846793005;
-  private const ulong _INCREMENT = 1442695040888963407;
-  private ulong _state;
+  private struct LCGWithoutModulo(ulong multiplier, ulong increment) : IRandomNumberGenerator {
+    private ulong _state;
+    public void Seed(ulong seed) => this._state = seed;
+    public ulong Next() => this._state = this._state * multiplier + increment;
+  }
 
-  public void Seed(ulong seed) => this._state = seed;
+  private struct LCGWithModulo(ulong multiplier, ulong increment, ulong modulo) : IRandomNumberGenerator {
+    private ulong _state;
+    public void Seed(ulong seed) => this._state = seed % modulo;
+    public ulong Next() => this._state = (this._state * multiplier + increment) % modulo;
+  }
 
-  public ulong Next() => this._state = (LinearCongruentialGenerator._MULTIPLIER * this._state + LinearCongruentialGenerator._INCREMENT); // implicit mod 2^64
+  private readonly IRandomNumberGenerator _instance = modulo <= 1 
+    ? new LCGWithoutModulo(multiplier, increment) 
+    : new LCGWithModulo(multiplier, increment, modulo)
+    ;
+
+  public LinearCongruentialGenerator() : this(6364136223846793005, 1442695040888963407, 0) { }
+
+  public void Seed(ulong seed) => this._instance.Seed(seed);
+
+  public ulong Next() => this._instance.Next();
 
 }
