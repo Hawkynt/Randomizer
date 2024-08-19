@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Seeding a RNG using network latency</title>
+    <script type="text/javascript" src="LatencySource.js"></script>
+    <script type="text/javascript">
+      async function seedRNG() {
+        document.getElementById('seed').value = await getNetworkLatencySeed();
+      }
+    </script>
+  </head>
+  <body>
+    <button onclick="seedRNG()">Seed</button>
+    <input type="text" name="seed" id="seed" value="none" disabled="disabled" />
+  </body>
+</html>

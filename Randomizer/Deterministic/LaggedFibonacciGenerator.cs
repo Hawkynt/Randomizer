@@ -54,17 +54,28 @@ public class LaggedFibonacciGenerator : IRandomNumberGenerator {
     var length = state.Length;
     var index = this._index;
 
-    var a = state[(index - this._shortLag + length) % length];
-    var b = state[(index - this._longLag + length) % length];
-    var result = this._operation(a, b);
-    state[index] = result;
+    var shortIndex = index - this._shortLag;
+    if (shortIndex < 0)
+      shortIndex += length;
 
-    this._index = ++index % length;
+    var longIndex = index - this._longLag;
+    if (longIndex < 0)
+      longIndex += length;
+
+    var a = state[shortIndex];
+    var b = state[longIndex];
+    var result = this._operation(a, b);
+    state[index++] = result;
+
+    if (index >= length)
+      index -= index;
+
+    this._index = index;
     return result;
   }
 
   private static ulong _Additive(ulong a, ulong b) => a + b;
-  private static ulong _Subtractive(ulong a, ulong b) => a - b;
+  private static ulong _Subtractive(ulong a, ulong b) => unchecked(a - b);
   private static ulong _Multiplicative(ulong a, ulong b) => a * b;
   private static ulong _Xor(ulong a, ulong b) => a ^ b;
 

@@ -11,7 +11,7 @@ In the world of computing, randomness is more than a theoretical concept—it's 
 
 Randomness is crucial in fields such as cryptography, where it underpins the generation of secure encryption keys and cryptographic protocols. Without high-quality randomness, data security could be compromised, making it easier for malicious actors to predict or reproduce secret keys.
 
-In simulations and modeling, randomness enables the accurate representation of real-world phenomena. Techniques like Monte Carlo simulations use random sampling to solve mathematical problems and predict outcomes in finance, engineering, and scientific research. The accuracy of these simulations depends heavily on the quality of the random numbers used.
+In simulations and modeling, randomness enables the accurate representation of real-world phenomena. Techniques like [Monte Carlo simulations](https://en.wikipedia.org/wiki/Monte_Carlo_method) use random sampling to solve mathematical problems and predict outcomes in finance, engineering, and scientific research. The accuracy of these simulations depends heavily on the quality of the random numbers used.
 
 In gaming, randomness ensures that outcomes are unpredictable and fair, enhancing the gaming experience. Whether it’s the roll of a dice, the shuffle of a deck, or the spawn of in-game items, randomness provides the element of chance that keeps games exciting and engaging.
 
@@ -19,7 +19,7 @@ In gaming, randomness ensures that outcomes are unpredictable and fair, enhancin
 
 ## What is Randomness?
 
-Randomness refers to the lack of pattern or predictability in events. In the context of computing and mathematics, randomness is the concept of generating sequences of numbers or symbols that cannot be reasonably predicted better than by random chance. This unpredictability is essential for a variety of applications where it is crucial to ensure fairness, security, and accurate simulation of real-world phenomena.
+Randomness refers to the lack of pattern or predictability in events. In the context of computing and mathematics, randomness is the concept of generating sequences of numbers or symbols that cannot be reasonably predicted better than by random chance. This unpredictability is essential to ensure fairness, security, and accurate simulation of real-world phenomena.
 
 ## Types of Randomness?
 
@@ -157,9 +157,9 @@ In personal computers, true randomness can be sourced from several hardware-base
       }
       ```
 
-    * **Linux**: Linux offers support for HRNGs through the `/dev/random` and `/dev/urandom` devices, which include entropy from hardware sources. Additionally, the `getrandom()` system call can be used for this purpose. The `getrandom()` system call is recommended because it blocks until enough entropy is available, ensuring high-quality random numbers, especially useful during the early boot phase.
+    * **Linux**: Linux offers support for HRNGs through the virtual devices `/dev/random` and `/dev/urandom`, which include entropy from hardware sources. Additionally, the `getrandom()` system call can be used for this purpose. The `getrandom()` system call is recommended because it blocks until enough entropy is available, ensuring high-quality random numbers, especially useful during the early boot phase.
 
-      Here’s an example in Perl, using these virtual files to generate a 64-Bit number:
+      Here’s an example in Perl, using the virtual devices to generate a 64-Bit number:
 
       ```perl
       use strict;
@@ -191,6 +191,7 @@ In personal computers, true randomness can be sourced from several hardware-base
         result = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Security")).SecRandomCopyBytes(None, n, buf)
         if result != 0:
           raise ValueError("Failed to generate random bytes")
+
         return bytes(buf)
 
       random_bytes = get_random_bytes(8)  # Generate 64-bit random number
@@ -215,7 +216,47 @@ Seeds play a crucial role in generating deterministic random numbers. A seed is 
 
 #### Generating Seeds
 
-* **Time-based Seeds**: A common method is using the current time as a seed, leveraging the system clock. However, this can be predictable if the exact time the seed was generated is known.
+* **Hardware Entropy**: Using any available HRNG to obtain entropy, which is then used as a seed.
+
+  Here's an example in JavaScript, that obtains a seed value using network latencies:
+
+  ```javascript
+  async function getNetworkLatencySeed() {
+    return await _getNetworkLatencySeed(
+      [
+        'https://google.com',
+        'https://bing.com',
+        'https://yahoo.com',
+        'https://duckduckgo.com',
+        'https://ecosia.org',
+      ], 
+      10
+    );
+  }
+
+  async function _getNetworkLatencySeed(hosts, count) {
+    let seed = 0;
+
+    const getLatency = (host) =>
+      new Promise((resolve) => {
+        const start = Date.now();
+        fetch(host, { mode: 'no-cors' })
+          .then(() => resolve(Date.now() - start))
+          .catch(() => resolve(Date.now() - start)); // resolve even if the fetch fails
+      });
+
+    const combineSeed = (seed, latency) => (seed * 31 + latency) % Number.MAX_SAFE_INTEGER;
+
+    for (let i = 0; i < count; i++) {
+      const latency = await getLatency(hosts[i % hosts.length]);
+      seed = combineSeed(seed, latency);
+    }
+
+    return seed;
+  }
+  ```
+
+* **Time-based Seeds**: A common method is using the current time as a seed, leveraging the system clock. This can be predictable if the (tick-)exact time the seed was generated is known. However if one knows at least the interval in which the seeding occured, one can still try all ticks within this interval to break randomness.
 
   Here’s an example in VB.NET, using the current time to seed a random number generator:
 
@@ -230,8 +271,6 @@ Seeds play a crucial role in generating deterministic random numbers. A seed is 
       End Sub
   End Module
   ```
-
-* **Hardware Entropy**: Using hardware-based random number generators (HRNGs) to obtain entropy, which is then used as a seed.
 
 * **Re-Seeding**: It is also very common to update the seed after a given amount of generated numbers or based on a timer, to make the outcomes even more unpredictable.
 
@@ -281,11 +320,11 @@ Using a high-entropy seed source, especially in cryptographic applications, ensu
 
 #### PRNG Applications
 
-* **Simulations and Modeling**: PRNGs are widely used in simulations, such as Monte Carlo simulations, where large quantities of random numbers are needed.
+* **Simulations and Modeling**: PRNGs are widely used in simulations, such as statistical simulations, where large quantities of random numbers are needed.
 
 * **Games**: PRNGs provide the randomness required for game mechanics, ensuring fair play and varied experiences.
 
-* **Procedural Generation**: Used in applications like procedural content generation in games and art, where large, diverse datasets are created algorithmically.
+* **Procedural Generation**: Used in applications like content generation in games and art, where large, diverse datasets are created algorithmically.
 
 ### Cryptographically Secure Random Number Generators (CSRNG)
 
@@ -706,14 +745,14 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 
 Originally introduced by D.H. Lehmer in 1951, this is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
 
-$$X_{n+1} = (a \cdot X_n) \mod m$$
+$$X_{i+1} = (a \cdot X_i) \mod m$$
 
 * $X$ is the sequence of pseudo-random values.
 * $m$ is the modulus, $1 < m$.
 * $a$ is the multiplier, $1 < a < m$.
 * $X_0$ is the seed or start value, $1 \leq X_0 < m$.
 
-In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_n$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
+In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_i$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
 
 ```cs
 public class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -736,19 +775,19 @@ The WH uses three individual MLCGs, each with its own modulus, multiplier, and s
 
 **First LCG:**
 
-   $$x_{n+1} = (171 \cdot x_n) \mod 30269$$
+   $$x_{i+1} = (171 \cdot x_i) \mod 30269$$
 
 **Second LCG:**
 
-   $$y_{n+1} = (172 \cdot y_n) \mod 30307$$
+   $$y_{i+1} = (172 \cdot y_i) \mod 30307$$
 
 **Third LCG:**
 
-   $$z_{n+1} = (170 \cdot z_n) \mod 30323$$
+   $$z_{i+1} = (170 \cdot z_i) \mod 30323$$
 
-The combined output $X_n$ of the Wichmann-Hill generator at step $n$ is given by:
+The combined output $X_i$ of the Wichmann-Hill generator at step $i$ is given by:
 
-$$X_n = x_n+y_n+z_n $$
+$$X_i = x_i+y_i+z_i $$
 
 This combination ensures that the resulting sequence has a very long period, specifically the least common multiple of the three moduli, which is approximately $2.8 \times 10^{12}$ however it can only produce numbers between `0` and the sum of the three moduli `90899`.
 
@@ -785,7 +824,7 @@ public class WichmannHill : IRandomNumberGenerator {
 
 This is one of the oldest and most well-known PRNG algorithms. Introduced by W. E. Thomson and A. Rotenberg in 1958, it generates a sequence of numbers using a piecewise linear equation. The generator is defined by the recurrence relation:
 
-$$X_{n+1} = (a \cdot X_n + c) \mod m$$
+$$X_{i+1} = (a \cdot X_i + c) \mod m$$
 
 Where:
 
@@ -817,24 +856,24 @@ This is an extension of the LCG designed to improve the statistical properties a
 
 In a CLCG, multiple LCGs are run in parallel, and their outputs are combined using addition or XOR operations to produce the final random number. The combination of multiple generators with carefully chosen parameters ensures that the resulting sequence has a much longer period and better statistical properties than any individual LCG.
 
-Each $X_{n,i}$ is generated by an individual LCG with its own set of parameters:
+Each $x_{i,j}$ is generated by an individual LCG with its own set of parameters:
 
-$$X_{n+1,i} = (a_i \cdot X_{n,i} + c_i) \mod m_i$$
+$$x_{i+1,j} = (a_j \cdot x_{i,j} + c_j) \mod m_j$$
 
 The CLCG can be defined using one of the following formulas, where $k$ LCGs are combined:
 
-$$X_{n+1} = \left [ \sum_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \sum_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1}+\cdots+X_{n+1,k}] \mod m$$
-$$X_{n+1} = \left [ \prod_{i=1}^k {(a_i \cdot X_{n,i} + c_i) \mod m_i} \right ] \mod m = \left [ \prod_{i=1}^k {X_{n+1,i}} \right ] \mod m = [X_{n+1,1} \cdot \cdots \cdot X_{n+1,k}] \mod m$$
+$$X_{i+1} = \left [ \sum_{j=1}^k {(a_j \cdot x_{i,j} + c_j) \mod m_j} \right ] \mod m = \left [ \sum_{j=1}^k {x_{i+1,j}} \right ] \mod m = [x_{i+1,1}+\cdots+x_{i+1,k}] \mod m$$
+$$X_{i+1} = \left [ \prod_{j=1}^k {(a_j \cdot x_{i,j} + c_j) \mod m_j} \right ] \mod m = \left [ \prod_{j=1}^k {x_{i+1,j}} \right ] \mod m = [x_{i+1,1} \cdot \cdots \cdot x_{i+1,k}] \mod m$$
 
 Where:
 
 * $X$ is the sequence of pseudo-random values.
-* $X_{n,i}$ is the sequence of pseudo-random values from the $i$-th LCG.
+* $x_{i,j}$ is the sequence of pseudo-random values from the $j$-th LCG.
 * $m$ is the modulus of the CLCG.
-* $m_i$ is the modulus of the $i$-th LCG.
-* $a_i$ is the multiplier of the $i$-th LCG.
-* $c_i$ is the increment of the $i$-th LCG.
-* $X_{0,i}$ is the seed of the $i$-th LCG.
+* $m_j$ is the modulus of the $j$-th LCG.
+* $a_j$ is the multiplier of the $j$-th LCG.
+* $c_j$ is the increment of the $j$-th LCG.
+* $x_{0,j}$ is the seed of the $j$-th LCG.
 
 ```cs
 public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -927,20 +966,20 @@ The key difference between MWC and LCG is the introduction of a carry value in M
 
 The general formula for an MWC generator is as follows:
 
-$$X_{n+1} = (A \cdot X_{n} + C_n) \mod m$$
+$$X_{i+1} = (a \cdot X_{i} + C_i) \mod m$$
 
 Where:
 
-* $X_{n}$ is the current state.
-* $A$ is the multiplier.
-* $C_n$ is the carry from the previous step.
+* $X_{i}$ is the current state.
+* $a$ is the multiplier.
+* $C_i$ is the carry from the previous step.
 * $m$ is the modulus.
 
-The carry value $C_n$ is updated in each step as follows:
+The carry value $C_i$ is updated in each step as follows:
 
-$$C_{n+1} = \left\lfloor \frac{X_{n+1}}{m} \right\rfloor$$
+$$C_{i+1} = \left\lfloor \frac{X_{i+1}}{m} \right\rfloor$$
 
-In this mechanism, the next state $X_{n+1}$ depends not only on the current state $X_n$ and the multiplier $A$, but also on the carry value $C_n$, which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
+In this mechanism, the next state $X_{i+1}$ depends not only on the current state $X_i$ and the multiplier $a$, but also on the carry value $C_i$, which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
 
 ```cs
 public class MultiplyWithCarry : IRandomNumberGenerator {
@@ -1004,14 +1043,14 @@ The CMWC generator is defined by the following parameters:
 
 The generator produces the next random number using the following steps:
 
-1. Select an index $i$ from the state array.
-2. Calculate the new value of the state $Q_i$ using the formula:
+1. Select an index $j$ from the state array.
+2. Calculate the new value of the state $Q_j$ using the formula:
 
-   $$t = a \cdot Q_i + c$$
+   $$t = a \cdot Q_j + c$$
 
 3. The new state value is given by the lower bits of $t$:
 
-   $$Q_i = t \mod m$$
+   $$Q_j = t \mod m$$
 
 4. The carry value is updated using the upper bits of $t$:
 
@@ -1019,7 +1058,7 @@ The generator produces the next random number using the following steps:
 
 5. The new random number is the complement of the new state value:
 
-   $$X_{n+1} = (m - 1) - Q_i$$
+   $$X_{i+1} = (m - 1) - Q_j$$
 
 This process ensures that the state values are updated in a way that maintains a high-quality sequence of random numbers with a long period.
 
@@ -1120,15 +1159,15 @@ The Lagged Fibonacci Generator (LFG) is a type of pseudo-random number generator
 
 The general form of the LFG is:
 
-$$ X_n = (X_{n-j} \, \circ \, X_{n-k}) \mod m $$
+$$ X_i = (X_{i-S} \, \circ \, X_{i-L}) \mod m $$
 
 Where:
 
-* $X_n$ is the current value in the sequence.
-* $j$ and $k$ are lags, where $k > j \geq 1$.
+* $X_i$ is the current value in the sequence.
+* $S$ and $L$ are lags, where $L > S \geq 0$.
 * $\circ$ is a binary operation, such as addition, subtraction, multiplication, or bitwise XOR.
 * $m$ is the modulus, which defines the range of the output values.
-* The initial values, $X_1$ to $X_m$, are the seed values.
+* The initial values, $X_0$ to $X_L$, are the seed values.
 
 Depending on the operation used, LFGs can be categorized into different types:
 
@@ -1138,6 +1177,8 @@ Depending on the operation used, LFGs can be categorized into different types:
 * **XOR LFG**: Uses the XOR operation.
 
 The LFG can be highly efficient and capable of generating sequences with very long periods, especially when properly chosen lags and modulus are used.
+
+To further increase period length, one may store more than the last $L$ values in the internal state and utilize an incrementing index.
 
 ```cs
 public class LaggedFibonacciGenerator : IRandomNumberGenerator {
@@ -1201,7 +1242,7 @@ public class LaggedFibonacciGenerator : IRandomNumberGenerator {
   }
 
   private static ulong _Additive(ulong a, ulong b) => a + b;
-  private static ulong _Subtractive(ulong a, ulong b) => a - b;
+  private static ulong _Subtractive(ulong a, ulong b) => unchecked(a - b);
   private static ulong _Multiplicative(ulong a, ulong b) => a * b;
   private static ulong _Xor(ulong a, ulong b) => a ^ b;
 
