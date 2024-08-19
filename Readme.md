@@ -615,18 +615,20 @@ This generator is a simple and fast pseudo-random number generator designed by S
 
 ```cs
 public class SplitMix64 : IRandomNumberGenerator {
-  
+
   private const ulong _GOLDEN_GAMMA = 0x9E3779B97F4A7C15;
   private ulong _state;
 
   public void Seed(ulong seed) => this._state = seed;
 
-  public ulong Next() {
-    var z = (this._state += _GOLDEN_GAMMA);
+  public ulong Next() => Next(ref this._state);
+
+  public static ulong Next(ref ulong z) {
+    z += _GOLDEN_GAMMA;
     z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
     z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-    z ^= (z >> 31);
-    return this._state = z;
+    z ^= z >> 31;
+    return z;
   }
 
 }
@@ -641,22 +643,12 @@ public class Xoshiro256SS : IRandomNumberGenerator {
   private ulong _w, _x, _y, _z;
 
   public void Seed(ulong seed) {
-    this._w = SplitMix64(ref seed);
-    this._x = SplitMix64(ref seed);
-    this._y = SplitMix64(ref seed);
-    this._z = SplitMix64(ref seed);
-
-    return;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
+    this._w = SplitMix64.Next(ref seed);
+    this._x = SplitMix64.Next(ref seed);
+    this._y = SplitMix64.Next(ref seed);
+    this._z = SplitMix64.Next(ref seed);
   }
-  
+
   public ulong Next() {
     var result = RotateLeft(this._x * 5, 7) * 9;
 
@@ -689,18 +681,8 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
   private ulong _y;
 
   public void Seed(ulong seed) {
-    this._x = SplitMix64(ref seed);
-    this._y = SplitMix64(ref seed);
-
-    return;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
+    this._x = SplitMix64.Next(ref seed);
+    this._y = SplitMix64.Next(ref seed);
   }
 
   public ulong Next() {
@@ -716,7 +698,7 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 
     static ulong RotateLeft(ulong x, int k) => (x << k) | (x >> (64 - k));
   }
-  
+
 }
 ```
 
@@ -1051,19 +1033,9 @@ public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 
   public void Seed(ulong seed) {
     for (var i = 0; i < R; ++i)
-      this._state[i] = SplitMix64(ref seed);
+      this._state[i] = SplitMix64.Next(ref seed);
 
-    this._carry = SplitMix64(ref seed);
-    return;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
-
+    this._carry = SplitMix64.Next(ref seed);
   }
 
   public ulong Next() { // implicit mod 2^64
@@ -1118,25 +1090,16 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
   private int _index;
 
   public void Seed(ulong seed) {
-    for (var i = 0; i < SubtractWithBorrow.R; ++i)
-      this._state[i] = SplitMix64(ref seed);
+    for (var i = 0; i < R; ++i)
+      this._state[i] = SplitMix64.Next(ref seed);
 
-    this._carry = SplitMix64(ref seed);
-    this._index = SubtractWithBorrow.R - 1;
-    return;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
+    this._carry = SplitMix64.Next(ref seed);
+    this._index = R - 1;
   }
 
   public ulong Next() {
     this._index = (this._index + 1) % R;
-    var j = (this._index + R - S) % SubtractWithBorrow.R;
+    var j = (this._index + R - S) % R;
     var k = (this._index + R - L) % R;
 
     var t = (Int128)this._state[j] - this._state[k] - this._carry;
@@ -1148,6 +1111,100 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
 
     return this._state[this._index];
   }
+}
+```
+
+### Lagged Fibonacci Generator (LFG)
+
+The Lagged Fibonacci Generator (LFG) is a type of pseudo-random number generator that extends the Fibonacci sequence concept to generate random numbers. Instead of simply adding the two previous numbers, as in the Fibonacci sequence, the LFG uses a combination of past values with different operations to produce the next value in the sequence.
+
+The general form of the LFG is:
+
+$$ X_n = (X_{n-j} \, \circ \, X_{n-k}) \mod m $$
+
+Where:
+
+* $X_n$ is the current value in the sequence.
+* $j$ and $k$ are lags, where $k > j \geq 1$.
+* $\circ$ is a binary operation, such as addition, subtraction, multiplication, or bitwise XOR.
+* $m$ is the modulus, which defines the range of the output values.
+* The initial values, $X_1$ to $X_m$, are the seed values.
+
+Depending on the operation used, LFGs can be categorized into different types:
+
+* **Additive LFG**: Uses addition as the operation.
+* **Subtractive LFG**: Uses subtraction.
+* **Multiplicative LFG**: Uses multiplication.
+* **XOR LFG**: Uses the XOR operation.
+
+The LFG can be highly efficient and capable of generating sequences with very long periods, especially when properly chosen lags and modulus are used.
+
+```cs
+public class LaggedFibonacciGenerator : IRandomNumberGenerator {
+
+  public enum Mode {
+    Additive,
+    Subtractive,
+    Multiplicative,
+    Xor,
+  }
+
+  private readonly int _shortLag;
+  private readonly int _longLag;
+  private readonly Func<ulong, ulong, ulong> _operation;
+  private readonly ulong[] _state;
+  private int _index;
+
+  public LaggedFibonacciGenerator(int size = 56, int shortLag = 0, int longLag = 21, Mode mode = Mode.Additive) : this(
+    size,
+    shortLag,
+    longLag,
+    mode switch {
+      Mode.Additive => _Additive,
+      Mode.Subtractive => _Subtractive,
+      Mode.Multiplicative => _Multiplicative,
+      Mode.Xor => _Xor,
+      _ => throw new InvalidEnumArgumentException(nameof(mode), (int)mode, typeof(Mode))
+    }
+  ) { }
+
+  private LaggedFibonacciGenerator(int size, int shortLag, int longLag, Func<ulong, ulong, ulong> operation) {
+    ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(shortLag, size);
+    ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(longLag, shortLag);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(longLag, size);
+    ArgumentNullException.ThrowIfNull(operation);
+
+    this._shortLag = shortLag;
+    this._longLag = longLag;
+    this._operation = operation;
+    this._state = new ulong[size];
+  }
+
+  public void Seed(ulong seed) {
+    for (var i = 0; i < this._state.Length; ++i)
+      this._state[i] = SplitMix64.Next(ref seed);
+  }
+
+  public ulong Next() { // implicit mod 2^64
+    var state = this._state;
+    var length = state.Length;
+    var index = this._index;
+
+    var a = state[(index - this._shortLag + length) % length];
+    var b = state[(index - this._longLag + length) % length];
+    var result = this._operation(a, b);
+    state[index] = result;
+
+    this._index = ++index % length;
+    return result;
+  }
+
+  private static ulong _Additive(ulong a, ulong b) => a + b;
+  private static ulong _Subtractive(ulong a, ulong b) => a - b;
+  private static ulong _Multiplicative(ulong a, ulong b) => a * b;
+  private static ulong _Xor(ulong a, ulong b) => a ^ b;
+
 }
 ```
 
@@ -1366,28 +1423,18 @@ $$ X_{n+1} = Y^k_{n+1} $$
 ```cs
 public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator {
   private const int K = 12;
-  private readonly ulong[] _state = new ulong[AdditiveCongruentialRandomNumberGenerator.K + 1];
+  private readonly ulong[] _state = new ulong[K + 1];
 
   public void Seed(ulong seed) {
-    for (var m = 0; m <= AdditiveCongruentialRandomNumberGenerator.K; ++m)
-      this._state[m] = SplitMix64(ref seed);
-    
-    return;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
+    for (var m = 0; m <= K; ++m)
+      this._state[m] = SplitMix64.Next(ref seed);
   }
 
   public ulong Next() { // implicit mod 2^64
-    for (var m = 1; m <= AdditiveCongruentialRandomNumberGenerator.K; ++m)
-      this._state[m] = (this._state[m] + this._state[m - 1]);
+    for (var m = 1; m <= K; ++m)
+      this._state[m] += this._state[m - 1];
 
-    return this._state[AdditiveCongruentialRandomNumberGenerator.K];
+    return this._state[K];
   }
 
 }
@@ -1481,47 +1528,39 @@ public class Mixmax : IRandomNumberGenerator {
   private readonly ulong[,] _matrix;
 
   public Mixmax() {
-    this._state = new ulong[Mixmax._matrixSize];
-    this._matrix = new ulong[Mixmax._matrixSize, Mixmax._matrixSize];
+    this._state = new ulong[_matrixSize];
+    this._matrix = new ulong[_matrixSize, _matrixSize];
     this.InitializeMatrix();
   }
 
   private void InitializeMatrix() {
-    for (var row = 0; row < Mixmax._matrixSize; ++row) {
+    for (var row = 0; row < _matrixSize; ++row) {
       this._matrix[row, 0] = 1;
-      for (var column = 1; column < Mixmax._matrixSize; ++column)
+      for (var column = 1; column < _matrixSize; ++column)
         if (column > row)
           this._matrix[row, column] = 1;
         else
           this._matrix[row, column] = (ulong)(row - column + 2);
     }
 
-    this._matrix[2, 1]+= unchecked((ulong)Mixmax._magicNumber);
+    this._matrix[2, 1]+= unchecked((ulong)_magicNumber);
   }
 
   public void Seed(ulong seed) {
-    for (var i = 0; i < Mixmax._matrixSize; ++i)
-      this._state[i] = SplitMix64(ref seed);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
+    for (var i = 0; i < _matrixSize; ++i)
+      this._state[i] = SplitMix64.Next(ref seed);
   }
 
   public ulong Next() { // implicit mod 2^64
 
     ulong result = 0;
-    for (var i = 0; i < Mixmax._matrixSize; ++i)
+    for (var i = 0; i < _matrixSize; ++i)
       result += this._state[i];
 
-    var newState = new ulong[Mixmax._matrixSize];
-    for (var i = 0; i < Mixmax._matrixSize; ++i) {
+    var newState = new ulong[_matrixSize];
+    for (var i = 0; i < _matrixSize; ++i) {
       newState[i] = 0;
-      for (var j = 0; j < Mixmax._matrixSize; ++j)
+      for (var j = 0; j < _matrixSize; ++j)
         newState[i] += this._matrix[i, j] * this._state[j];
     }
 
@@ -1665,17 +1704,7 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
   public void Seed(ulong seed) {
     this.index = 0;
     for (var i = 0; i < this._state.Length; ++i)
-      this._state[i] = (uint)SplitMix64(ref seed);
-    
-    return;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong SplitMix64(ref ulong z) {
-      z += 0x9E3779B97F4A7C15;
-      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9;
-      z = (z ^ (z >> 27)) * 0x94D049BB133111EB;
-      return z ^= (z >> 31);
-    }
+      this._state[i] = (uint)SplitMix64.Next(ref seed);
   }
 
   public ulong Next() {
