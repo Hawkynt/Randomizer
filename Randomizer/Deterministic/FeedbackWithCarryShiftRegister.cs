@@ -39,12 +39,12 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte ComputeFeedbackBit() {
       var result = this._state & POLY;
-      result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
-      result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
-      result ^= result >> 4;  // 00000000000000000000000000000000000000000000000000000000HHHHLLLL -> XXXX
-      result ^= result >> 2;  // 000000000000000000000000000000000000000000000000000000000000HHLL -> XX
-      result ^= result >> 1;  // 00000000000000000000000000000000000000000000000000000000000000HL -> X
+      result ^= result >> 32;
+      result ^= result >> 16;
+      result ^= result >> 8; 
+      result ^= result >> 4; 
+      result ^= result >> 2; 
+      result ^= result >> 1; 
       return (byte)(result & 1);
     }
 
