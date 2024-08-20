@@ -571,7 +571,7 @@ public class XorShiftPlus : IRandomNumberGenerator {
 }
 ```
 
-### XorShift* (XS*) [^](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
+### XorShift*(XS*) [^](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
 
 These generators are an enhancement over the basic XS generators, incorporating an invertible multiplication (modulo the word size) as a non-linear transformation to the output. This technique was suggested by Marsaglia to address linear artifacts inherent in pure XS generators. The multiplication step ensures that the output sequence is equidistributed in the maximum possible dimension, which means it spans all possible values in its range more uniformly than the basic XS. These generators are designed to produce high-quality pseudorandom numbers and are widely used due to their simplicity and efficiency.
 
@@ -1428,12 +1428,12 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 
     byte ComputeFeedbackBit() {
       var result = this._state & FeedbackWithCarryShiftRegister.POLY;
-      result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-      result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
-      result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
-      result ^= result >> 4;  // 00000000000000000000000000000000000000000000000000000000HHHHLLLL -> XXXX
-      result ^= result >> 2;  // 000000000000000000000000000000000000000000000000000000000000HHLL -> XX
-      result ^= result >> 1;  // 00000000000000000000000000000000000000000000000000000000000000HL -> X
+      result ^= result >> 32;
+      result ^= result >> 16;
+      result ^= result >> 8;
+      result ^= result >> 4;
+      result ^= result >> 2;
+      result ^= result >> 1;
       return (byte)(result & 1);
     }
 
@@ -1837,13 +1837,426 @@ tbd
 
 tbd
 
+### Fortuna [^](https://www.codeproject.com/Articles/6321/Fortuna-A-Cryptographically-Secure-Pseudo-Random-N)
+
+tbd
+
 ## Drinking Bit-Soup
 
 ### When you need less bits than the RNG provides
 
-tbd: extraction, xor-sponge
+In cryptographic applications and other scenarios where precise control over the number of random bits is required, it's common to encounter situations where you need fewer bits than what the RNG provides. For example, an RNG might output 64 bits at a time, but your application only requires 16 bits. Simply discarding the extra bits might seem straightforward, but this approach can lead to inefficiencies or, worse, security vulnerabilities if not handled correctly.
 
-tbd: code for Generic class consuming IRandomNumberGenerator and providing it itself
+Here are several methods to extract exactly the number of bits you need, along with their potential pitfalls and ways to mitigate them:
+
+* **Truncating:** This involves discarding the higher bits and retaining only the lower bits. This method is simple and efficient when the lower bits are sufficient for your needs.
+
+  ```cs
+  uint Next32(IRandomNumberGenerator instance) => (uint)instance.Next();
+  ```
+
+  **Caution**: If the RNG's output is not uniformly distributed across all bits, this can exacerbate non-uniformities, especially if the lower bits are less random.
+
+* **Shifting:** This involves discarding the lower bits by right-shifting the RNG output, effectively keeping only the higher bits.
+
+  ```cs
+  byte Next8(IRandomNumberGenerator instance) => (byte)(instance.Next() >> 56);
+  ```
+
+  **Caution**: Similar to truncating, if the RNG has non-uniformity issues in its higher bits, shifting can result in biased outputs.
+
+* **Masking:** This allows you to take specific bits from the RNG output by applying a bitmask. This method is useful when you need a certain range of bits from the output.
+
+  ```cs
+  ushort Next16(IRandomNumberGenerator instance) => (ushort)((instance.Next() & 0x000000FFFF000000) >> 24);
+  ```
+
+  **Caution**: Masking can also suffer from the same non-uniformity issues as truncating and shifting if the RNG is biased in the selected bit range.
+
+* **Sponging:** This technique involves repeatedly XORing the RNG output with itself after progressively smaller right shifts. This ensures that the final extracted bit(s) are influenced by all bits in the RNG output, increasing entropy and security.
+
+  ```cs
+  bool Next1(IRandomNumberGenerator instance) {
+    var result = instance.Next();
+    result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
+    result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
+    result ^= result >> 4;  // 00000000000000000000000000000000000000000000000000000000HHHHLLLL -> XXXX
+    result ^= result >> 2;  // 000000000000000000000000000000000000000000000000000000000000HHLL -> XX
+    result ^= result >> 1;  // 00000000000000000000000000000000000000000000000000000000000000HL -> X
+    return (result & 1) != 0;
+  }
+  ```
+
+  **Advantage**: This method helps distribute any biases uniformly across all bits, making it more resilient to non-uniformity issues.
+
+* **Construction:** In this method, you repeatedly call the RNG to generate the exact number of bits you need. This approach can be useful when you need a non-standard number of bits (e.g., 24 bits) and want to ensure each bit is generated with uniform randomness.
+
+  ```cs
+  uint Next24(IRandomNumberGenerator instance) {
+    var result = 0;
+    for (var i = 0; i < 8 ; ++i) {
+      var s = instance.Next();
+      var x = (s & (1 << 62)) >> 62; // Take bit 62
+      var y = (s & (1 <<  7)) >>  7; // Take bit 7
+      var z = (s & (1 << 31)) >> 31; // Take bit 31
+      result = x | y << 1 | z << 2 | result << 3;
+    }
+
+    return result;
+  }
+  ```
+
+  **Caution**: If the RNG is biased for certain bits, this approach can accumulate those biases across multiple calls, leading to a non-uniform final output.
+
+* **Slicing:** This involves splitting the RNG output into smaller parts and using those parts as needed. This can be useful when you need multiple smaller random values from a single RNG output.
+
+  ```cs
+  (ushort, ushort, ushort, ushort) Slice16x4(IRandomNumberGenerator instance) {
+    ulong result = instance.Next();
+    ushort part1 = (ushort)(result & 0xFFFF);
+    ushort part2 = (ushort)((result >> 16) & 0xFFFF);
+    ushort part3 = (ushort)((result >> 32) & 0xFFFF);
+    ushort part4 = (ushort)((result >> 48) & 0xFFFF);
+    return (part1, part2, part3, part4);
+  }
+  ```
+
+  **Caution**: If the RNG has non-uniform distribution across different bit ranges, slicing can result in biased sub-values.
+
+* **Modulo Operation:** This operation is commonly used to reduce a large random number to a smaller range. For example, reducing a 64-bit RNG output to a value between 0 and 19.
+
+  ```cs
+  byte NextD20(IRandomNumberGenerator instance) => (byte)(1 + instance.Next() % 20);
+  ```
+
+  **Caution**: Modulo Bias occurs when the RNG output is not perfectly divisible by the target range. This bias can make certain values more likely than others.
+
+* **Rejection Sampling:** This is a technique to avoid modulo bias by discarding values that would introduce bias. This method involves generating random numbers until one falls within the desired range without bias.
+
+  ```cs
+  byte NextD6(IRandomNumberGenerator instance) {
+    ulong result;
+    do {
+      result = instance.Next();
+    } while (result >= 6);
+    return (byte)(1 + result);
+  }
+  ```
+
+  **Caution**: While this method eliminates modulo bias, it can be slow and inefficient, especially if the range is small compared to the RNG output, leading to frequent rejections.
+
+* **Combined Method:** A combination of both modulo operation and rejection sampling can be used to strike a balance between efficiency and eliminating bias.
+
+  ```cs
+  byte NextD12(IRandomNumberGenerator instance) {
+    ulong result;
+    ulong maxValidRange = ulong.MaxValue - (ulong.MaxValue % 12);
+    do {
+      result = instance.Next();
+    } while (result >= maxValidRange);
+    return (byte)(1 + (result % 12));
+  }
+  ```
+
+  **Advantage**: This method effectively reduces bias while improving efficiency over pure rejection sampling, especially when working with large RNG outputs.
+
+* **Scaling:** This method involves normalizing the RNG's output to a floating-point value between 0 and 1, then scaling it to the desired range.
+
+  ```cs
+  byte NextD4(IRandomNumberGenerator instance) => (byte)(1 + ((double)instance.Next() / ulong.MaxValue) * 4);
+  ```
+
+  **Caution**: The method relies on floating-point arithmetic, which may introduce slight inaccuracies due to the finite precision of `double`. However, for typical RNG ranges and moderate scaling factors, this is usually negligible.
+
+* **IEEE 754 Floats:** This method constructs floating-point numbers according to the [IEEE 754 standard](https://en.wikipedia.org/wiki/IEEE_754), focusing on generating the mantissa randomly while keeping the exponent and sign fixed.
+
+  ```cs
+  public float NextSingle() {
+    var mantissa = (uint)(rng.Next() >> (64 - 23)); // Extract 23 bits for the mantissa
+    var floatBits = (127 << 23) | mantissa;         // 127 is the biased exponent for 2^0 in single-precision
+    return BitConverter.Int32BitsToSingle((int)floatBits) - 1.0f;
+  }
+
+  public double NextDouble() {
+    var mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
+    var doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
+    return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
+  }
+  ```
+
+  **Caution**: This approach uses the shifting method to generate the mantissa, which can inherit flaws if the underlying RNG has non-uniformity issues in certain bits. The distribution of the resulting floating-point values might be slightly biased, particularly if the RNG doesn't produce truly uniform random bits across its entire range.
+
+Given the methods, we can now create a more generic class to deal with that:
+
+```cs
+public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumberGenerator {
+  
+  public void Seed(ulong seed) => rng.Seed(seed);
+  public ulong Next() => rng.Next();
+
+  public uint Truncate32() => (uint)rng.Next();
+  public ushort Truncate16() => (ushort)rng.Next();
+  public byte Truncate8() => (byte)rng.Next();
+  public bool Truncate1() => (rng.Next() & 1) == 1;
+
+  public uint Shift32() => (uint)(rng.Next() >> 32);
+  public ushort Shift16() => (ushort)(rng.Next() >> 48);
+  public byte Shift8() => (byte)(rng.Next() >> 56);
+  public bool Shift1() => (rng.Next() >> 63) == 1;
+
+  public uint Mask32(ulong mask) {
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 32, nameof(mask));
+    return (uint)_MaskBits(rng.Next(), mask);
+  }
+
+  public ushort Mask16(ulong mask) {
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 16, nameof(mask));
+    return (ushort)_MaskBits(rng.Next(), mask);
+  }
+
+  public byte Mask8(ulong mask) {
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 8, nameof(mask));
+    return (byte)_MaskBits(rng.Next(), mask);
+  }
+
+  public bool Mask1(ulong mask) {
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 1, nameof(mask));
+    return _MaskBits(rng.Next(), mask) != 0;
+  }
+
+  public uint Sponge32() {
+    var result = rng.Next();
+    result ^= result >> 32;
+    return (uint)result;
+  }
+
+  public ushort Sponge16() {
+    var result = rng.Next();
+    result ^= result >> 32;
+    result ^= result >> 16;
+    return (ushort)result;
+  }
+
+  public byte Sponge8() {
+    var result = rng.Next();
+    result ^= result >> 32;
+    result ^= result >> 16;
+    result ^= result >> 8;
+    return (byte)result;
+  }
+
+  public bool Sponge1() {
+    var result = rng.Next();
+    result ^= result >> 32; 
+    result ^= result >> 16; 
+    result ^= result >> 8;  
+    result ^= result >> 4;  
+    result ^= result >> 2;  
+    result ^= result >> 1;  
+    return result != 0;
+  }
+
+  public ulong Construct(byte bitsTotal, ulong mask) {
+    ArgumentOutOfRangeException.ThrowIfZero(bitsTotal);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(bitsTotal, 64);
+    ArgumentOutOfRangeException.ThrowIfZero(mask);
+    var bitsPerRound = _CountBits(mask);
+    ArgumentOutOfRangeException.ThrowIfNotEqual(bitsTotal % bitsPerRound,0, nameof(mask));
+    var result = 0UL;
+    do {
+      var random = rng.Next();
+      var roundBits = _MaskBits(random, mask);
+      result <<= bitsPerRound;
+      result |= roundBits;
+      bitsTotal -= bitsPerRound;
+    } while (bitsTotal > 0);
+
+    return result;
+  }
+
+  /// <summary>
+  /// A structure used to extract <see cref="uint"/>, <see cref="ushort"/>, and <see cref="byte"/> values directly from a <see cref="ulong"/> 
+  /// without performing manual bit shifts and masks. This approach is typically faster, although the compiler (as of 2024) generates
+  /// unnecessary stack copies.
+  /// </summary>
+  /// <param name="value">The <see cref="ulong"/> value from which to extract parts.</param>
+  [StructLayout(LayoutKind.Explicit)]
+  private readonly struct SliceUnion(ulong value) {
+
+    [FieldOffset(0)]
+    public readonly ulong Value = value;
+
+    [FieldOffset(0)]
+    public readonly uint R32_0;
+    [FieldOffset(4)]
+    public readonly uint R32_1;
+
+    [FieldOffset(0)]
+    public readonly ushort R16_0;
+    [FieldOffset(2)]
+    public readonly ushort R16_1;
+    [FieldOffset(4)]
+    public readonly ushort R16_2;
+    [FieldOffset(6)]
+    public readonly ushort R16_3;
+
+    [FieldOffset(0)]
+    public readonly byte R8_0;
+    [FieldOffset(1)]
+    public readonly byte R8_1;
+    [FieldOffset(2)]
+    public readonly byte R8_2;
+    [FieldOffset(3)]
+    public readonly byte R8_3;
+    [FieldOffset(4)]
+    public readonly byte R8_4;
+    [FieldOffset(5)]
+    public readonly byte R8_5;
+    [FieldOffset(6)]
+    public readonly byte R8_6;
+    [FieldOffset(7)]
+    public readonly byte R8_7;
+    [FieldOffset(8)]
+    public readonly byte R8_8;
+
+  }
+
+  public (uint,uint) Slice32x2() {
+    var random = new SliceUnion(rng.Next());
+    return (
+      random.R32_0,
+      random.R32_1
+    );
+  }
+
+  public (ushort, ushort, ushort, ushort) Slice16x4() {
+    var random = new SliceUnion(rng.Next());
+    return (
+      random.R16_0,
+      random.R16_1,
+      random.R16_2,
+      random.R16_3
+    );
+  }
+
+  public (byte, byte, byte, byte, byte, byte, byte, byte) Slice8x8() {
+    var random = new SliceUnion(rng.Next());
+    return (
+      random.R8_0,
+      random.R8_1,
+      random.R8_2,
+      random.R8_3,
+      random.R8_4,
+      random.R8_5,
+      random.R8_6,
+      random.R8_7
+    );
+  }
+
+  public ulong Modulo(ulong mod) => rng.Next() % mod;
+  
+  public ulong RejectionSampling(ulong mod) {
+    ulong result;
+    do 
+      result = rng.Next(); 
+    while (result >= mod);
+
+    return result;
+  }
+
+  public ulong ModuloRejectionSampling(ulong mod) {
+    var maxValidRange = ulong.MaxValue - ulong.MaxValue % mod;
+    ulong result;
+    do 
+      result = rng.Next();
+    while (result >= maxValidRange);
+
+    return result % mod;
+  }
+
+  public double Scale(double scale) => rng.Next() * scale / ulong.MaxValue;
+
+  public float NextSingle() {
+    var mantissa = (uint)(rng.Next() >> (64 - 23));
+    var floatBits = (127 << 23) | mantissa;
+    return BitConverter.Int32BitsToSingle((int)floatBits) - 1.0f;
+  }
+
+  public double NextDouble() {
+    var mantissa = rng.Next() >> (64 - 52);
+    var doubleBits = (1023UL << 52) | mantissa;
+    return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
+  }
+
+  /// <summary>
+  /// Extracts bits from the specified <paramref name="value"/> according to the bit positions set in the <paramref name="mask"/>.
+  /// </summary>
+  /// <param name="value">The <see cref="ulong"/> value from which bits are extracted.</param>
+  /// <param name="mask">The <see cref="ulong"/> mask that specifies which bits to extract.</param>
+  /// <returns>
+  /// A <see cref="ulong"/> value containing the bits extracted from <paramref name="value"/> and positioned contiguously
+  /// based on the <paramref name="mask"/>.
+  /// </returns>
+  /// <remarks>
+  /// If the CPU supports the BMI2 instruction set, the PEXT (Parallel Bits Extract) instruction is used for optimal performance.
+  /// If not, a manual bit-by-bit extraction is performed.
+  /// </remarks>
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static ulong _MaskBits(ulong value, ulong mask) {
+    ArgumentOutOfRangeException.ThrowIfZero(mask);
+
+    if (Bmi2.X64.IsSupported)
+      return Bmi2.X64.ParallelBitExtract(value, mask);
+
+    var result = 0UL;
+    var random = value & mask;
+    var position = 0;
+    do {
+      if ((mask & 1) != 0)
+        result |= (random & 1) << position++;
+
+      mask >>= 1;
+      random >>= 1;
+    } while (mask > 0);
+
+    return result;
+  }
+
+  /// <summary>
+  /// Counts the number of bits set to 1 in the given <see cref="ulong"/> mask.
+  /// </summary>
+  /// <param name="mask">The <see cref="ulong"/> value in which to count the set bits (1s).</param>
+  /// <returns>
+  /// The number of bits set to 1 in the <paramref name="mask"/> value.
+  /// </returns>
+  /// <remarks>
+  /// This method uses the <c>POPCNT</c> instruction for efficient bit counting if the CPU supports it.
+  /// If the CPU supports the 64-bit <c>POPCNT</c> instruction (<see cref="System.Runtime.Intrinsics.X86.Popcnt.X64"/>),
+  /// it is used to count the bits in the entire <see cref="ulong"/> at once.
+  /// If only the 32-bit <c>POPCNT</c> instruction (<see cref="System.Runtime.Intrinsics.X86.Popcnt"/>) is supported,
+  /// the method counts the bits in the lower and upper 32 bits of the <see cref="ulong"/> separately and sums the results.
+  /// If neither instruction is supported, the method falls back to manually counting the bits.
+  /// </remarks>
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static byte _CountBits(ulong mask) {
+    if (Popcnt.X64.IsSupported)
+      return (byte)Popcnt.X64.PopCount(mask);
+
+    if (Popcnt.IsSupported)
+      return (byte)(Popcnt.PopCount((uint)mask) + Popcnt.PopCount((uint)(mask >> 32)));
+
+    var result = 0UL;
+    while(mask > 0) {
+      result += mask & 1;
+      mask >>= 1;
+    }
+
+    return (byte)result;
+  }
+
+}
+```
 
 ### When you need more bits than the RNG provides
 

@@ -1,17 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using BenchmarkDotNet.Attributes;
 using Randomizer;
 using Randomizer.Cryptographic;
 using Randomizer.Deterministic;
 
-BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
-return;
+//BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
+//return;
 
-var generator = new SelfShrinkingGenerator();
+var generator = new ArbitraryNumberGenerator(new Xoroshiro128PlusPlus());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
+
+var values = Enumerable.Range(0, 16).Select(_ => generator.Mask16(0b11100011100111111001111)).ToArray();
 
 var alreadySeen = new HashSet<ulong>();
 var counter = 0;
