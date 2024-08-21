@@ -1877,7 +1877,7 @@ Here are several methods to extract exactly the number of bits you need, along w
 
   ```cs
   bool Next1(IRandomNumberGenerator instance) {
-    var result = instance.Next();
+    ulong result = instance.Next();
     result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
     result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
@@ -1894,12 +1894,12 @@ Here are several methods to extract exactly the number of bits you need, along w
 
   ```cs
   uint Next24(IRandomNumberGenerator instance) {
-    var result = 0;
-    for (var i = 0; i < 8 ; ++i) {
-      var s = instance.Next();
-      var x = (s & (1 << 62)) >> 62; // Take bit 62
-      var y = (s & (1 <<  7)) >>  7; // Take bit 7
-      var z = (s & (1 << 31)) >> 31; // Take bit 31
+    int result = 0;
+    for (int i = 0; i < 8 ; ++i) {
+      int s = instance.Next();
+      int x = (s & (1 << 62)) >> 62; // Take bit 62
+      int y = (s & (1 <<  7)) >>  7; // Take bit 7
+      int z = (s & (1 << 31)) >> 31; // Take bit 31
       result = x | y << 1 | z << 2 | result << 3;
     }
 
@@ -1972,15 +1972,15 @@ Here are several methods to extract exactly the number of bits you need, along w
 * **IEEE 754 Floats:** This method constructs floating-point numbers according to the [IEEE 754 standard](https://en.wikipedia.org/wiki/IEEE_754), focusing on generating the mantissa randomly while keeping the exponent and sign fixed.
 
   ```cs
-  public float NextSingle() {
-    var mantissa = (uint)(rng.Next() >> (64 - 23)); // Extract 23 bits for the mantissa
-    var floatBits = (127 << 23) | mantissa;         // 127 is the biased exponent for 2^0 in single-precision
+  float NextSingle() {
+    uint mantissa = (uint)(rng.Next() >> (64 - 23)); // Extract 23 bits for the mantissa
+    uint floatBits = (127 << 23) | mantissa;         // 127 is the biased exponent for 2^0 in single-precision
     return BitConverter.Int32BitsToSingle((int)floatBits) - 1.0f;
   }
 
-  public double NextDouble() {
-    var mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
-    var doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
+  double NextDouble() {
+    uint mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
+    uint doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
     return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
   }
   ```
@@ -1991,9 +1991,6 @@ Given the methods, we can now create a more generic class to deal with that:
 
 ```cs
 public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumberGenerator {
-  
-  public void Seed(ulong seed) => rng.Seed(seed);
-  public ulong Next() => rng.Next();
 
   public uint Truncate32() => (uint)rng.Next();
   public ushort Truncate16() => (ushort)rng.Next();
@@ -2006,22 +2003,22 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
   public bool Shift1() => (rng.Next() >> 63) == 1;
 
   public uint Mask32(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 32, nameof(mask));
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 32UL, nameof(mask));
     return (uint)_MaskBits(rng.Next(), mask);
   }
 
   public ushort Mask16(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 16, nameof(mask));
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 16UL, nameof(mask));
     return (ushort)_MaskBits(rng.Next(), mask);
   }
 
   public byte Mask8(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 8, nameof(mask));
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 8UL, nameof(mask));
     return (byte)_MaskBits(rng.Next(), mask);
   }
 
   public bool Mask1(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 1, nameof(mask));
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 1UL, nameof(mask));
     return _MaskBits(rng.Next(), mask) != 0;
   }
 
@@ -2061,7 +2058,7 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
     ArgumentOutOfRangeException.ThrowIfZero(bitsTotal);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitsTotal, 64);
     ArgumentOutOfRangeException.ThrowIfZero(mask);
-    var bitsPerRound = _CountBits(mask);
+    var bitsPerRound = (byte)ulong.PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfNotEqual(bitsTotal % bitsPerRound,0, nameof(mask));
     var result = 0UL;
     do {
@@ -2208,7 +2205,7 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
 
     if (Bmi2.X64.IsSupported)
       return Bmi2.X64.ParallelBitExtract(value, mask);
-
+    
     var result = 0UL;
     var random = value & mask;
     var position = 0;
@@ -2222,45 +2219,67 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
 
     return result;
   }
-
-  /// <summary>
-  /// Counts the number of bits set to 1 in the given <see cref="ulong"/> mask.
-  /// </summary>
-  /// <param name="mask">The <see cref="ulong"/> value in which to count the set bits (1s).</param>
-  /// <returns>
-  /// The number of bits set to 1 in the <paramref name="mask"/> value.
-  /// </returns>
-  /// <remarks>
-  /// This method uses the <c>POPCNT</c> instruction for efficient bit counting if the CPU supports it.
-  /// If the CPU supports the 64-bit <c>POPCNT</c> instruction (<see cref="System.Runtime.Intrinsics.X86.Popcnt.X64"/>),
-  /// it is used to count the bits in the entire <see cref="ulong"/> at once.
-  /// If only the 32-bit <c>POPCNT</c> instruction (<see cref="System.Runtime.Intrinsics.X86.Popcnt"/>) is supported,
-  /// the method counts the bits in the lower and upper 32 bits of the <see cref="ulong"/> separately and sums the results.
-  /// If neither instruction is supported, the method falls back to manually counting the bits.
-  /// </remarks>
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static byte _CountBits(ulong mask) {
-    if (Popcnt.X64.IsSupported)
-      return (byte)Popcnt.X64.PopCount(mask);
-
-    if (Popcnt.IsSupported)
-      return (byte)(Popcnt.PopCount((uint)mask) + Popcnt.PopCount((uint)(mask >> 32)));
-
-    var result = 0UL;
-    while(mask > 0) {
-      result += mask & 1;
-      mask >>= 1;
-    }
-
-    return (byte)result;
-  }
-
+  
 }
 ```
 
 ### When you need more bits than the RNG provides
 
-tbd: concatenation, splitmix, spreadbits
+In some scenarios, the output of an RNG may be too limited in size, and you might need more bits than it provides in a single call. This situation is common in cryptographic applications, simulations, or when working with RNGs that produce relatively small outputs (e.g., 32-bit RNGs) but require larger random values (e.g., 128-bit or 256-bit numbers). Here are a few methods to handle such situations:
+
+* **Concatenation:** This method involves generating multiple smaller random numbers from the RNG and then concatenating them to form a larger random number.
+
+  ```cs
+  UInt128 Concat128() => (UInt128)rng.Next() << 64 | rng.Next();
+  ```
+
+  **Caution**: Ensure that each call to the RNG is independent and that the RNG's internal state changes adequately between calls. If the RNG has any weaknesses or patterns in its output, concatenation can amplify these flaws.
+
+* **SplitMix:** This method is used to expand a smaller RNG output into a larger one by applying a mixing function that scrambles the bits and produces additional randomness.
+
+  ```cs
+  Vector256<ulong> SplitMix256() {
+    ulong random = rng.Next();
+    return Vector256.Create(
+      random, 
+      SplitMix64.Next(ref random), 
+      SplitMix64.Next(ref random), 
+      SplitMix64.Next(ref random)
+    );
+  }
+  ```
+
+  **Caution**: The quality of the output heavily depends on the mixing function used. A poor choice can lead to weak or biased random values. However, when done correctly, SplitMix can produce high-quality random numbers.
+
+* **SpreadBits:** This is a technique where the bits of a small RNG output are "spread" or "stretched" over a larger bit space. This is typically done using bitwise operations that distribute the original bits across the desired output size.
+
+  ```cs
+  UInt128 SpreadBits128(UInt128 mask) {
+    int bitCount = 
+      BitOperations.PopCount((ulong)mask) 
+      + BitOperations.PopCount((ulong)(mask >> 64))
+      ;
+
+    ulong random = rng.Next();
+    UInt128 result = UInt128.Zero;
+    for (int i = 0; i < bitCount; ++i) {
+      UInt128 bit = random & 1;
+      random >>= 1;
+
+      int upperZero= BitOperations.TrailingZeroCount((ulong)(mask >> 64));
+      int nextPosition = BitOperations.TrailingZeroCount((ulong)mask);
+      if (nextPosition == 64)
+        nextPosition += upperZero;
+
+      result |= bit << nextPosition;
+      mask &= ~(UInt128.One << nextPosition);
+    }
+    
+    return result;
+  }
+  ```
+
+  **Caution**: This leaves a lot of bits at zero so maintaining randomness is not guaranteed.
 
 tbd: code for Generic class consuming IRandomNumberGenerator and providing it itself
 

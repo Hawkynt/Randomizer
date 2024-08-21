@@ -1,15 +1,12 @@
 ﻿using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
-using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Composites;
 
-public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumberGenerator {
-  
-  public void Seed(ulong seed) => rng.Seed(seed);
-  public ulong Next() => rng.Next();
+partial class ArbitraryNumberGenerator {
 
   public uint Truncate32() => (uint)rng.Next();
   public ushort Truncate16() => (ushort)rng.Next();
@@ -22,23 +19,23 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
   public bool Shift1() => (rng.Next() >> 63) == 1;
 
   public uint Mask32(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 32, nameof(mask));
-    return (uint)_MaskBits(rng.Next(), mask);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 32UL, nameof(mask));
+    return (uint)_ParallelBitExtract(rng.Next(), mask);
   }
 
   public ushort Mask16(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 16, nameof(mask));
-    return (ushort)_MaskBits(rng.Next(), mask);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 16UL, nameof(mask));
+    return (ushort)_ParallelBitExtract(rng.Next(), mask);
   }
 
   public byte Mask8(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 8, nameof(mask));
-    return (byte)_MaskBits(rng.Next(), mask);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 8UL, nameof(mask));
+    return (byte)_ParallelBitExtract(rng.Next(), mask);
   }
 
   public bool Mask1(ulong mask) {
-    ArgumentOutOfRangeException.ThrowIfGreaterThan(_CountBits(mask), 1, nameof(mask));
-    return _MaskBits(rng.Next(), mask) != 0;
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 1UL, nameof(mask));
+    return _ParallelBitExtract(rng.Next(), mask) != 0;
   }
 
   public uint Sponge32() {
@@ -77,12 +74,12 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
     ArgumentOutOfRangeException.ThrowIfZero(bitsTotal);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitsTotal, 64);
     ArgumentOutOfRangeException.ThrowIfZero(mask);
-    var bitsPerRound = _CountBits(mask);
+    var bitsPerRound = (byte)BitOperations.PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfNotEqual(bitsTotal % bitsPerRound,0, nameof(mask));
     var result = 0UL;
     do {
       var random = rng.Next();
-      var roundBits = _MaskBits(random, mask);
+      var roundBits = _ParallelBitExtract(random, mask);
       result <<= bitsPerRound;
       result |= roundBits;
       bitsTotal -= bitsPerRound;
@@ -219,12 +216,12 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
   /// If not, a manual bit-by-bit extraction is performed.
   /// </remarks>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static ulong _MaskBits(ulong value, ulong mask) {
+  private static ulong _ParallelBitExtract(ulong value, ulong mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
 
     if (Bmi2.X64.IsSupported)
       return Bmi2.X64.ParallelBitExtract(value, mask);
-
+    
     var result = 0UL;
     var random = value & mask;
     var position = 0;
@@ -238,37 +235,5 @@ public class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumbe
 
     return result;
   }
-
-  /// <summary>
-  /// Counts the number of bits set to 1 in the given <see cref="ulong"/> mask.
-  /// </summary>
-  /// <param name="mask">The <see cref="ulong"/> value in which to count the set bits (1s).</param>
-  /// <returns>
-  /// The number of bits set to 1 in the <paramref name="mask"/> value.
-  /// </returns>
-  /// <remarks>
-  /// This method uses the <c>POPCNT</c> instruction for efficient bit counting if the CPU supports it.
-  /// If the CPU supports the 64-bit <c>POPCNT</c> instruction (<see cref="System.Runtime.Intrinsics.X86.Popcnt.X64"/>),
-  /// it is used to count the bits in the entire <see cref="ulong"/> at once.
-  /// If only the 32-bit <c>POPCNT</c> instruction (<see cref="System.Runtime.Intrinsics.X86.Popcnt"/>) is supported,
-  /// the method counts the bits in the lower and upper 32 bits of the <see cref="ulong"/> separately and sums the results.
-  /// If neither instruction is supported, the method falls back to manually counting the bits.
-  /// </remarks>
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static byte _CountBits(ulong mask) {
-    if (Popcnt.X64.IsSupported)
-      return (byte)Popcnt.X64.PopCount(mask);
-
-    if (Popcnt.IsSupported)
-      return (byte)(Popcnt.PopCount((uint)mask) + Popcnt.PopCount((uint)(mask >> 32)));
-
-    var result = 0UL;
-    while(mask > 0) {
-      result += mask & 1;
-      mask >>= 1;
-    }
-
-    return (byte)result;
-  }
-
+  
 }
