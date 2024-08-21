@@ -22,4 +22,8 @@
     <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.328" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RandomNumberGenerators\RandomNumberGenerators.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using BenchmarkDotNet.Attributes;
-using Randomizer;
-using Randomizer.Cryptographic;
-using Randomizer.Deterministic;
+using Hawkynt.RandomNumberGenerators.Composites;
+using Hawkynt.RandomNumberGenerators.Cryptographic;
+using Hawkynt.RandomNumberGenerators.Deterministic;
+using Hawkynt.RandomNumberGenerators.Interfaces;
 
 //BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
 //return;
