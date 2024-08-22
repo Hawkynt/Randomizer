@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
-using System.Numerics;
-using System.Runtime.Intrinsics;
+using System.Security.Cryptography;
 using BenchmarkDotNet.Attributes;
 using Hawkynt.RandomNumberGenerators.Composites;
 using Hawkynt.RandomNumberGenerators.Cryptographic;
@@ -18,7 +16,8 @@ var generator = new ArbitraryNumberGenerator(new Xoroshiro128PlusPlus());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
-var x = generator.ConcatGenerator().Take(8192).ToArray().ToHex();
+var y = generator.ConcatGenerator(15).ToHex();
+var x = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
 
 var values = Enumerable.Range(0, 16).Select(_ => generator.Mask16(0b11100011100111111001111)).ToArray();
 

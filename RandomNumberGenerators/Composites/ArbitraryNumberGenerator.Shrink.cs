@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Numerics;
+// ReSharper disable UnusedMember.Global
 
 namespace Hawkynt.RandomNumberGenerators.Composites;
 
@@ -13,6 +14,7 @@ partial class ArbitraryNumberGenerator {
   public ulong Truncate(byte bitCount) {
     ArgumentOutOfRangeException.ThrowIfZero(bitCount);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, (byte)63);
+
     return rng.Next() & ((1UL << bitCount) - 1);
   }
 
@@ -24,6 +26,7 @@ partial class ArbitraryNumberGenerator {
   public ulong Shift(byte bitCount) {
     ArgumentOutOfRangeException.ThrowIfZero(bitCount);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, (byte)63);
+
     return rng.Next() >> (64 - bitCount);
   }
 
@@ -31,30 +34,35 @@ partial class ArbitraryNumberGenerator {
   public uint Mask32(ulong mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 32UL, nameof(mask));
+
     return (uint)_ParallelBitExtract(rng.Next(), mask);
   }
 
   public ushort Mask16(ulong mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 16UL, nameof(mask));
+
     return (ushort)_ParallelBitExtract(rng.Next(), mask);
   }
 
   public byte Mask8(ulong mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 8UL, nameof(mask));
+
     return (byte)_ParallelBitExtract(rng.Next(), mask);
   }
 
   public bool Mask1(ulong mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 1UL, nameof(mask));
+
     return _ParallelBitExtract(rng.Next(), mask) != 0;
   }
 
   public ulong Mask(ulong mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 63UL, nameof(mask));
+
     return _ParallelBitExtract(rng.Next(), mask);
   }
 
@@ -115,6 +123,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     var bitsPerRound = (byte)BitOperations.PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfNotEqual(bitsTotal % bitsPerRound,0, nameof(mask));
+
     var result = 0UL;
     do {
       var random = rng.Next();

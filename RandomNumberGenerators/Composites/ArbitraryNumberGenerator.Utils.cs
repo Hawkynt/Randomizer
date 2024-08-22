@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 namespace Hawkynt.RandomNumberGenerators.Composites;
 
 partial class ArbitraryNumberGenerator {
+
   /// <summary>
   /// Extracts bits from the specified <paramref name="value"/> according to the bit positions set in the <paramref name="mask"/>.
   /// </summary>
@@ -38,4 +40,37 @@ partial class ArbitraryNumberGenerator {
 
     return result;
   }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static byte _PopCount(UInt128 mask) => (byte)(ulong.PopCount((ulong)mask) + ulong.PopCount((ulong)(mask >> 64)));
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static ushort _PopCount(Vector256<ulong> mask) {
+    var pc0 = ulong.PopCount(mask.GetElement(0));
+    var pc1 = ulong.PopCount(mask.GetElement(1));
+    var pc2 = ulong.PopCount(mask.GetElement(2));
+    var pc3 = ulong.PopCount(mask.GetElement(3));
+
+    var pc01 = pc0 + pc1;
+    var pc23 = pc2 + pc3;
+
+    return (ushort)(pc01 + pc23);
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static ushort _PopCount(Vector512<ulong> mask) {
+    
+    var pc0123 = _PopCount(mask.GetLower());
+    var pc4567 = _PopCount(mask.GetUpper());
+
+    return (ushort)(pc0123 + pc4567);
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static void _Increment(byte[] counter) {
+    for (var i = 0; i < counter.Length; ++i)
+      if (++counter[i] != 0)
+        return;
+  }
+
 }

@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
+using System.Security.Cryptography;
 using Hawkynt.RandomNumberGenerators.Deterministic;
+
+// ReSharper disable UnusedMember.Global
 
 namespace Hawkynt.RandomNumberGenerators.Composites;
 
@@ -30,6 +33,59 @@ partial class ArbitraryNumberGenerator {
       yield return random.R8_6;
       yield return random.R8_7;
     }
+    // ReSharper disable once IteratorNeverReturns
+  }
+
+  public unsafe byte[] ConcatGenerator(int count) {
+    ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+    var result = new byte[count];
+
+    fixed (byte* pointer = &result[0]) {
+      var index = pointer;
+      var random = rng.Next();
+
+      // full rounds
+      while (count >= 8) {
+        *(ulong*)index = random;
+        random = rng.Next();
+        index += 8;
+        count -= 8;
+      }
+
+      // remaining bytes
+      switch (count) {
+        case 0: break;
+        case 1:
+          *index = (byte)random;
+          break;
+        case 2:
+          *(ushort*)index = (ushort)random;
+          break;
+        case 3:
+          *(ushort*)index = (ushort)random;
+          index[2] = (byte)(random >> 16);
+          break;
+        case 4:
+          *(uint*)index = (uint)random;
+          break;
+        case 5:
+          *(uint*)index = (uint)random;
+          index[4] = (byte)(random >> 32);
+          break;
+        case 6:
+          *(uint*)index = (uint)random;
+          ((ushort*)index)[2] = (ushort)(random >> 32);
+          break;
+        case 7:
+          *(uint*)index = (uint)random;
+          ((ushort*)index)[2] = (ushort)(random >> 32);
+          index[6] = (byte)(random >> 48);
+          break;
+      }
+    }
+
+    return result;
   }
 
   public UInt128 SplitMix128() {
@@ -54,6 +110,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     var bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, 64);
+
     var random = rng.Next();
     var result = UInt128.Zero;
     for (var i = 0; i < bitCount; ++i) {
@@ -76,6 +133,7 @@ partial class ArbitraryNumberGenerator {
     var bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfZero(bitCount, nameof(mask));
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, 64);
+
     var random = rng.Next();
     var result = Vector256<ulong>.Zero;
     for (var i = 0; i < bitCount; ++i) {
@@ -118,6 +176,7 @@ partial class ArbitraryNumberGenerator {
     var bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfZero(bitCount, nameof(mask));
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, 64);
+
     var random = rng.Next();
     var result = Vector512<ulong>.Zero;
     for (var i = 0; i < bitCount; ++i) {
@@ -191,31 +250,79 @@ partial class ArbitraryNumberGenerator {
       result ^= (uint)(roundKey >> 32);
       return result;
     }
+    // ReSharper disable once IteratorNeverReturns
   }
 
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static byte _PopCount(UInt128 mask) => (byte)(ulong.PopCount((ulong)mask) + ulong.PopCount((ulong)(mask >> 64)));
-
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static ushort _PopCount(Vector256<ulong> mask) {
-    var pc0 = ulong.PopCount(mask.GetElement(0));
-    var pc1 = ulong.PopCount(mask.GetElement(1));
-    var pc2 = ulong.PopCount(mask.GetElement(2));
-    var pc3 = ulong.PopCount(mask.GetElement(3));
-
-    var pc01 = pc0 + pc1;
-    var pc23 = pc2 + pc3;
-
-    return (ushort)(pc01 + pc23);
+  public IEnumerable<byte> HashGenerator<THash>() where THash : HashAlgorithm, new() {
+    using var instance=new THash();
+      return this.HashGenerator(instance);
   }
 
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static ushort _PopCount(Vector512<ulong> mask) {
+  public IEnumerable<byte> HashGenerator(HashAlgorithm instance) {
+    ArgumentNullException.ThrowIfNull(instance);
+
+    var entropyBitsNeeded = instance.HashSize;
+    var entropyBytesNeeded = entropyBitsNeeded >> 3;
     
-    var pc0123 = _PopCount(mask.GetLower());
-    var pc4567 = _PopCount(mask.GetUpper());
+    // Generate the initial salt using RNG
+    var salt = this.ConcatGenerator(entropyBytesNeeded);
+    
+    // Initialize the counter
+    var counter = new byte[entropyBytesNeeded];
 
-    return (ushort)(pc0123 + pc4567);
+    for (;;) {
+
+      // Combine the salt and counter using XOR
+      var plainData = salt.Zip(counter, (s, c) => (byte)(s ^ c)).ToArray();
+
+      // Generate the hash
+      var hash = instance.ComputeHash(plainData);
+      
+      // Yield each byte of the hash as part of the random stream
+      foreach (var entry in hash)
+        yield return entry;
+
+      _Increment(counter);
+    }
+    // ReSharper disable once IteratorNeverReturns
+  }
+
+  public IEnumerable<byte> CipherGenerator<TCipher>() where TCipher : SymmetricAlgorithm, new() {
+    using var instance = new TCipher();
+    return this.CipherGenerator(instance);
+  }
+
+  public IEnumerable<byte> CipherGenerator(SymmetricAlgorithm instance) {
+    instance.Mode = CipherMode.ECB; // CTR mode is simulated with ECB
+    instance.Padding = PaddingMode.None;
+
+    // Generate a random key and initialization vector (IV)
+    var key = this.ConcatGenerator(instance.KeySize >> 3);
+
+    var blockSizeInBytes = instance.BlockSize >> 3;
+    var iv = this.ConcatGenerator(blockSizeInBytes);
+    
+    instance.Key = key;
+    instance.IV = iv;
+
+    // Initialize the counter
+    var counter = new byte[blockSizeInBytes];
+
+    var cipherText = new byte[blockSizeInBytes];
+    using var encryptor = instance.CreateEncryptor();
+    for (;;) {
+      
+      // Encrypt the counter block
+      encryptor.TransformBlock(counter, 0, blockSizeInBytes, cipherText, 0);
+
+      // Yield each byte from the encrypted block as random output
+      foreach (var value in cipherText)
+        yield return value;
+
+      // Increment the counter
+      _Increment(counter);
+    }
+    // ReSharper disable once IteratorNeverReturns
   }
 
 }
