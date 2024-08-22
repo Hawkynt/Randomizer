@@ -68,16 +68,28 @@ partial class ArbitraryNumberGenerator {
       var bit = random & 1;
       random >>= 1;
 
-      var nextPosition = 0;
-      for (var j = 0; j < 4; ++j) {
-        var currentZeroes = BitOperations.TrailingZeroCount(mask.GetElement(j));
-        nextPosition += currentZeroes;
-        if (currentZeroes != 64)
-          break;
+      var value0 = mask.GetElement(0);
+      var value1 = mask.GetElement(1);
+      var value2 = mask.GetElement(2);
+      var value3 = mask.GetElement(3);
+
+      var zeroes0 = BitOperations.TrailingZeroCount(value0);
+      var zeroes1 = BitOperations.TrailingZeroCount(value1);
+      var zeroes2 = BitOperations.TrailingZeroCount(value2);
+      var zeroes3 = BitOperations.TrailingZeroCount(value3);
+
+      var nextPosition = zeroes0;
+      if (zeroes0 == 64) {
+        nextPosition += zeroes1;
+        if (zeroes1 == 64) {
+          nextPosition += zeroes2;
+          if (zeroes2 == 64)
+            nextPosition += zeroes3;
+        }
       }
 
-      var elementIndex = nextPosition / 64;
-      var intraElementIndex = nextPosition % 64;
+      var elementIndex = nextPosition >> 6;
+      var intraElementIndex = nextPosition & 63;
       var element = result.GetElement(elementIndex);
       element |= bit << intraElementIndex;
       result = result.WithElement(elementIndex, element);
@@ -106,8 +118,8 @@ partial class ArbitraryNumberGenerator {
           break;
       }
 
-      var elementIndex = nextPosition / 64;
-      var intraElementIndex = nextPosition % 64;
+      var elementIndex = nextPosition >> 6;
+      var intraElementIndex = nextPosition & 63;
       var element = result.GetElement(elementIndex);
       element |= bit << intraElementIndex;
       result = result.WithElement(elementIndex, element);
