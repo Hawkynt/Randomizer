@@ -1733,9 +1733,44 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 }
 ```
 
+### Box-Muller Method (BM) [^](https://www.researchgate.net/publication/264324131_Box-Muller_transformation)
+
+This is another popular algorithm used to generate pairs of independent, normally distributed random variables (also known as Gaussian variables) from uniformly distributed random numbers. The method is named after George E. P. Box and Mervin E. Muller, who introduced it in 1958. It is straightforward to implement and produces two normally distributed values per iteration, making it efficient for simulations and other applications requiring Gaussian distributions.
+
+The BM operates in two main steps:
+
+* **Generate Two Uniform Random Numbers**: The method begins by generating two independent random numbers, $x$ and $y$, from a uniform distribution over the interval $(0, 1]$.
+
+* **Transform to Gaussian Distribution**: The uniform random numbers are then transformed into a pair of independent, normally distributed random variables $z_0$ and $z_1$ using the following formulas:
+
+  $$r = \sqrt{-2 \ln(x)}$$
+
+  $$\theta = 2 \pi y$$
+
+  $$z_0 = r \cdot \cos(\theta)$$
+
+  $$z_1 = r \cdot \sin(\theta)$$
+
+  These transformations are derived from the properties of the normal distribution and trigonometric identities.
+
+```cs
+(double, double) Next() {
+  double x = 2 * generator.NextDouble() - 1;
+  double y = 2 * generator.NextDouble() - 1;
+ 
+  double r = Math.Sqrt(-2.0 * Math.Log(x));
+  double theta = 2.0 * Math.PI * y;
+
+  double z0 = r * Math.Cos(theta);
+  double z1 = r * Math.Sin(theta);
+
+  return (z0, z1);
+}
+```
+
 ### Marsaglia Polar Method (MP) [^](https://www.jstor.org/stable/2027592)
 
-This is a widely used algorithm for generating pairs of independent, normally distributed random variables (also known as Gaussian variables) from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
+This is a widely used algorithm for generating pairs of Gaussian variables from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
 
 The MP relies on the fact that a pair of independent, uniformly distributed variables can be transformed into a pair of independent, normally distributed variables. The method involves the following steps:
 
