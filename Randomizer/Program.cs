@@ -18,7 +18,7 @@ var generator = new ArbitraryNumberGenerator(new Xoroshiro128PlusPlus());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
-var x = generator.SpreadBits256(Vector256.Create(0xAA55AA5500000000, 0xAA55AA5500000000, 0xAA55AA5500000000, 0xAA55AA5500000000));
+var x = generator.ConcatGenerator().Take(8192).ToArray().ToHex();
 
 var values = Enumerable.Range(0, 16).Select(_ => generator.Mask16(0b11100011100111111001111)).ToArray();
 

@@ -1,5 +1,5 @@
 ﻿using System;
-using System.IO.Enumeration;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
@@ -17,6 +17,20 @@ partial class ArbitraryNumberGenerator {
     rng.Next(), rng.Next(), rng.Next(), rng.Next(),
     rng.Next(), rng.Next(), rng.Next(), rng.Next()
   );
+
+  public IEnumerable<byte> ConcatGenerator() {
+    for (;;) {
+      var random = new SliceUnion(rng.Next());
+      yield return random.R8_0;
+      yield return random.R8_1;
+      yield return random.R8_2;
+      yield return random.R8_3;
+      yield return random.R8_4;
+      yield return random.R8_5;
+      yield return random.R8_6;
+      yield return random.R8_7;
+    }
+  }
 
   public UInt128 SplitMix128() {
     var random = rng.Next();
@@ -128,6 +142,55 @@ partial class ArbitraryNumberGenerator {
     }
 
     return result;
+  }
+
+  public IEnumerable<byte> FeistelGenerator() {
+    var state = rng.Next();
+    var key = rng.Next();
+    var counter = rng.Next();
+
+    var counterIndex = 0;
+    for (;;) {
+      var roundBits = (int)(counter >> counterIndex) & 0b1111;
+      counterIndex += 4;
+      if (counterIndex >= 64) {
+        (counter, state) = (state, counter);
+        counterIndex = 0;
+      }
+
+      ++roundBits;
+      for (var i = 0; i < roundBits; ++i) {
+        DoFeistelRound(ref state, key);
+        DoFeistelRound(ref state, key);
+        (state, key) = (key, state);
+      }
+
+      var result = new SliceUnion(state);
+      yield return result.R8_0;
+      yield return result.R8_1;
+      yield return result.R8_2;
+      yield return result.R8_3;
+      yield return result.R8_4;
+      yield return result.R8_5;
+      yield return result.R8_6;
+      yield return result.R8_7;
+    }
+    
+    void DoFeistelRound(ref ulong plainText, ulong roundKey) {
+      var left = (uint)plainText;
+      var right = (uint)(plainText>>32);
+      left ^= RoundFunction(right, roundKey);
+      (left, right) = (right, left);
+      plainText = left | (ulong)right << 32;
+    }
+
+    uint RoundFunction(uint right,ulong roundKey) {
+      var result=BitOperations.RotateLeft(right, 3);
+      result ^= (uint)roundKey;
+      result = BitOperations.RotateRight(result, 17);
+      result ^= (uint)(roundKey >> 32);
+      return result;
+    }
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
