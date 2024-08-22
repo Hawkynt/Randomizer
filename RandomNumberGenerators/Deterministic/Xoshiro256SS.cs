@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Numerics;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
@@ -14,7 +14,7 @@ public class Xoshiro256SS : IRandomNumberGenerator {
   }
 
   public ulong Next() {
-    var result = RotateLeft(this._x * 5, 7) * 9;
+    var result = BitOperations.RotateLeft(this._x * 5, 7) * 9;
 
     var x = this._x << 17;
 
@@ -24,12 +24,9 @@ public class Xoshiro256SS : IRandomNumberGenerator {
     this._w ^= this._z;
 
     this._y ^= x;
-    this._z = RotateLeft(this._z, 45);
+    this._z = BitOperations.RotateLeft(this._z, 45);
 
     return result;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static ulong RotateLeft(ulong x, int k) => (x << k) | (x >> (64 - k));
   }
 
 }

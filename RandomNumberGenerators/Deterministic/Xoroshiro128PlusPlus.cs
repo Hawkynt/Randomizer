@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Numerics;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
@@ -15,15 +15,13 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
   public ulong Next() {
     var x = this._x;
     var y = this._y;
-    var result = RotateLeft(x + y, 17) + x;
+    var result = BitOperations.RotateLeft(x + y, 17) + x;
 
     y ^= x;
-    this._x = RotateLeft(x, 49) ^ y ^ (y << 21);
-    this._y = RotateLeft(y, 28);
+    this._x = BitOperations.RotateLeft(x, 49) ^ y ^ (y << 21);
+    this._y = BitOperations.RotateLeft(y, 28);
 
     return result;
-
-    static ulong RotateLeft(ulong x, int k) => (x << k) | (x >> (64 - k));
   }
 
 }
