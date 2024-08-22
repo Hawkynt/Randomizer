@@ -1735,7 +1735,39 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 
 ### Marsaglia Polar Method (MP) [^](https://www.jstor.org/stable/2027592)
 
-tbd
+This is a widely used algorithm for generating pairs of independent, normally distributed random variables (also known as Gaussian variables) from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
+
+The MP relies on the fact that a pair of independent, uniformly distributed variables can be transformed into a pair of independent, normally distributed variables. The method involves the following steps:
+
+* **Generate Two Uniform Random Numbers**: Two random variables $x$ and $y$ are drawn from a uniform distribution between $-1$ and $+1$. These are mapped from an underlying uniform RNG that typically provides values in the range $[0, 1)$.
+
+* **Calculate their Sum of Squares**: The sum of squares $s = x^2 + y^2$ is computed. This value represents the squared distance of the point $(x, y)$ from the origin in a 2D plane.
+
+* **Accept or Reject the Pair**: If $s$ is outside the interval $(0, 1)$, the pair is rejected, and the process repeats. This ensures the points lie within the unit circle, which is essential for the next step to correctly produce normally distributed outputs.
+
+* **Transform to Gaussian Distribution**: Once a valid pair is found (i.e., when $s$ is within the unit circle), the method uses the formula:
+
+   $$\text{multiplier} = \sqrt{\frac{-2 \cdot \ln(s)}{s}}$$
+
+  to transform the uniform random variables $x$ and $y$ into independent, normally distributed random variables.
+
+* **Return Two Normally Distributed Variables**: The transformed values $x \times \text{multiplier}$ and $y \times \text{multiplier}$ are the resulting Gaussian variables.
+
+```cs
+(double, double) Next() {
+  while (true) {
+    double x = 2 * generator.NextDouble() - 1;
+    double y = 2 * generator.NextDouble() - 1;
+    double s = x * x + y * y;
+
+    if (s is <= 0 or >= 1)
+      continue;
+
+    double multiplier = Math.Sqrt(-2 * Math.Log(s) / s);
+    return (x * multiplier, y * multiplier);
+  }
+}
+```
 
 ### Ziggurat (ZIG) [^](https://www.jstatsoft.org/article/view/v005i08)
 
