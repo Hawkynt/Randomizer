@@ -465,7 +465,7 @@ public interface IRandomNumberGenerator {
 }
 ```
 
-If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the finite fields $ \mathbb{F}_{2^{32}} $ or $ \mathbb{F}_{2^{64}} $.
+If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the finite fields $`\mathbb{F}_{2^{32}}`$ or $`\mathbb{F}_{2^{64}}`$.
 
 However, some methods have specific statistical properties that might prevent them from conforming strictly to this interface.
 
@@ -1215,12 +1215,10 @@ The generator produces the next random number using the following steps:
 
 3. Update the carry value $c$ based on the result:
 
-   $$
-     c = \begin{cases}
-     1 & \text{if } X_{i-S} - X_{i-L} - c < 0 \\
-     0 & \text{otherwise}
-     \end{cases}
-   $$
+   $`c = \begin{cases}
+      1 & \text{if } X_{i-S} - X_{i-L} - c < 0 \\
+      0 & \text{otherwise}
+      \end{cases}`$
 
 4. Update the state array at index $i$ with the new value $X_i$.
 
