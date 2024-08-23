@@ -465,7 +465,7 @@ public interface IRandomNumberGenerator {
 }
 ```
 
-If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the finite fields $\mathbb{F}_{2^{32}}$ or $\mathbb{F}_{2^{64}}$.
+If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the finite fields $ \mathbb{F}_{2^{32}} $ or $ \mathbb{F}_{2^{64}} $.
 
 However, some methods have specific statistical properties that might prevent them from conforming strictly to this interface.
 
@@ -476,6 +476,7 @@ However, some methods have specific statistical properties that might prevent th
 This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is 8n. It is defined by this formula:
 
 $$s_i = s_{i-1}^2$$
+
 $$X_i= \left\lfloor \frac{s_{i}}{m} \right\rfloor \mod M$$
 
 Where:
@@ -659,6 +660,7 @@ $$x_{i,j} = (a_j \cdot x_{i-1,j} + c_j) \mod M_j$$
 The CLCG can be defined using one of the following formulas, where $k$ LCGs are combined:
 
 $$X_i = \left [ \sum_{j=1}^k {(a_j \cdot x_{i-1,j} + c_j) \mod M_j} \right ] \mod M = \left [ \sum_{j=1}^k {x_{i,j}} \right ] \mod M = [x_{i,1}+\cdots+x_{i,k}] \mod M$$
+
 $$X_i = \left [ \prod_{j=1}^k {(a_j \cdot x_{i-1,j} + c_j) \mod M_j} \right ] \mod M = \left [ \prod_{j=1}^k {x_{i,j}} \right ] \mod M = [x_{i,1} \cdot \cdots \cdot x_{i,k}] \mod M$$
 
 Where:
@@ -1213,10 +1215,12 @@ The generator produces the next random number using the following steps:
 
 3. Update the carry value $c$ based on the result:
 
-   $$c = \begin{cases}
-   1 & \text{if } X_{i-S} - X_{i-L} - c < 0 \\
-   0 & \text{otherwise}
-   \end{cases}$$
+   $$
+     c = \begin{cases}
+     1 & \text{if } X_{i-S} - X_{i-L} - c < 0 \\
+     0 & \text{otherwise}
+     \end{cases}
+   $$
 
 4. Update the state array at index $i$ with the new value $X_i$.
 
@@ -1891,48 +1895,68 @@ class Ziggurat(ArbitraryNumberGenerator generator) {
 
   private const int NUM_LAYERS = 128;
   private const double R = 3.442619855899;
+  private const double V = 9.91256303526217e-3;
+  private const double R_INVERSE = 1 / R;
+
   private static readonly double[] layerWidths = new double[NUM_LAYERS];
   private static readonly double[] layerHeights = new double[NUM_LAYERS];
-  private static readonly double[] distributionTable = new double[NUM_LAYERS];
 
   static Ziggurat() {
-    
-    // Precompute the widths and heights of the layers
-    double f = Math.Exp(-0.5 * R * R);
-    layerWidths[0] = R / f;
-    layerHeights[0] = f;
 
-    for (int i = 1; i < NUM_LAYERS; ++i) {
-      layerWidths[i] = Math.Sqrt(-2 * Math.Log(layerHeights[i - 1] + f));
-      layerHeights[i] = layerWidths[i] * f;
+    // Precompute the widths and heights of the layers
+    var f = Math.Exp(-0.5 * R * R);
+    layerWidths[0] = V / f;
+    layerWidths[1] = R;
+
+    var lastLayerWidth = R;
+    for (var i = 2; i < NUM_LAYERS; ++i) {
+      lastLayerWidth = layerWidths[i] = Math.Sqrt(-2 * Math.Log(V / lastLayerWidth + f));
+      f = Math.Exp(-0.5 * lastLayerWidth * lastLayerWidth);
     }
 
-    distributionTable[NUM_LAYERS - 1] = 0.0;
+    layerHeights[NUM_LAYERS - 1] = 0;
+    for (var i = 0; i < NUM_LAYERS - 1; ++i)
+      layerHeights[i] = layerWidths[i + 1] / layerWidths[i];
+
   }
 
   public double Next() {
-    for(;;) {
-      int layer = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
-      double x = generator.NextDouble() * layerWidths[layer];
+    for (;;) {
+      var i = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
+      var u = 2 * generator.NextDouble() - 1;
 
-      if (x < layerWidths[layer])
-        return layer > 0 ? x : SampleTail();
+      /* first try the rectangular boxes */
+      var layerWidth = layerWidths[i];
+      var x = u * layerWidth;
+      if (Math.Abs(u) < layerHeights[i])
+        return x;
 
-      if (layer == 0)
-        return SampleTail();
+      /* bottom box: sample from the tail */
+      if (i == 0)
+        return SampleTail(u < 0);
 
-      if (generator.NextDouble() < Math.Exp(-0.5 * x * x))
+      /* is this a sample from the wedges? */
+      var xSqr = x * x;
+      var nextLayerWidth = i == NUM_LAYERS - 1 ? 0 : layerWidths[i + 1];
+
+      var f0 = Math.Exp(-0.5 * (layerWidth * layerWidth - xSqr));
+      var f1 = Math.Exp(-0.5 * (nextLayerWidth * nextLayerWidth - xSqr));
+      if (f1 + generator.NextDouble() * (f0 - f1) < 1.0)
         return x;
     }
 
-    double SampleTail() {
-      for(;;) {
-        double x = -Math.Log(generator.NextDouble()) / R;
-        double y = -Math.Log(generator.NextDouble());
-        if (y + y >= x * x)
+    double SampleTail(bool isNegative) {
+      for (;;) {
+        var x = -Math.Log(generator.NextDouble()) * R_INVERSE;
+        var y = -Math.Log(generator.NextDouble());
+        if (y + y < x * x)
           continue;
-        
-        return x > 0 ? R + x : -(R + x);
+
+        var result = R + x;
+        if (isNegative)
+          result = -result;
+
+        return result;
       }
     }
   }
@@ -2135,12 +2159,14 @@ graph TB
   subgraph Sponging
 
     subgraph Step1[Step 1]
+      direction LR
       V4Upper[Upper 4 Bits]
       V4Lower[Lower 4 Bits]
     end
     V2[Intermediate 4 Bits]
     
     subgraph Step2[Step 2]
+      direction LR
       V2Upper[Upper 2 Bits]
       V2Lower[Lower 2 Bits]
     end
@@ -2150,7 +2176,7 @@ graph TB
 
 V-->V4Upper
 V-->V4Lower
-V4Upper--⊕-->V4Lower-->V2
+V4Upper-->⊕-->V4Lower-->V2
 V2-->V2Upper
 V2-->V2Lower
 V2Upper--⊕-->V2Lower-->R

@@ -18,7 +18,19 @@ generator.Seed(seedNumber);
 
 var y = generator.ConcatGenerator(15).ToHex();
 var x = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
-var z = new Ziggurat(generator).Next();
+
+var z = new Ziggurat(generator);
+var histogram = new ulong[256];
+for (var i = 0; i < 1000000; ++i) {
+  double random;
+  do {
+    random = z.Next() / 3.72;
+  } while (random < -1 || random > 1);
+  random=++random*0.5;
+
+  var limited=(int)(random * 256);
+  ++histogram[limited];
+}
 
 var values = Enumerable.Range(0, 16).Select(_ => generator.Mask16(0b11100011100111111001111)).ToArray();
 
