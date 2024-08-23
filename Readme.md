@@ -1068,7 +1068,9 @@ class KeepItSimpleStupid:IRandomNumberGenerator {
 }
 ```
 
-### Complementary Multiply with Carry(CMWC) [^20]
+### Complementary Multiply with Carry (CMWC) [^20]
+
+[^20]: [CMWC](https://blacklen.wordpress.com/2011/05/15/prng-3-complementary-multiply-with-carry/)
 
 This generator is a refinement of the [MWC](#multiply-with-carry-mwc) method. In a CMWC generator, a sequence of random numbers is produced using a multiplier and a carry value, similar to the MWC method. However, the CMWC method maintains an array of states and updates them in a more sophisticated manner to improve the quality of the generated random numbers.
 
@@ -1129,6 +1131,8 @@ class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 ```
 
 ### Lagged Fibonacci Generator (LFG) [^21]
+
+[^21]: [LFG](https://asecuritysite.com/encryption/fab)
 
 This is a type of pseudo-random number generator that extends the Fibonacci sequence concept to generate random numbers. Instead of simply adding the two previous numbers, as in the Fibonacci sequence, the LFG uses a combination of past values with different operations to produce the next value in the sequence.
 
@@ -1253,6 +1257,8 @@ class SubtractWithBorrow : IRandomNumberGenerator {
 
 ### Linear Feedback Shift Register (LFSR) [^23]
 
+[^23]: [LFSR](https://www.analog.com/en/resources/design-notes/random-number-generation-using-lfsr.html)
+
 This is basically a shift register whose input bit is a linear function of its previous state. The most commonly used linear function of single bits is XOR. LFSRs are commonly used in applications such as cryptography, error detection and correction, and pseudorandom number generation due to their ability to produce sequences of bits with good statistical properties.
 
 An LFSR is defined by its feedback polynomial, which determines how the previous bits of the register affect the new bit shifted into the register. The polynomial is typically represented in the form:
@@ -1362,6 +1368,8 @@ class SelfShrinkingGenerator : IRandomNumberGenerator {
 ```
 
 ### Feedback with Carry Shift Register (FCSR) [^25]
+
+[^25]:[FCSR](https://www.researchgate.net/publication/220738954_A_Survey_of_Feedback_with_Carry_Shift_Registers)
 
 This is a type of pseudorandom number generator that extends the concept of [LFSR](#linear-feedback-shift-register-lfsr)s by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
 
@@ -1985,23 +1993,32 @@ class BlumBlumShub : IRandomNumberGenerator {
 
 ### ChaCha20 (CC20) [^36]
 
+[^36]: [CC20](https://www.chronox.de/chacha20_drng/)
+
 tbd
 
 ### Yarrow (YAR) [^37]
 
+[^37]: [YAR](https://www.schneier.com/wp-content/uploads/2016/02/paper-yarrow.pdf)
+
 tbd
 
-### Fortuna (FORT) [^38]
+### Fortuna (FORT) [^38] [^39]
 
 [^38]: [FORT](https://www.codeproject.com/Articles/6321/Fortuna-A-Cryptographically-Secure-Pseudo-Random-N)
 
+[^39]: [FORT-Paper](https://www.schneier.com/wp-content/uploads/2015/12/fortuna.pdf)
 tbd
 
-### Blum-Micali (BM) [^39]
+### Blum-Micali (BM) [^40]
+
+[^40]: [BM](https://pages.cs.wisc.edu/~cs812-1/blum.micali82.pdf)
 
 tbd
 
-### ANSI X9.17 [^40]
+### ANSI X9.17 (ANSI) [^41]
+
+[^41]: [ANSI](https://www.researchgate.net/publication/267297736_EFFICIENT_COMBINATION_OF_SEVERAL_TECHNIQUES_IN_THE_DESIGN_AND_IMPLEMENTATION_OF_A_NETWORKS_SECURITY_SYSTEM)
 
 tbd
 
@@ -2015,7 +2032,23 @@ Here are several methods to extract exactly the number of bits you need, along w
 
 #### Truncating
 
-This involves discarding the higher bits and retaining only the lower bits. This method is simple and efficient when the lower bits are sufficient for your needs.
+```mermaid
+graph TD
+  V[Random: 64-bit Value]
+  
+  subgraph Truncation
+    H[Upper 32 Bits]
+    L[Lower 32 Bits]
+  end
+
+  R[Result: 32-bit Value]
+
+  V-->H
+  V-->L
+  L-->R
+```
+
+This involves discarding the higher bits and retaining only the lower bits. This method is simple and efficient when the lower bits are sufficient for your needs. Due to the involved data-types both halves have the same size.
 
 ```cs
 uint Truncate32(IRandomNumberGenerator instance) => (uint)instance.Next();
@@ -2026,7 +2059,23 @@ uint Truncate32(IRandomNumberGenerator instance) => (uint)instance.Next();
 
 #### Shifting
 
-This involves discarding the lower bits by right-shifting the RNG output, effectively keeping only the higher bits.
+```mermaid
+graph TD
+  V[Random: 64-bit Value]
+  
+  subgraph Shifting
+    H[Upper 8 Bits]
+    L[Lower 24 Bits]
+  end
+
+  R[Result: 8-Bit Value]
+
+  V-->H
+  V-->L
+  H-->R
+```
+
+This involves discarding the lower bits by right-shifting the RNG output, effectively keeping only the higher bits. Arbitrary shift values are possible making the number of output bits very flexible.
 
 ```cs
 byte Shift8(IRandomNumberGenerator instance) => (byte)(instance.Next() >> 56);
@@ -2037,7 +2086,38 @@ byte Shift8(IRandomNumberGenerator instance) => (byte)(instance.Next() >> 56);
 
 #### Masking
 
-This allows you to take specific bits from the RNG output by applying a bitmask. This method is useful when you need a certain range of bits from the output.
+```mermaid
+graph TD
+  V[Random: 8-bit Value]
+  
+  subgraph Bit-Mask
+    B7[7]
+    B6[6]
+    B5[5]
+    B4[4]
+    B3[3]
+    B2[2]
+    B1[1]
+    B0[0]
+  end
+
+  R[Result: 4-bit Value]
+
+  V-->B7
+  V-->B6
+  V-->B5
+  V-->B4
+  V-->B3
+  V-->B2
+  V-->B1
+  V-->B0
+  B6-->R
+  B3-->R
+  B1-->R
+  B0-->R
+```
+
+This allows you to take specific bits from the RNG output by applying a bitmask. This method is useful when you need a certain range of bits from the output. Depending on the implementation it might be possible to extract non-contiguous bits and combine them together into the final output.
 
 ```cs
 ushort Mask16(IRandomNumberGenerator instance) => (ushort)((instance.Next() & 0x000000FFFF000000) >> 24);
@@ -2048,7 +2128,35 @@ ushort Mask16(IRandomNumberGenerator instance) => (ushort)((instance.Next() & 0x
 
 #### Sponging
 
-This technique involves repeatedly XORing the RNG output with itself after progressively smaller right shifts. This ensures that the final extracted bit(s) are influenced by all bits in the RNG output, increasing entropy and security.
+```mermaid
+graph TB
+  V[Random: 8-bit Value]
+  
+  subgraph Sponging
+
+    subgraph Step1[Step 1]
+      V4Upper[Upper 4 Bits]
+      V4Lower[Lower 4 Bits]
+    end
+    V2[Intermediate 4 Bits]
+    
+    subgraph Step2[Step 2]
+      V2Upper[Upper 2 Bits]
+      V2Lower[Lower 2 Bits]
+    end
+  end
+
+  R[Result: 2-bit Value]
+
+V-->V4Upper
+V-->V4Lower
+V4Upper--⊕-->V4Lower-->V2
+V2-->V2Upper
+V2-->V2Lower
+V2Upper--⊕-->V2Lower-->R
+```
+
+This technique involves repeatedly XORing the RNG output with itself after progressively smaller right shifts. This ensures that the final extracted bit(s) are influenced by all bits in the RNG output, increasing entropy and security. Due to the construction of the sponge the output bit count is a power of 2.
 
 ```cs
 bool Sponge1(IRandomNumberGenerator instance) {
@@ -2068,12 +2176,31 @@ bool Sponge1(IRandomNumberGenerator instance) {
 
 #### Construction
 
+```mermaid
+graph TB
+  V0[Random: 64-bit Value]
+  V1[Random: 64-bit Value]
+  
+  subgraph Construction
+
+    B0[3 Bits]
+    B1[3 Bits]
+    
+  end
+
+  R[Result: 6-bit Value]
+
+V0-->B0
+V1-->B1
+B0 & B1-->R
+```
+
 In this method, you repeatedly call the RNG to generate the exact number of bits you need. This approach can be useful when you need a non-standard number of bits (e.g., 24 bits) and want to ensure each bit is generated with uniform randomness.
 
 ```cs
-uint Construct24(IRandomNumberGenerator instance) {
+byte Construct6(IRandomNumberGenerator instance) {
   int result = 0;
-  for (int i = 0; i < 8 ; ++i) {
+  for (int i = 0; i < 2 ; ++i) {
     int s = instance.Next();
     int x = (s & (1 << 62)) >> 62; // Take bit 62
     int y = (s & (1 <<  7)) >>  7; // Take bit 7
@@ -2089,6 +2216,31 @@ uint Construct24(IRandomNumberGenerator instance) {
 > If the RNG is biased for certain bits, this approach can accumulate those biases across multiple calls, leading to a non-uniform final output.
 
 #### Slicing
+
+```mermaid
+graph TB
+  V[Random: 64-bit Value]
+  
+  subgraph Slicing
+
+    B0[16 Bits]
+    B1[16 Bits]
+    B2[16 Bits]
+    B3[16 Bits]
+    
+  end
+
+  R0[Result: 16-bit Value]
+  R1[Result: 16-bit Value]
+  R2[Result: 16-bit Value]
+  R3[Result: 16-bit Value]
+
+V-->B0 & B1 & B2 & B3
+B0-->R0
+B1-->R1
+B2-->R2
+B3-->R3
+```
 
 This involves splitting the RNG output into smaller parts and using those parts as needed. This can be useful when you need multiple smaller random values from a single RNG output.
 
