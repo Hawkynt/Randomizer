@@ -2153,33 +2153,39 @@ ushort Mask16(IRandomNumberGenerator instance) => (ushort)((instance.Next() & 0x
 #### Sponging
 
 ```mermaid
-graph TB
-  V[Random: 8-bit Value]
-  
-  subgraph Sponging
+block-beta
+  columns 3
+  V["Random: 8-bit Value"]:3
+    space:3
 
-    subgraph Step1[Step 1]
-      direction LR
-      V4Upper[Upper 4 Bits]
-      V4Lower[Lower 4 Bits]
-    end
-    V2[Intermediate 4 Bits]
+    V4Upper["Upper 4 Bits"]
+    space
+    V4Lower["Lower 4 Bits"]
     
-    subgraph Step2[Step 2]
-      direction LR
-      V2Upper[Upper 2 Bits]
-      V2Lower[Lower 2 Bits]
-    end
-  end
+    space:3
 
-  R[Result: 2-bit Value]
+    space
+    V2["Intermediate 4 Bits"]
+    space
+    
+    space:3
 
-V-->V4Upper
-V-->V4Lower
-V4Upper-->⊕-->V4Lower-->V2
-V2-->V2Upper
-V2-->V2Lower
-V2Upper--⊕-->V2Lower-->R
+    V2Upper["Upper 2 Bits"]
+    space
+    V2Lower["Lower 2 Bits"]
+    
+    space:3
+
+  R["Result: 2-bit Value"]:3
+
+  V4Upper--"⊕"-->V4Lower
+  V2Upper--"⊕"-->V2Lower
+  V--->V4Upper
+  V--->V4Lower
+  V4Lower--->V2
+  V2--->V2Upper
+  V2--->V2Lower
+  V2Lower--->R
 ```
 
 This technique involves repeatedly XORing the RNG output with itself after progressively smaller right shifts. This ensures that the final extracted bit(s) are influenced by all bits in the RNG output, increasing entropy and security. Due to the construction of the sponge the output bit count is a power of 2.
