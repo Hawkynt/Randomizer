@@ -18,7 +18,7 @@ generator.Seed(seedNumber);
 
 var y = generator.ConcatGenerator(15).ToHex();
 var x = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
-var z = new BoxMuller(generator).Next();
+var z = new Ziggurat(generator).Next();
 
 var values = Enumerable.Range(0, 16).Select(_ => generator.Mask16(0b11100011100111111001111)).ToArray();
 

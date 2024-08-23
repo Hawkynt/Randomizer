@@ -414,7 +414,9 @@ The period length of an RNG is the number of values it produces before the seque
 
 ### Test-Suites
 
-#### Diehard [^](https://github.com/eltonlaw/diehard)
+#### Diehard [^1]
+
+[^1]: [Diehard](https://github.com/eltonlaw/diehard)
 
 These tests are a suite of statistical tests designed by George Marsaglia to assess the quality of RNGs. These tests evaluate various aspects of randomness, including distribution uniformity, independence, and the occurrence of patterns.
 
@@ -426,7 +428,9 @@ These tests are a suite of statistical tests designed by George Marsaglia to ass
 
 * **Rank of Matrices:** Evaluates the rank of matrices constructed from random numbers.
 
-#### TestU01 [^](https://simul.iro.umontreal.ca/testu01/tu01.html)
+#### TestU01 [^2]
+
+[^2]: [TestU01](https://simul.iro.umontreal.ca/testu01/tu01.html)
 
 This is a comprehensive software library developed by Pierre L'Ecuyer for testing RNGs. It includes several batteries of tests, ranging from small (Crush) to large (BigCrush), providing a thorough evaluation of an RNG's statistical properties.
 
@@ -436,7 +440,9 @@ This is a comprehensive software library developed by Pierre L'Ecuyer for testin
 * **Crush:** A moderate battery of tests suitable for initial evaluations.
 * **BigCrush:** A large and highly stringent battery for thorough testing.
 
-#### NIST Statistical Test Suite [^](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-22r1a.pdf)
+#### NIST Statistical Test Suite [^3]
+
+[^3]: [NIST-STS](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-22r1a.pdf)
 
 The NIST Statistical Test Suite is a set of tests developed by the National Institute of Standards and Technology to evaluate the quality of random numbers, particularly for cryptographic applications. This suite assesses the randomness of binary sequences.
 
@@ -450,7 +456,7 @@ The NIST Statistical Test Suite is a set of tests developed by the National Inst
 
 ## Algorithms
 
-The upcoming algorithms may contain sample implementation in [C#](https://en.wikipedia.org/wiki/C_Sharp_(programming_language)). For all of them we are gonna use a common interface to generate 64-Bit random numbers:
+The upcoming algorithms may contain sample implementation in [C#](https://en.wikipedia.org/wiki/C_Sharp_(programming_language)). For them we are gonna use a common interface to generate 64-Bit random integer numbers:
 
 ```c#
 public interface IRandomNumberGenerator {
@@ -461,7 +467,11 @@ public interface IRandomNumberGenerator {
 
 If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the finite fields $\mathbb{F}_{2^{32}}$ or $\mathbb{F}_{2^{64}}$.
 
-### Middle Square (MS) [^](http://bit-player.org/2022/the-middle-of-the-square)
+However, some methods have specific statistical properties that might prevent them from conforming strictly to this interface.
+
+### Middle Square (MS) [^4]
+
+[^4]: [MS](http://bit-player.org/2022/the-middle-of-the-square)
 
 This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is 8n. It is defined by this formula:
 
@@ -490,9 +500,11 @@ class MiddleSquare : IRandomNumberGenerator {
 }
 ```
 
-### Middle Square Weyl Sequence (MSWS) [^](https://arxiv.org/pdf/1704.00358)
+### Middle Square Weyl Sequence (MSWS) [^5]
 
-This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic MS method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the MS method with an additional [Weyl sequence](https://en.wikipedia.org/wiki/Weyl_sequence) to improve randomness quality and performance.
+[^5]: [MSWS](https://arxiv.org/pdf/1704.00358)
+
+This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic [MS](#middle-square-ms) method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the MS method with an additional [Weyl sequence](https://en.wikipedia.org/wiki/Weyl_sequence) to improve randomness quality and performance.
 
 The Weyl sequence is an integer stepping sequence $0, w, 2w, 3w, ...$ of period $2^{64}$, requiring $w$ to be odd (eitherwise half of all elements will never be taken), which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs.
 
@@ -517,7 +529,9 @@ class MiddleSquareWeylSequence : IRandomNumberGenerator {
 }
 ```
 
-### Multiplicative Linear Congruential Generator (MLCG) [^](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
+### Multiplicative Linear Congruential Generator (MLCG) [^6]
+
+[^6]: [MLCG](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
 
 Originally introduced by D.H. Lehmer in 1951, this is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
 
@@ -543,9 +557,11 @@ class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Wichmann-Hill (WH) [^](https://www.researchgate.net/publication/220055967_Generating_good_pseudo-random_numbers)
+### Wichmann-Hill (WH) [^7]
 
-This generator combines three separate MLCGs to produce a sequence of pseudorandom numbers with a very long period and good statistical properties. This generator was introduced by B. A. Wichmann and I. D. Hill in 1982.
+[^7]: [WH](https://www.researchgate.net/publication/220055967_Generating_good_pseudo-random_numbers)
+
+This generator combines three separate [MLCG](#multiplicative-linear-congruential-generator-mlcg)s to produce a sequence of pseudorandom numbers with a very long period and good statistical properties. This generator was introduced by B. A. Wichmann and I. D. Hill in 1982.
 
 The WH uses three individual MLCGs, each with its own modulus, multiplier, and seed. The output of these three generators is combined to produce a single pseudorandom number. The mathematical definitions of the three LCGs are as follows:
 
@@ -596,7 +612,9 @@ class WichmannHill : IRandomNumberGenerator {
 }
 ```
 
-### Linear Congruential Generator (LCG) [^](https://en.wikipedia.org/wiki/Linear_congruential_generator)
+### Linear Congruential Generator (LCG) [^8]
+
+[^8]: [LCG](https://en.wikipedia.org/wiki/Linear_congruential_generator)
 
 This is one of the oldest and most well-known PRNG algorithms. Introduced by W. E. Thomson and A. Rotenberg in 1958, it generates a sequence of numbers using a piecewise linear equation. The generator is defined by the recurrence relation:
 
@@ -626,9 +644,11 @@ class LinearCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Combined Linear Congruential Generator (CLCG) [^](https://en.wikipedia.org/wiki/Combined_linear_congruential_generator)
+### Combined Linear Congruential Generator (CLCG) [^9]
 
-This is an extension of the LCG designed to improve the statistical properties and period length by combining multiple LCGs. This method aims to mitigate the weaknesses inherent in single LCGs, such as short periods and poor distribution, by combining several generators with different parameters.
+[^9]: [CLCG](https://en.wikipedia.org/wiki/Combined_linear_congruential_generator)
+
+This is an extension of the [LCG](#linear-congruential-generator-lcg) designed to improve the statistical properties and period length by combining multiple LCGs. This method aims to mitigate the weaknesses inherent in single LCGs, such as short periods and poor distribution, by combining several generators with different parameters.
 
 In a CLCG, multiple LCGs are run in parallel, and their outputs are combined using addition or XOR operations to produce the final random number. The combination of multiple generators with carefully chosen parameters ensures that the resulting sequence has a much longer period and better statistical properties than any individual LCG.
 
@@ -676,7 +696,9 @@ class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Inversive Congruential Generator (ICG) [^](https://www.ams.org/journals/mcom/1991-56-193/S0025-5718-1991-1052092-X/S0025-5718-1991-1052092-X.pdf)
+### Inversive Congruential Generator (ICG) [^10]
+
+[^10]: [ICG](https://www.ams.org/journals/mcom/1991-56-193/S0025-5718-1991-1052092-X/S0025-5718-1991-1052092-X.pdf)
 
 These are a type of nonlinear congruential pseudorandom number generator that use the modular multiplicative inverse to generate the next number in a sequence. These generators offer excellent uniformity properties and longer periods compared to LCGs.
 
@@ -734,11 +756,13 @@ class InversiveCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Multiply with Carry (MWC) [^](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
+### Multiply with Carry (MWC) [^11]
+
+[^11]: [MWC](http://www.cs.engr.uky.edu/~klapper/pdf/MWC.pdf)
 
 These are a class of PRNGs that combines multiplication, addition, and a carry mechanism to produce sequences of random numbers, introduced by George Marsaglia in 1994.
 
-The key difference between MWC and LCG is the introduction of a carry value in MWC. This carry value is carried over to the next step, which helps in achieving longer periods and better statistical properties compared to traditional LCGs.
+The key difference between MWC and [LCG](#linear-congruential-generator-lcg) is the introduction of a carry value in MWC. This carry value is carried over to the next step, which helps in achieving longer periods and better statistical properties compared to traditional LCGs.
 
 The general formula for an MWC generator is as follows:
 
@@ -781,7 +805,9 @@ class MultiplyWithCarry : IRandomNumberGenerator {
 }
 ```
 
-### XorShift (XS) [^](https://www.jstatsoft.org/index.php/jss/article/view/v008i14/916)
+### XorShift (XS) [^12]
+
+[^12]: [XS](https://www.jstatsoft.org/index.php/jss/article/view/v008i14/916)
 
 This method was introduced by George Marsaglia in 2003, and is a class of extremely fast and simple RNGs. These generators operate by repeatedly applying the exclusive-or ([xor](https://en.wikipedia.org/wiki/Exclusive_or)) operation combined with bit shifts to produce sequences of random numbers. XS RNGs can generate sequences of integers with periods $2^k - 1$ for values of $k$ like $32, 64, 96, 128, 160$ and $192$.
 
@@ -808,9 +834,11 @@ class XorShift : IRandomNumberGenerator {
 }
 ```
 
-### XorShift+ (XS+) [^](https://arxiv.org/pdf/1404.0390)
+### XorShift+ (XS+) [^13]
 
-This method, introduced by Sebastiano Vigna, is an extension of XS generators. Instead of using a multiplication operation, XS+ returns the sum of two consecutive outputs from the XS generator. This approach helps to eliminate linear artifacts typically associated with linear operations in
+[^13]: [XS+](https://arxiv.org/pdf/1404.0390)
+
+This method, introduced by Sebastiano Vigna, is an extension of XS generators. Instead of using a multiplication operation, XS+ returns the sum of two consecutive outputs from the [XS](#xorshift-xs) generator. This approach helps to eliminate linear artifacts typically associated with linear operations in
 $\mathbb{Z}/2^{32}\mathbb{Z}$. The XS+ generators have been adopted in various JavaScript engines, including those in Chrome, Firefox, Safari, and Microsoft Edge. They are faster and have better statistical properties than some earlier RNGs, passing rigorous tests like BigCrush from the TestU01 suite.
 
 It is also designed to avoid weaknesses in lower bits that were observed in some other RNGs, ensuring a uniform distribution of random numbers.
@@ -839,9 +867,11 @@ class XorShiftPlus : IRandomNumberGenerator {
 }
 ```
 
-### XorShift*(XS*) [^](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
+### XorShift*(XS*) [^14]
 
-These generators are an enhancement over the basic XS generators, incorporating an invertible multiplication (modulo the word size) as a non-linear transformation to the output. This technique was suggested by Marsaglia to address linear artifacts inherent in pure XS generators. The multiplication step ensures that the output sequence is equidistributed in the maximum possible dimension, which means it spans all possible values in its range more uniformly than the basic XS. These generators are designed to produce high-quality pseudorandom numbers and are widely used due to their simplicity and efficiency.
+[^14]: [XS*](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
+
+These generators are an enhancement over the basic [XS](#xorshift-xs) generators, incorporating an invertible multiplication (modulo the word size) as a non-linear transformation to the output. This technique was suggested by Marsaglia to address linear artifacts inherent in pure XS generators. The multiplication step ensures that the output sequence is equidistributed in the maximum possible dimension, which means it spans all possible values in its range more uniformly than the basic XS. These generators are designed to produce high-quality pseudorandom numbers and are widely used due to their simplicity and efficiency.
 
 ```cs
 class XorShiftStar : IRandomNumberGenerator {
@@ -863,9 +893,11 @@ class XorShiftStar : IRandomNumberGenerator {
 }
 ```
 
-### XorWow
+### XorWow [^15]
 
-This is another variant introduced by Marsaglia, that adds a simple additive counter (a Weyl sequence) to the output of a XS generator. This method extends the period and enhances the randomness of the output. The XorWow generator is used as the default RNG in Nvidia's CUDA toolkit, demonstrating its effectiveness in high-performance computing environments.
+[^15]: [XorWow](https://www.pcg-random.org/downloads/snippets/uncxorwow.c)
+
+This is another variant introduced by Marsaglia, that adds a simple additive counter (a Weyl sequence) to the output of a [XS](#xorshift-xs) generator. This method extends the period and enhances the randomness of the output. The XorWow generator is used as the default RNG in Nvidia's CUDA toolkit, demonstrating its effectiveness in high-performance computing environments.
 
 ```cs
 class XorWow : IRandomNumberGenerator {
@@ -916,7 +948,9 @@ class XorWow : IRandomNumberGenerator {
 }
 ```
 
-### SplitMix (SM) [^](https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf)
+### SplitMix (SM) [^16]
+
+[^16]: [SM](https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf)
 
 This generator is a simple and fast pseudo-random number generator designed by Sebastiano Vigna. It combines adding the golden gamma constant ($2^{64}/\phi$ where $\phi = \frac{1 + \sqrt{5}}{2}$) to David Stafford’s Mix13 variant of the [MurmurHash](https://en.wikipedia.org/wiki/MurmurHash)3 finalizer. It's primarily used for initializing the states of other more complex generators, such as Xoroshiro and Xoshiro. It is particularly well-suited for this purpose because of its excellent statistical properties and simplicity.
 
@@ -941,7 +975,9 @@ class SplitMix64 : IRandomNumberGenerator {
 }
 ```
 
-### XoShiRo (XSR) [^](https://prng.di.unimi.it/)
+### XoShiRo (XSR) [^17]
+
+[^17]: [XSR](https://prng.di.unimi.it/)
 
 This algorithm is designed for high performance and quality. It uses a combination of XOR operations, bitwise shifts, and bitwise rotations to generate random numbers. XSR256** is used in various software implementations, including the GNU Fortran compiler, Lua 5.4, and the .NET framework from version 6.0 onwards.
 
@@ -975,7 +1011,9 @@ class Xoshiro256SS : IRandomNumberGenerator {
 }
 ```
 
-### XoRoShiRo (XRSR) [^](https://vigna.di.unimi.it/ftp/papers/ScrambledLinear.pdf)
+### XoRoShiRo (XRSR) [^18]
+
+[^18]: [XRSR](https://vigna.di.unimi.it/ftp/papers/ScrambledLinear.pdf)
 
 The name stands for XOR/rotate/shift/rotate, which describes the core operations used in these generators. These generators are designed to provide high performance utilizing less memory while maintaining excellent statistical properties
 
@@ -1004,11 +1042,13 @@ class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 }
 ```
 
-### Keep it simple stupid (KISS)
+### Keep it simple stupid(KISS) [^19]
+
+[^19]: [KISS](https://eprint.iacr.org/2011/007.pdf)
 
 This generator is a combination of several simple and fast pseudorandom number generators. It was introduced by George Marsaglia to create a generator with a longer period and better statistical properties by combining the outputs of multiple generators. The idea behind KISS is to use the strengths of different RNGs to compensate for each other's weaknesses.
 
-A typical KISS generator combines LCG, XS, and a MWC. Each of these generators produces a sequence of pseudorandom numbers independently, and their outputs are combined using a simple bitwise operation to produce the final random number.
+A typical KISS generator combines [LCG](#linear-congruential-generator-lcg), [XS](#xorshift-xs), and a [MWC](#multiply-with-carry-mwc). Each of these generators produces a sequence of pseudorandom numbers independently, and their outputs are combined using a simple bitwise operation to produce the final random number.
 
 ```cs
 class KeepItSimpleStupid:IRandomNumberGenerator {
@@ -1028,9 +1068,9 @@ class KeepItSimpleStupid:IRandomNumberGenerator {
 }
 ```
 
-### Complementary Multiply with Carry (CMWC)
+### Complementary Multiply with Carry(CMWC) [^20]
 
-This generator is a refinement of the MWC method. In a CMWC generator, a sequence of random numbers is produced using a multiplier and a carry value, similar to the MWC method. However, the CMWC method maintains an array of states and updates them in a more sophisticated manner to improve the quality of the generated random numbers.
+This generator is a refinement of the [MWC](#multiply-with-carry-mwc) method. In a CMWC generator, a sequence of random numbers is produced using a multiplier and a carry value, similar to the MWC method. However, the CMWC method maintains an array of states and updates them in a more sophisticated manner to improve the quality of the generated random numbers.
 
 The CMWC generator is defined by the following parameters:
 
@@ -1088,7 +1128,7 @@ class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 }
 ```
 
-### Lagged Fibonacci Generator (LFG)
+### Lagged Fibonacci Generator (LFG) [^21]
 
 This is a type of pseudo-random number generator that extends the Fibonacci sequence concept to generate random numbers. Instead of simply adding the two previous numbers, as in the Fibonacci sequence, the LFG uses a combination of past values with different operations to produce the next value in the sequence.
 
@@ -1145,9 +1185,11 @@ class LaggedFibonacciGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Subtract with Borrow (SWB) [^](https://projecteuclid.org/journals/annals-of-applied-probability/volume-1/issue-3/A-New-Class-of-Random-Number-Generators/10.1214/aoap/1177005878.full)
+### Subtract with Borrow (SWB) [^22]
 
-This is a type of PRNG in the family of LFG, introduced by George Marsaglia and Arif Zaman in 1991. These generators produce sequences of random numbers by using two preceding numbers at specified offsets or "lags" along with a carry value to influence the computation.
+[^22]: [SWB](https://projecteuclid.org/journals/annals-of-applied-probability/volume-1/issue-3/A-New-Class-of-Random-Number-Generators/10.1214/aoap/1177005878.full)
+
+This is a type of PRNG in the family of [LFG](#lagged-fibonacci-generator-lfg), introduced by George Marsaglia and Arif Zaman in 1991. These generators produce sequences of random numbers by using two preceding numbers at specified offsets or "lags" along with a carry value to influence the computation.
 
 The SWC generator is defined by the following parameters:
 
@@ -1209,7 +1251,7 @@ class SubtractWithBorrow : IRandomNumberGenerator {
 }
 ```
 
-### Linear Feedback Shift Register (LFSR)
+### Linear Feedback Shift Register (LFSR) [^23]
 
 This is basically a shift register whose input bit is a linear function of its previous state. The most commonly used linear function of single bits is XOR. LFSRs are commonly used in applications such as cryptography, error detection and correction, and pseudorandom number generation due to their ability to produce sequences of bits with good statistical properties.
 
@@ -1265,9 +1307,11 @@ class LinearFeedbackShiftRegister : IRandomNumberGenerator {
 }
 ```
 
-### Self-shrinking Generator (SSG) [^](https://link.springer.com/book/10.1007/BFb0053418)
+### Self-shrinking Generator (SSG) [^24]
 
-This is a type of PRNG that operates based on the principles of LFSRs. Introduced by Meier and Staffelbach in 1994, the SSG is particularly known for its simplicity and the inherent cryptographic properties derived from its LFSR-based design. This generator shrinks the output of an LFSR by selecting bits in a specific manner, thus providing a more secure and less predictable output sequence. It works by using the output of an LFSR in pairs of bits. Depending on the values of these pairs, it either includes or excludes certain bits from the final output sequence. Here's how the SSG operates in detail:
+[^24]: [SSG](https://link.springer.com/book/10.1007/BFb0053418)
+
+This is a type of PRNG that operates based on the principles of [LFSR](#linear-feedback-shift-register-lfsr)s. Introduced by Meier and Staffelbach in 1994, the SSG is particularly known for its simplicity and the inherent cryptographic properties derived from its LFSR-based design. This generator shrinks the output of an LFSR by selecting bits in a specific manner, thus providing a more secure and less predictable output sequence. It works by using the output of an LFSR in pairs of bits. Depending on the values of these pairs, it either includes or excludes certain bits from the final output sequence. Here's how the SSG operates in detail:
 
 * **LFSR Step**: The LFSR is stepped to produce a new bit.
 * **Pairing Bits**: The generator looks at pairs of bits $(x, y)$ produced by consecutive steps of the LFSR.
@@ -1317,9 +1361,9 @@ class SelfShrinkingGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Feedback with Carry Shift Register (FCSR)
+### Feedback with Carry Shift Register (FCSR) [^25]
 
-This is a type of pseudorandom number generator that extends the concept of LFSRs by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
+This is a type of pseudorandom number generator that extends the concept of [LFSR](#linear-feedback-shift-register-lfsr)s by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
 
 The FCSR generator operates by shifting bits through a register and using feedback to update the state of the register. The key difference between FCSR and LFSR is the addition of a carry value, which adds non-linearity to the generator and improves the randomness of the output sequence.
 
@@ -1402,7 +1446,9 @@ class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 }
 ```
 
-### Additive Congruential Random Number Generator (ACORN) [^](https://acorn.wikramaratna.org/concept.html)
+### Additive Congruential Random Number Generator (ACORN) [^26]
+
+[^26]: [ACORN](https://acorn.wikramaratna.org/concept.html)
 
 This generator that uses modular arithmetic and addition to produce a sequence of random numbers. The generator can achieve good statistical properties and is relatively simple to implement.
 
@@ -1441,9 +1487,11 @@ class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator {
 }
 ```
 
-### Permuted Congruential Generator (PCG) [^](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
+### Permuted Congruential Generator (PCG) [^27]
 
-This is a pseudorandom number generation algorithm developed in 2014 by Dr. Melissa E. O'Neill. PCG applies an output permutation function to improve the statistical properties of a modulo- $2^n$ LCG.
+[^27]: [PCG](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
+
+This is a pseudorandom number generation algorithm developed in 2014 by Dr. Melissa E. O'Neill. PCG applies an output permutation function to improve the statistical properties of a modulo- $2^n$ [LCG](#linear-congruential-generator-lcg).
 
 The key features of PCG are:
 
@@ -1490,7 +1538,9 @@ class PermutedCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
-### MIXMAX [^](https://arxiv.org/pdf/1403.5355)
+### MIXMAX [^28]
+
+[^28]: [MIXMAX](https://arxiv.org/pdf/1403.5355)
 
 This generator is based on the properties of [Kolmogorov](https://link.springer.com/article/10.1134/S1063779620040644)-[Anosov C-systems](https://arxiv.org/pdf/1507.06348), which are a class of chaotic dynamical systems known for their excellent mixing properties. This generator utilizes an integer-valued unimodular matrix of size $NxN$ and arithmetic defined on a Galois field $GF[p]$ with a large prime modulus $p$. The primary idea is to leverage the dynamics of linear automorphisms on the unit hypercube in $\mathbb{R}^N$, which can be expressed as:
 
@@ -1571,7 +1621,9 @@ class Mixmax : IRandomNumberGenerator {
 }
 ```
 
-### Mersenne Twister (MT) [^](https://www.sciencedirect.com/topics/computer-science/mersenne-twister)
+### Mersenne Twister (MT) [^29]
+
+[^29]: [MT](https://www.sciencedirect.com/topics/computer-science/mersenne-twister)
 
 This was developed by Makoto Matsumoto and Takuji Nishimura in 1997. It is known for its long period, high order of equidistribution, and efficient implementation. The most widely used version of the Mersenne Twister is MT19937, which has a period of $2^{19937}-1$.
 
@@ -1637,9 +1689,11 @@ class MersenneTwister : IRandomNumberGenerator {
 }
 ```
 
-### Well Equidistributed Long-Period Linear (WELL) [^](https://www.iro.umontreal.ca/~lecuyer/myftp/papers/lfsr04.pdf)
+### Well Equidistributed Long-Period Linear (WELL) [^30]
 
-The family of this generators was developed to improve upon MT by offering better equidistribution properties and faster recovery from bad states. Introduced by François Panneton and Pierre L'Ecuyer, WELL generators aim to provide high-quality random numbers for computational statistics and simulation.
+[^30]: [WELL](https://www.iro.umontreal.ca/~lecuyer/myftp/papers/lfsr04.pdf)
+
+The family of this generators was developed to improve upon [MT](#mersenne-twister-mt) by offering better equidistribution properties and faster recovery from bad states. Introduced by François Panneton and Pierre L'Ecuyer, WELL generators aim to provide high-quality random numbers for computational statistics and simulation.
 
 Characteristics
 
@@ -1733,7 +1787,9 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 }
 ```
 
-### Box-Muller Method (BM) [^](https://www.researchgate.net/publication/264324131_Box-Muller_transformation)
+### Box-Muller Method (BM) [^31]
+
+[^31]: [BM](https://www.researchgate.net/publication/264324131_Box-Muller_transformation)
 
 This is another popular algorithm used to generate pairs of independent, normally distributed random variables (also known as Gaussian variables) from uniformly distributed random numbers. The method is named after George E. P. Box and Mervin E. Muller, who introduced it in 1958. It is straightforward to implement and produces two normally distributed values per iteration, making it efficient for simulations and other applications requiring Gaussian distributions.
 
@@ -1768,7 +1824,9 @@ The BM operates in two main steps:
 }
 ```
 
-### Marsaglia Polar Method (MP) [^](https://www.jstor.org/stable/2027592)
+### Marsaglia Polar Method (MP) [^32]
+
+[^32]: [MP](https://www.jstor.org/stable/2027592)
 
 This is a widely used algorithm for generating pairs of Gaussian variables from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
 
@@ -1804,11 +1862,80 @@ The MP relies on the fact that a pair of independent, uniformly distributed vari
 }
 ```
 
-### Ziggurat (ZIG) [^](https://www.jstatsoft.org/article/view/v005i08)
+### Ziggurat (ZIG) [^33]
 
-tbd
+[^33]: [ZIG](https://www.jstatsoft.org/article/view/v005i08)
 
-### Blum Blum Shub (BBS) [^](https://www.cs.miami.edu/home/burt/learning/Csc609.062/docs/bbs.pdf) [^](https://people.tamu.edu/~rojas//bbs.pdf)
+This is an efficient algorithm for generating random numbers from a variety of probability distributions, most notably the normal (Gaussian) distribution. It is particularly well-suited for high-performance applications where speed is critical, such as simulations and cryptographic systems.
+
+The ZIG generates random numbers by partitioning the target distribution into multiple layers, resembling a ziggurat (a terraced structure from ancient Mesopotamia). Each layer is either a rectangle or a tail region, and the method efficiently samples from these regions. The key steps in the Ziggurat Method are:
+
+* **Precompute Layers**: The distribution is divided into a series of layers, each represented by a rectangle. These layers cover the bulk of the distribution, with the top layer accounting for the distribution's tails.
+
+* **Uniform Sampling**: A random rectangle is selected uniformly from the precomputed layers. Within this rectangle, a random point is chosen uniformly.
+
+* **Acceptance or Rejection**: If the point falls within the desired distribution, it is accepted as a valid sample. If not, the algorithm resorts to a fallback method, such as the Box-Muller transform or a direct sampling from the tail region, to generate the sample.
+
+* **Efficiency**: The method is efficient because most samples fall within the rectangles, and the expensive fallback step is needed only for a small fraction of cases.
+
+```cs
+class Ziggurat(ArbitraryNumberGenerator generator) {
+
+  private const int NUM_LAYERS = 128;
+  private const double R = 3.442619855899;
+  private static readonly double[] layerWidths = new double[NUM_LAYERS];
+  private static readonly double[] layerHeights = new double[NUM_LAYERS];
+  private static readonly double[] distributionTable = new double[NUM_LAYERS];
+
+  static Ziggurat() {
+    
+    // Precompute the widths and heights of the layers
+    double f = Math.Exp(-0.5 * R * R);
+    layerWidths[0] = R / f;
+    layerHeights[0] = f;
+
+    for (int i = 1; i < NUM_LAYERS; ++i) {
+      layerWidths[i] = Math.Sqrt(-2 * Math.Log(layerHeights[i - 1] + f));
+      layerHeights[i] = layerWidths[i] * f;
+    }
+
+    distributionTable[NUM_LAYERS - 1] = 0.0;
+  }
+
+  public double Next() {
+    for(;;) {
+      int layer = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
+      double x = generator.NextDouble() * layerWidths[layer];
+
+      if (x < layerWidths[layer])
+        return layer > 0 ? x : SampleTail();
+
+      if (layer == 0)
+        return SampleTail();
+
+      if (generator.NextDouble() < Math.Exp(-0.5 * x * x))
+        return x;
+    }
+
+    double SampleTail() {
+      for(;;) {
+        double x = -Math.Log(generator.NextDouble()) / R;
+        double y = -Math.Log(generator.NextDouble());
+        if (y + y >= x * x)
+          continue;
+        
+        return x > 0 ? R + x : -(R + x);
+      }
+    }
+  }
+
+}
+```
+
+### Blum Blum Shub (BBS) [^34] [^35]
+
+[^34]: [BBS](https://www.cs.miami.edu/home/burt/learning/Csc609.062/docs/bbs.pdf)
+[^35]: [BBS-Paper](https://people.tamu.edu/~rojas/bbs.pdf)
 
 This generator is a cryptographically secure pseudorandom number generator based on the difficulty of factoring large composite numbers. It was proposed by Lenore Blum, Manuel Blum, and Michael Shub in 1986. The generator is particularly known for its security properties, making it suitable for cryptographic applications.
 
@@ -1856,23 +1983,25 @@ class BlumBlumShub : IRandomNumberGenerator {
 }
 ```
 
-### ChaCha20 (CC20)
+### ChaCha20 (CC20) [^36]
 
 tbd
 
-### Yarrow (YAR)
+### Yarrow (YAR) [^37]
 
 tbd
 
-### Fortuna (FORT) [^](https://www.codeproject.com/Articles/6321/Fortuna-A-Cryptographically-Secure-Pseudo-Random-N)
+### Fortuna (FORT) [^38]
+
+[^38]: [FORT](https://www.codeproject.com/Articles/6321/Fortuna-A-Cryptographically-Secure-Pseudo-Random-N)
 
 tbd
 
-### Blum-Micali (BM)
+### Blum-Micali (BM) [^39]
 
 tbd
 
-### ANSI X9.17
+### ANSI X9.17 [^40]
 
 tbd
 
@@ -1884,148 +2013,183 @@ In cryptographic applications and other scenarios where precise control over the
 
 Here are several methods to extract exactly the number of bits you need, along with their potential pitfalls and ways to mitigate them:
 
-* **Truncating:** This involves discarding the higher bits and retaining only the lower bits. This method is simple and efficient when the lower bits are sufficient for your needs.
+#### Truncating
 
-  ```cs
-  uint Truncate32(IRandomNumberGenerator instance) => (uint)instance.Next();
-  ```
+This involves discarding the higher bits and retaining only the lower bits. This method is simple and efficient when the lower bits are sufficient for your needs.
 
-  **Caution**: If the RNG's output is not uniformly distributed across all bits, this can exacerbate non-uniformities, especially if the lower bits are less random.
+```cs
+uint Truncate32(IRandomNumberGenerator instance) => (uint)instance.Next();
+```
 
-* **Shifting:** This involves discarding the lower bits by right-shifting the RNG output, effectively keeping only the higher bits.
+> [!CAUTION]
+> If the RNG's output is not uniformly distributed across all bits, this can exacerbate non-uniformities, especially if the lower bits are less random.
 
-  ```cs
-  byte Shift8(IRandomNumberGenerator instance) => (byte)(instance.Next() >> 56);
-  ```
+#### Shifting
 
-  **Caution**: Similar to truncating, if the RNG has non-uniformity issues in its higher bits, shifting can result in biased outputs.
+This involves discarding the lower bits by right-shifting the RNG output, effectively keeping only the higher bits.
 
-* **Masking:** This allows you to take specific bits from the RNG output by applying a bitmask. This method is useful when you need a certain range of bits from the output.
+```cs
+byte Shift8(IRandomNumberGenerator instance) => (byte)(instance.Next() >> 56);
+```
 
-  ```cs
-  ushort Mask16(IRandomNumberGenerator instance) => (ushort)((instance.Next() & 0x000000FFFF000000) >> 24);
-  ```
+> [!CAUTION]
+> Similar to truncating, if the RNG has non-uniformity issues in its higher bits, shifting can result in biased outputs.
 
-  **Caution**: Masking can also suffer from the same non-uniformity issues as truncating and shifting if the RNG is biased in the selected bit range.
+#### Masking
 
-* **Sponging:** This technique involves repeatedly XORing the RNG output with itself after progressively smaller right shifts. This ensures that the final extracted bit(s) are influenced by all bits in the RNG output, increasing entropy and security.
+This allows you to take specific bits from the RNG output by applying a bitmask. This method is useful when you need a certain range of bits from the output.
 
-  ```cs
-  bool Sponge1(IRandomNumberGenerator instance) {
-    ulong result = instance.Next();
-    result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
-    result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
-    result ^= result >> 4;  // 00000000000000000000000000000000000000000000000000000000HHHHLLLL -> XXXX
-    result ^= result >> 2;  // 000000000000000000000000000000000000000000000000000000000000HHLL -> XX
-    result ^= result >> 1;  // 00000000000000000000000000000000000000000000000000000000000000HL -> X
-    return (result & 1) != 0;
-  }
-  ```
+```cs
+ushort Mask16(IRandomNumberGenerator instance) => (ushort)((instance.Next() & 0x000000FFFF000000) >> 24);
+```
 
-  **Advantage**: This method helps distribute any biases uniformly across all bits, making it more resilient to non-uniformity issues.
+> [!CAUTION]
+> Masking can also suffer from the same non-uniformity issues as truncating and shifting if the RNG is biased in the selected bit range.
 
-* **Construction:** In this method, you repeatedly call the RNG to generate the exact number of bits you need. This approach can be useful when you need a non-standard number of bits (e.g., 24 bits) and want to ensure each bit is generated with uniform randomness.
+#### Sponging
 
-  ```cs
-  uint Construct24(IRandomNumberGenerator instance) {
-    int result = 0;
-    for (int i = 0; i < 8 ; ++i) {
-      int s = instance.Next();
-      int x = (s & (1 << 62)) >> 62; // Take bit 62
-      int y = (s & (1 <<  7)) >>  7; // Take bit 7
-      int z = (s & (1 << 31)) >> 31; // Take bit 31
-      result = x | y << 1 | z << 2 | result << 3;
-    }
+This technique involves repeatedly XORing the RNG output with itself after progressively smaller right shifts. This ensures that the final extracted bit(s) are influenced by all bits in the RNG output, increasing entropy and security.
 
-    return result;
-  }
-  ```
+```cs
+bool Sponge1(IRandomNumberGenerator instance) {
+  ulong result = instance.Next();
+  result ^= result >> 32; // HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  result ^= result >> 16; // 00000000000000000000000000000000HHHHHHHHHHHHHHHHLLLLLLLLLLLLLLLL -> XXXXXXXXXXXXXXXX
+  result ^= result >> 8;  // 000000000000000000000000000000000000000000000000HHHHHHHHLLLLLLLL -> XXXXXXXX
+  result ^= result >> 4;  // 00000000000000000000000000000000000000000000000000000000HHHHLLLL -> XXXX
+  result ^= result >> 2;  // 000000000000000000000000000000000000000000000000000000000000HHLL -> XX
+  result ^= result >> 1;  // 00000000000000000000000000000000000000000000000000000000000000HL -> X
+  return (result & 1) != 0;
+}
+```
 
-  **Caution**: If the RNG is biased for certain bits, this approach can accumulate those biases across multiple calls, leading to a non-uniform final output.
+> [!TIP]
+> This method helps distribute any biases uniformly across all bits, making it more resilient to non-uniformity issues.
 
-* **Slicing:** This involves splitting the RNG output into smaller parts and using those parts as needed. This can be useful when you need multiple smaller random values from a single RNG output.
+#### Construction
 
-  ```cs
-  (ushort, ushort, ushort, ushort) Slice16x4(IRandomNumberGenerator instance) {
-    ulong result = instance.Next();
-    ushort part1 = (ushort)(result & 0xFFFF);
-    ushort part2 = (ushort)((result >> 16) & 0xFFFF);
-    ushort part3 = (ushort)((result >> 32) & 0xFFFF);
-    ushort part4 = (ushort)((result >> 48) & 0xFFFF);
-    return (part1, part2, part3, part4);
-  }
-  ```
+In this method, you repeatedly call the RNG to generate the exact number of bits you need. This approach can be useful when you need a non-standard number of bits (e.g., 24 bits) and want to ensure each bit is generated with uniform randomness.
 
-  **Caution**: If the RNG has non-uniform distribution across different bit ranges, slicing can result in biased sub-values.
-
-* **Modulo Operation:** This operation is commonly used to reduce a large random number to a smaller range. For example, reducing a 64-bit RNG output to a value between 0 and 19.
-
-  ```cs
-  byte NextD20(IRandomNumberGenerator instance) => (byte)(1 + instance.Next() % 20);
-  ```
-
-  **Caution**: Modulo Bias occurs when the RNG output is not perfectly divisible by the target range. This bias can make certain values more likely than others.
-
-* **Rejection Sampling:** This is a technique to avoid modulo bias by discarding values that would introduce bias. This method involves generating random numbers until one falls within the desired range without bias.
-
-  ```cs
-  byte NextD6(IRandomNumberGenerator instance) {
-    ulong result;
-    do {
-      result = instance.Next();
-    } while (result >= 6);
-    return (byte)(1 + result);
-  }
-  ```
-
-  **Caution**: While this method eliminates modulo bias, it can be slow and inefficient, especially if the range is small compared to the RNG output, leading to frequent rejections.
-
-* **Combined Method:** A combination of both modulo operation and rejection sampling can be used to strike a balance between efficiency and eliminating bias.
-
-  ```cs
-  byte NextD12(IRandomNumberGenerator instance) {
-    ulong result;
-    ulong maxValidRange = ulong.MaxValue - (ulong.MaxValue % 12);
-    do {
-      result = instance.Next();
-    } while (result >= maxValidRange);
-    return (byte)(1 + (result % 12));
-  }
-  ```
-
-  **Advantage**: This method effectively reduces bias while improving efficiency over pure rejection sampling, especially when working with large RNG outputs.
-
-* **Scaling:** This method involves normalizing the RNG's output to a floating-point value between $0.0$ and $1.0$, then scaling it to the desired range.
-
-  ```cs
-  byte NextD4(IRandomNumberGenerator instance) => (byte)(1 + ((double)instance.Next() / ulong.MaxValue) * 4);
-  ```
-
-  **Caution**: The method relies on floating-point arithmetic, which may introduce slight inaccuracies due to the finite precision of `double`. However, for typical RNG ranges and moderate scaling factors, this is usually negligible.
-
-* **Reals:** This method constructs floating-point numbers between $0.0$ and $1.0$ according to the [IEEE 754 standard](https://en.wikipedia.org/wiki/IEEE_754), focusing on generating the mantissa randomly while keeping the exponent and sign fixed.
-
-  ```cs
-  float NextSingle() {
-    uint mantissa = (uint)(rng.Next() >> (64 - 23)); // Extract 23 bits for the mantissa
-    uint floatBits = (127 << 23) | mantissa;         // 127 is the biased exponent for 2^0 in single-precision
-    return BitConverter.Int32BitsToSingle((int)floatBits) - 1.0f;
+```cs
+uint Construct24(IRandomNumberGenerator instance) {
+  int result = 0;
+  for (int i = 0; i < 8 ; ++i) {
+    int s = instance.Next();
+    int x = (s & (1 << 62)) >> 62; // Take bit 62
+    int y = (s & (1 <<  7)) >>  7; // Take bit 7
+    int z = (s & (1 << 31)) >> 31; // Take bit 31
+    result = x | y << 1 | z << 2 | result << 3;
   }
 
-  double NextDouble() {
-    uint mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
-    uint doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
-    return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
-  }
-  ```
+  return result;
+}
+```
 
-  **Caution**: This approach uses the shifting method to generate the mantissa, which can inherit flaws if the underlying RNG has non-uniformity issues in certain bits. The distribution of the resulting floating-point values might be slightly biased, particularly if the RNG doesn't produce truly uniform random bits across its entire range.
+> [!CAUTION]
+> If the RNG is biased for certain bits, this approach can accumulate those biases across multiple calls, leading to a non-uniform final output.
+
+#### Slicing
+
+This involves splitting the RNG output into smaller parts and using those parts as needed. This can be useful when you need multiple smaller random values from a single RNG output.
+
+```cs
+(ushort, ushort, ushort, ushort) Slice16x4(IRandomNumberGenerator instance) {
+  ulong result = instance.Next();
+  ushort part1 = (ushort)(result & 0xFFFF);
+  ushort part2 = (ushort)((result >> 16) & 0xFFFF);
+  ushort part3 = (ushort)((result >> 32) & 0xFFFF);
+  ushort part4 = (ushort)((result >> 48) & 0xFFFF);
+  return (part1, part2, part3, part4);
+}
+```
+
+> [!CAUTION]
+> If the RNG has non-uniform distribution across different bit ranges, slicing can result in biased sub-values.
+
+#### Modulo Operation
+
+This operation is commonly used to reduce a large random number to a smaller range. For example, reducing a 64-bit RNG output to a value between 0 and 19.
+
+```cs
+byte NextD20(IRandomNumberGenerator instance) => (byte)(1 + instance.Next() % 20);
+```
+
+> [!CAUTION]
+> Modulo Bias occurs when the RNG output is not perfectly divisible by the target range. This bias can make certain values more likely than others.
+
+#### Rejection Sampling
+
+This is a technique to avoid modulo bias by discarding values that would introduce bias. This method involves generating random numbers until one falls within the desired range without bias.
+
+```cs
+byte NextD6(IRandomNumberGenerator instance) {
+  ulong result;
+  do {
+    result = instance.Next();
+  } while (result >= 6);
+  return (byte)(1 + result);
+}
+```
+
+> [!CAUTION]
+> While this method eliminates modulo bias, it can be slow and inefficient, especially if the range is small compared to the RNG output, leading to frequent rejections.
+
+#### Modulo-Rejection Method
+
+A combination of both [modulo operation](#modulo-operation) and [rejection sampling](#rejection-sampling) can be used to strike a balance between efficiency and eliminating bias.
+
+```cs
+byte NextD12(IRandomNumberGenerator instance) {
+  ulong result;
+  ulong maxValidRange = ulong.MaxValue - (ulong.MaxValue % 12);
+  do {
+    result = instance.Next();
+  } while (result >= maxValidRange);
+  return (byte)(1 + (result % 12));
+}
+```
+
+> [!TIP]
+> This method effectively reduces bias while improving efficiency over pure rejection sampling, especially when working with large RNG outputs.
+
+#### Scaling
+
+This method involves normalizing the RNG's output to a floating-point value between $0.0$ and $1.0$, then scaling it to the desired range.
+
+```cs
+byte NextD4(IRandomNumberGenerator instance) => (byte)(1 + ((double)instance.Next() / ulong.MaxValue) * 4);
+```
+
+> [!CAUTION]
+> The method relies on floating-point arithmetic, which may introduce slight inaccuracies due to the finite precision of `double`. However, for typical RNG ranges and moderate scaling factors, this is usually negligible.
+
+#### Reals
+
+This method constructs floating-point numbers between $0.0$ and $1.0$ according to the [IEEE 754 standard](https://en.wikipedia.org/wiki/IEEE_754), focusing on generating the mantissa randomly while keeping the exponent and sign fixed.
+
+```cs
+float NextSingle() {
+  uint mantissa = (uint)(rng.Next() >> (64 - 23)); // Extract 23 bits for the mantissa
+  uint floatBits = (127 << 23) | mantissa;         // 127 is the biased exponent for 2^0 in single-precision
+  return BitConverter.Int32BitsToSingle((int)floatBits) - 1.0f;
+}
+
+double NextDouble() {
+  uint mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
+  uint doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
+  return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
+}
+```
+
+> [!CAUTION]
+> This approach uses the shifting method to generate the mantissa, which can inherit flaws if the underlying RNG has non-uniformity issues in certain bits. The distribution of the resulting floating-point values might be slightly biased, particularly if the RNG doesn't produce truly uniform random bits across its entire range.
+
+### Arbitrary RNG Part I
 
 Given the methods, we can now create a more generic class to deal with that:
 
 ```cs
-class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumberGenerator {
+partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumberGenerator {
 
   public uint Truncate32() => (uint)rng.Next();
   public ushort Truncate16() => (ushort)rng.Next();
@@ -2231,200 +2395,222 @@ class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumberGenera
 
 In some scenarios, the output of an RNG may be too limited in size, and you might need more bits than it provides in a single call. This situation is common in cryptographic applications, simulations, or when working with RNGs that produce relatively small outputs (e.g., 32-bit RNGs) but require larger random values (e.g., 128-bit or 256-bit numbers). Here are a few methods to handle such situations:
 
-* **Concatenation:** This method involves generating multiple smaller random numbers from the RNG and then concatenating them to form a larger random number.
+#### Concatenation
 
-  ```cs
-  UInt128 Concat128() => (UInt128)rng.Next() << 64 | rng.Next();
-  ```
+This method involves generating multiple smaller random numbers from the RNG and then concatenating them to form a larger random number.
 
-  **Caution**: Ensure that each call to the RNG is independent and that the RNG's internal state changes adequately between calls. If the RNG has any weaknesses or patterns in its output, concatenation can amplify these flaws.
+```cs
+UInt128 Concat128() => (UInt128)rng.Next() << 64 | rng.Next();
+```
 
-* **SplitMix:** This method is used to expand a smaller RNG output into a larger one by applying a mixing function that scrambles the bits and produces additional randomness.
+> [!CAUTION]
+> Ensure that each call to the RNG is independent and that the RNG's internal state changes adequately between calls. If the RNG has any weaknesses or patterns in its output, concatenation can amplify these flaws.
 
-  ```cs
-  Vector256<ulong> SplitMix256() {
-    ulong random = rng.Next();
-    return Vector256.Create(
-      random, 
-      SplitMix64.Next(ref random), 
-      SplitMix64.Next(ref random), 
-      SplitMix64.Next(ref random)
-    );
+#### SplitMix
+
+This method is used to expand a smaller RNG output into a larger one by applying a mixing function that scrambles the bits and produces additional randomness.
+
+```cs
+Vector256<ulong> SplitMix256() {
+  ulong random = rng.Next();
+  return Vector256.Create(
+    random, 
+    SplitMix64.Next(ref random), 
+    SplitMix64.Next(ref random), 
+    SplitMix64.Next(ref random)
+  );
+}
+```
+
+> [!CAUTION]
+> The quality of the output heavily depends on the mixing function used. A poor choice can lead to weak or biased random values. However, when done correctly, SplitMix can produce high-quality random numbers.
+
+#### SpreadBits
+
+This is a technique where the bits of a small RNG output are "spread" or "stretched" over a larger bit space. This is typically done using bitwise operations that distribute the original bits across the desired output size.
+
+```cs
+UInt128 SpreadBits128(UInt128 mask) {
+  int bitCount = 
+    BitOperations.PopCount((ulong)mask) 
+    + BitOperations.PopCount((ulong)(mask >> 64))
+    ;
+
+  ulong random = rng.Next();
+  UInt128 result = UInt128.Zero;
+  for (int i = 0; i < bitCount; ++i) {
+    UInt128 bit = random & 1;
+    random >>= 1;
+
+    int upperZero= BitOperations.TrailingZeroCount((ulong)(mask >> 64));
+    int nextPosition = BitOperations.TrailingZeroCount((ulong)mask);
+    if (nextPosition == 64)
+      nextPosition += upperZero;
+
+    result |= bit << nextPosition;
+    mask &= ~(UInt128.One << nextPosition);
   }
-  ```
+  
+  return result;
+}
+```
 
-  **Caution**: The quality of the output heavily depends on the mixing function used. A poor choice can lead to weak or biased random values. However, when done correctly, SplitMix can produce high-quality random numbers.
+> [!CAUTION]
+> This leaves a lot of bits at zero so maintaining randomness is not guaranteed.
 
-* **SpreadBits:** This is a technique where the bits of a small RNG output are "spread" or "stretched" over a larger bit space. This is typically done using bitwise operations that distribute the original bits across the desired output size.
+#### Feistel-Network
 
-  ```cs
-  UInt128 SpreadBits128(UInt128 mask) {
-    int bitCount = 
-      BitOperations.PopCount((ulong)mask) 
-      + BitOperations.PopCount((ulong)(mask >> 64))
-      ;
+The [Feistel network](https://en.wikipedia.org/wiki/Feistel_cipher) technique enhances the randomness of bits generated by a basic RNG by applying a structure commonly used in cryptographic algorithms like [DES (Data Encryption Standard)](https://en.wikipedia.org/wiki/Data_Encryption_Standard). A Feistel network splits the data into two halves, applies a round function with a key, and then swaps the halves, repeating this process to achieve strong diffusion. This makes it an excellent method to improve the distribution and randomness of the output bits, ensuring they are more secure and less predictable.
 
-    ulong random = rng.Next();
-    UInt128 result = UInt128.Zero;
-    for (int i = 0; i < bitCount; ++i) {
-      UInt128 bit = random & 1;
-      random >>= 1;
+```cs
+IEnumerable<byte> FeistelGenerator() {
+  ulong state = rng.Next();
+  ulong key = rng.Next();
+  ulong counter = rng.Next();
 
-      int upperZero= BitOperations.TrailingZeroCount((ulong)(mask >> 64));
-      int nextPosition = BitOperations.TrailingZeroCount((ulong)mask);
-      if (nextPosition == 64)
-        nextPosition += upperZero;
-
-      result |= bit << nextPosition;
-      mask &= ~(UInt128.One << nextPosition);
+  int counterIndex = 0;
+  for (;;) {
+    int roundBits = (int)(counter >> counterIndex) & 0b1111;
+    counterIndex += 4;
+    if (counterIndex >= 64) {
+      (counter, state) = (state, counter);
+      counterIndex = 0;
     }
-    
+
+    ++roundBits; // at least one round each time
+    for (int i = 0; i < roundBits; ++i) {
+      DoFeistelRound(ref state, key);
+      DoFeistelRound(ref state, key);
+      (state, key) = (key, state);
+    }
+
+    SliceUnion result = new SliceUnion(state);
+    yield return result.R8_0;
+    yield return result.R8_1;
+    yield return result.R8_2;
+    yield return result.R8_3;
+    yield return result.R8_4;
+    yield return result.R8_5;
+    yield return result.R8_6;
+    yield return result.R8_7;
+  }
+  
+  void DoFeistelRound(ref ulong plainText, ulong roundKey) {
+    uint left = (uint)plainText;
+    uint right = (uint)(plainText>>32);
+    left ^= RoundFunction(right, roundKey);
+    (left, right) = (right, left);
+    plainText = left | (ulong)right << 32;
+  }
+
+  uint RoundFunction(uint right,ulong roundKey) {
+    uint result=BitOperations.RotateLeft(right, 3);
+    result ^= (uint)roundKey;
+    result = BitOperations.RotateRight(result, 17);
+    result ^= (uint)(roundKey >> 32);
     return result;
   }
-  ```
+}
+```
 
-  **Caution**: This leaves a lot of bits at zero so maintaining randomness is not guaranteed.
+> [!CAUTION]
+> The randomness quality of the output still heavily depends on the initial entropy provided by the RNG and the round function. If the RNG is weak or biased, the Feistel network alone may not sufficiently mitigate these issues.
 
-* **Feistel-Network:** The [Feistel network](https://en.wikipedia.org/wiki/Feistel_cipher) technique enhances the randomness of bits generated by a basic RNG by applying a structure commonly used in cryptographic algorithms like [DES (Data Encryption Standard)](https://en.wikipedia.org/wiki/Data_Encryption_Standard). A Feistel network splits the data into two halves, applies a round function with a key, and then swaps the halves, repeating this process to achieve strong diffusion. This makes it an excellent method to improve the distribution and randomness of the output bits, ensuring they are more secure and less predictable.
+#### Hash-Function
 
-  ```cs
-  IEnumerable<byte> FeistelGenerator() {
-    ulong state = rng.Next();
-    ulong key = rng.Next();
-    ulong counter = rng.Next();
+This technique uses a [cryptographic hash function](https://en.wikipedia.org/wiki/Cryptographic_hash_function) to enhance and expand the randomness provided by an RNG. By seeding the hash function with an initial RNG output and then iteratively rehashing the result with a counter, you can generate a stream of random bits with strong diffusion properties. This method leverages the [avalanche effect](https://en.wikipedia.org/wiki/Avalanche_effect) of hash functions, where a small change in input (like the counter) drastically changes the output, making it a powerful tool for random number generation.
 
-    int counterIndex = 0;
-    for (;;) {
-      int roundBits = (int)(counter >> counterIndex) & 0b1111;
-      counterIndex += 4;
-      if (counterIndex >= 64) {
-        (counter, state) = (state, counter);
-        counterIndex = 0;
-      }
+```cs
+IEnumerable<byte> HashGenerator() {
+  HashAlgorithm instance = SHA512.Create();
+  int entropyBitsNeeded = instance.HashSize;
+  int entropyBytesNeeded = entropyBitsNeeded >> 3;
+  
+  // Generate the initial salt using RNG
+  byte[] salt = this.ConcatGenerator().Take(entropyBytesNeeded).ToArray();
+  
+  // Initialize the counter
+  byte[] counter = new byte[entropyBytesNeeded];
 
-      ++roundBits; // at least one round each time
-      for (int i = 0; i < roundBits; ++i) {
-        DoFeistelRound(ref state, key);
-        DoFeistelRound(ref state, key);
-        (state, key) = (key, state);
-      }
-
-      SliceUnion result = new SliceUnion(state);
-      yield return result.R8_0;
-      yield return result.R8_1;
-      yield return result.R8_2;
-      yield return result.R8_3;
-      yield return result.R8_4;
-      yield return result.R8_5;
-      yield return result.R8_6;
-      yield return result.R8_7;
-    }
+  for (;;) {
     
-    void DoFeistelRound(ref ulong plainText, ulong roundKey) {
-      uint left = (uint)plainText;
-      uint right = (uint)(plainText>>32);
-      left ^= RoundFunction(right, roundKey);
-      (left, right) = (right, left);
-      plainText = left | (ulong)right << 32;
-    }
+    // Combine the salt and counter using XOR
+    byte[] plainData = salt.Zip(counter, (s, c) => (byte)(s ^ c)).ToArray();
+    
+    // Generate the hash
+    byte[] hash = instance.ComputeHash(plainData);
+    
+    // Yield each byte of the hash as part of the random stream
+    foreach (var entry in hash)
+      yield return entry;
 
-    uint RoundFunction(uint right,ulong roundKey) {
-      uint result=BitOperations.RotateLeft(right, 3);
-      result ^= (uint)roundKey;
-      result = BitOperations.RotateRight(result, 17);
-      result ^= (uint)(roundKey >> 32);
-      return result;
-    }
+    // Increment the counter
+    for (int i = 0; i < counter.Length; ++i)
+      if (++counter[i] != 0)
+        break;
   }
-  ```
+}
+```
 
-  **Caution**: The randomness quality of the output still heavily depends on the initial entropy provided by the RNG and the round function. If the RNG is weak or biased, the Feistel network alone may not sufficiently mitigate these issues.
+> [!CAUTION]
+> The initial seed from the RNG is critical to the quality of the randomness produced. If the RNG has low entropy or is biased, the resulting hash stream might not be as random as expected. Always ensure that the underlying RNG is secure and provides sufficient entropy.
 
-* **Hash-Function:** This technique uses a [cryptographic hash function](https://en.wikipedia.org/wiki/Cryptographic_hash_function) to enhance and expand the randomness provided by an RNG. By seeding the hash function with an initial RNG output and then iteratively rehashing the result with a counter, you can generate a stream of random bits with strong diffusion properties. This method leverages the [avalanche effect](https://en.wikipedia.org/wiki/Avalanche_effect) of hash functions, where a small change in input (like the counter) drastically changes the output, making it a powerful tool for random number generation.
+#### Cipher
 
-  ```cs
-  IEnumerable<byte> HashGenerator() {
-    HashAlgorithm instance = SHA512.Create();
-    int entropyBitsNeeded = instance.HashSize;
-    int entropyBytesNeeded = entropyBitsNeeded >> 3;
+This method leverages a block cipher in Counter (CTR) mode to generate a stream of random bytes. CTR mode is a popular choice for such applications because it turns a block cipher into a stream cipher, allowing it to generate a continuous stream of pseudorandom bits, which can be used as random numbers. Other mode may also be possible depending on the concrete cipher used.
+
+```cs
+IEnumerable<byte> CipherGenerator() {
+  using var instance = Aes.Create();
+  instance.Mode = CipherMode.ECB; // CTR mode is simulated with ECB
+  instance.Padding = PaddingMode.None;
+
+  // Generate a random key and initialization vector (IV)
+  byte[] key = this.ConcatGenerator().Take(instance.KeySize >> 3).ToArray();
+
+  var blockSizeInBytes = instance.BlockSize >> 3;
+  byte[] iv = this.ConcatGenerator().Take(blockSizeInBytes).ToArray();
+  
+  instance.Key = key;
+  instance.IV = iv;
+
+  // Initialize the counter
+  byte[] counter = new byte[blockSizeInBytes];
+
+  byte[] cipherText = new byte[blockSizeInBytes];
+  using var encryptor = instance.CreateEncryptor();
+  for (;;) {
     
-    // Generate the initial salt using RNG
-    byte[] salt = this.ConcatGenerator().Take(entropyBytesNeeded).ToArray();
-    
-    // Initialize the counter
-    byte[] counter = new byte[entropyBytesNeeded];
+    // Encrypt the counter block
+    encryptor.TransformBlock(counter, 0, blockSizeInBytes, cipherText, 0);
 
-    for (;;) {
-      
-      // Combine the salt and counter using XOR
-      byte[] plainData = salt.Zip(counter, (s, c) => (byte)(s ^ c)).ToArray();
-      
-      // Generate the hash
-      byte[] hash = instance.ComputeHash(plainData);
-      
-      // Yield each byte of the hash as part of the random stream
-      foreach (var entry in hash)
-        yield return entry;
+    // Yield each byte from the encrypted block as random output
+    foreach (var value in cipherText)
+      yield return value;
 
-      // Increment the counter
-      for (int i = 0; i < counter.Length; ++i)
-        if (++counter[i] != 0)
-          break;
-    }
+    // Increment the counter
+    for (int i = 0; i < counter.Length; ++i)
+      if (++counter[i] != 0)
+        break;
   }
-  ```
+}
+```
 
-  **Caution**: The initial seed from the RNG is critical to the quality of the randomness produced. If the RNG has low entropy or is biased, the resulting hash stream might not be as random as expected. Always ensure that the underlying RNG is secure and provides sufficient entropy.
+> [!CAUTION]
+> Ensure that the key and IV generated by the RNG are of high entropy and secure. A weak key or IV can compromise the security of the entire system. While this method is robust and secure, the overhead of encryption may make it slower than simpler RNG methods. 
 
-* **Cipher:** Utilite cipher in ctr mode, generate iv and key with rng blocks, create each block with running index (hence ctr mode). return bytes.
-
-  ```cs
-  IEnumerable<byte> CipherGenerator() {
-    using var instance = Aes.Create();
-    instance.Mode = CipherMode.ECB; // CTR mode is simulated with ECB
-    instance.Padding = PaddingMode.None;
-
-    // Generate a random key and initialization vector (IV)
-    byte[] key = this.ConcatGenerator().Take(instance.KeySize >> 3).ToArray();
-
-    var blockSizeInBytes = instance.BlockSize >> 3;
-    byte[] iv = this.ConcatGenerator().Take(blockSizeInBytes).ToArray();
-    
-    instance.Key = key;
-    instance.IV = iv;
-
-    // Initialize the counter
-    byte[] counter = new byte[blockSizeInBytes];
-
-    byte[] cipherText = new byte[blockSizeInBytes];
-    using var encryptor = instance.CreateEncryptor();
-    for (;;) {
-      
-      // Encrypt the counter block
-      encryptor.TransformBlock(counter, 0, blockSizeInBytes, cipherText, 0);
-
-      // Yield each byte from the encrypted block as random output
-      foreach (var value in cipherText)
-        yield return value;
-
-      // Increment the counter
-      for (int i = 0; i < counter.Length; ++i)
-        if (++counter[i] != 0)
-          break;
-    }
-  }
-  ```
-
-  **Caution**: Ensure that the key and IV generated by the RNG are of high entropy and secure. A weak key or IV can compromise the security of the entire system. While this method is robust and secure, the overhead of encryption may make it slower than simpler RNG methods. 
+### Arbitrary RNG Part II
 
 Given those new tricks, we can now enhance our more generic class to provide that:
 
 ```cs
-class ArbitraryNumberGenerator {
+partial class ArbitraryNumberGenerator {
   
   public UInt128 Concat128() => (UInt128)rng.Next() << 64 | rng.Next();
   
-  public Vector256<ulong> Concat256() => Vector256.Create(rng.Next(), rng.Next(), rng.Next(), rng.Next());
+  public Vector256<ulong> Concat256() => Vector256.Create(
+    rng.Next(), rng.Next(), rng.Next(), rng.Next()
+  );
   
   public Vector512<ulong> Concat512() => Vector512.Create(
     rng.Next(), rng.Next(), rng.Next(), rng.Next(),
@@ -2443,7 +2629,6 @@ class ArbitraryNumberGenerator {
       yield return random.R8_6;
       yield return random.R8_7;
     }
-    // ReSharper disable once IteratorNeverReturns
   }
 
   public unsafe byte[] ConcatGenerator(int count) {
@@ -2660,7 +2845,6 @@ class ArbitraryNumberGenerator {
       result ^= (uint)(roundKey >> 32);
       return result;
     }
-    // ReSharper disable once IteratorNeverReturns
   }
 
   public IEnumerable<byte> HashGenerator<THash>() where THash : HashAlgorithm, new() {
@@ -2694,7 +2878,6 @@ class ArbitraryNumberGenerator {
 
       _Increment(counter);
     }
-    // ReSharper disable once IteratorNeverReturns
   }
 
   public IEnumerable<byte> CipherGenerator<TCipher>() where TCipher : SymmetricAlgorithm, new() {
@@ -2732,7 +2915,6 @@ class ArbitraryNumberGenerator {
       // Increment the counter
       _Increment(counter);
     }
-    // ReSharper disable once IteratorNeverReturns
   }
 
 }
