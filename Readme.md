@@ -3114,6 +3114,7 @@ tbd: Practical examples and real-world applications.
 
 * [RNG Engines](https://pracrand.sourceforge.net/RNG_engines.txt)
 * [Reversable RNG](http://robotics.ucsd.edu/ReversibleRNG.pdf)
+* [FastRNG](https://github.com/SommerEngineering/FastRng)
 
 # History
 

@@ -32,29 +32,36 @@ public class Ziggurat(ArbitraryNumberGenerator generator) {
   }
 
   public double Next() {
+    double result;
     for (;;) {
+
       var i = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
       var u = 2 * generator.NextDouble() - 1;
 
       /* first try the rectangular boxes */
       var layerWidth = layerWidths[i];
-      var x = u * layerWidth;
+      result = u * layerWidth;
       if (Math.Abs(u) < layerHeights[i])
-        return x;
+        break;
 
       /* bottom box: sample from the tail */
-      if (i == 0)
-        return SampleTail(u < 0);
+      if (i == 0) {
+        result = SampleTail(u < 0);
+        break;
+      }
 
       /* is this a sample from the wedges? */
-      var xSqr = x * x;
+      var xSqr = result * result;
       var nextLayerWidth = i == NUM_LAYERS - 1 ? 0 : layerWidths[i + 1];
 
       var f0 = Math.Exp(-0.5 * (layerWidth * layerWidth - xSqr));
       var f1 = Math.Exp(-0.5 * (nextLayerWidth * nextLayerWidth - xSqr));
       if (f1 + generator.NextDouble() * (f0 - f1) < 1.0)
-        return x;
+        break;
+
     }
+
+    return result;
 
     double SampleTail(bool isNegative) {
       for (;;) {

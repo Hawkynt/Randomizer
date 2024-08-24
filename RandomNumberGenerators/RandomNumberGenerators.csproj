@@ -21,6 +21,8 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>default</LangVersion>
+    <IsTrimmable>True</IsTrimmable>
+    <IsAotCompatible>True</IsAotCompatible>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
