@@ -68,9 +68,12 @@ partial class ArbitraryNumberGenerator {
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static void _Increment(byte[] counter) {
-    for (var i = 0; i < counter.Length; ++i)
-      if (++counter[i] != 0)
-        return;
+    for (var i = 0; i < counter.Length; ++i) {
+      var result = counter[i] + 1;
+      counter[i] = (byte)result;
+      if (result < 256)
+        break;
+    }
   }
 
 }
