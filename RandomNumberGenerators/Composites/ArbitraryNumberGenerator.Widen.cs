@@ -11,16 +11,62 @@ using Hawkynt.RandomNumberGenerators.Deterministic;
 namespace Hawkynt.RandomNumberGenerators.Composites;
 
 partial class ArbitraryNumberGenerator {
-  
+
+  /// <summary>
+  /// Generates a random 128-bit unsigned integer by concatenating two 64-bit unsigned integers.
+  /// </summary>
+  /// <returns>A random 128-bit unsigned integer.</returns>
+  /// <example>
+  /// <code>
+  /// UInt128 randomValue = Concat128();
+  /// Console.WriteLine(randomValue);
+  /// // Output: A random 128-bit unsigned integer.
+  /// </code>
+  /// </example>
   public UInt128 Concat128() => (UInt128)rng.Next() << 64 | rng.Next();
-  
+
+  /// <summary>
+  /// Generates a random 256-bit vector containing four 64-bit unsigned integers by concatenating four random 64-bit values.
+  /// </summary>
+  /// <returns>A <see cref="Vector256{T}"/> of <see cref="ulong"/> containing four random 64-bit unsigned integers.</returns>
+  /// <example>
+  /// <code>
+  /// Vector256&lt;ulong&gt; randomVector = Concat256();
+  /// Console.WriteLine(randomVector);
+  /// // Output: A 256-bit vector with four random 64-bit unsigned integers.
+  /// </code>
+  /// </example>
   public Vector256<ulong> Concat256() => Vector256.Create(rng.Next(), rng.Next(), rng.Next(), rng.Next());
-  
+
+  /// <summary>
+  /// Generates a random 512-bit vector containing eight 64-bit unsigned integers by concatenating eight random 64-bit values.
+  /// </summary>
+  /// <returns>A <see cref="Vector512{T}"/> of <see cref="ulong"/> containing eight random 64-bit unsigned integers.</returns>
+  /// <example>
+  /// <code>
+  /// Vector512&lt;ulong&gt; randomVector = Concat512();
+  /// Console.WriteLine(randomVector);
+  /// // Output: A 512-bit vector with eight random 64-bit unsigned integers.
+  /// </code>
+  /// </example>
   public Vector512<ulong> Concat512() => Vector512.Create(
     rng.Next(), rng.Next(), rng.Next(), rng.Next(),
     rng.Next(), rng.Next(), rng.Next(), rng.Next()
   );
 
+  /// <summary>
+  /// Generates an infinite sequence of random bytes by repeatedly slicing a 64-bit unsigned integer into eight 8-bit parts.
+  /// </summary>
+  /// <returns>An <see cref="IEnumerable{Byte}"/> that produces an infinite sequence of random bytes.</returns>
+  /// <example>
+  /// <code>
+  /// var byteGenerator = ConcatGenerator();
+  /// foreach (var randomByte in byteGenerator.Take(16)) {
+  ///     Console.WriteLine(randomByte);
+  /// }
+  /// // Output: 16 random bytes from the infinite sequence.
+  /// </code>
+  /// </example>
   public IEnumerable<byte> ConcatGenerator() {
     for (;;) {
       var random = new SliceUnion(rng.Next());
@@ -36,6 +82,19 @@ partial class ArbitraryNumberGenerator {
     // ReSharper disable once IteratorNeverReturns
   }
 
+  /// <summary>
+  /// Generates an array of random bytes with a specified count.
+  /// </summary>
+  /// <param name="count">The number of random bytes to generate. Must be greater than zero.</param>
+  /// <returns>An array of random bytes with the specified length.</returns>
+  /// <exception cref="System.ArgumentOutOfRangeException">Thrown if <paramref name="count"/> is zero or negative.</exception>
+  /// <example>
+  /// <code>
+  /// byte[] randomBytes = ConcatGenerator(15);
+  /// Console.WriteLine(BitConverter.ToString(randomBytes));
+  /// // Output: A random sequence of 15 bytes.
+  /// </code>
+  /// </example>
   public unsafe byte[] ConcatGenerator(int count) {
     ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
@@ -88,16 +147,49 @@ partial class ArbitraryNumberGenerator {
     return result;
   }
 
+  /// <summary>
+  /// Generates a random 128-bit unsigned integer using the SplitMix64 algorithm for the lower 64 bits.
+  /// </summary>
+  /// <returns>A random 128-bit unsigned integer.</returns>
+  /// <example>
+  /// <code>
+  /// UInt128 randomValue = SplitMix128();
+  /// Console.WriteLine(randomValue);
+  /// // Output: A random 128-bit unsigned integer.
+  /// </code>
+  /// </example>
   public UInt128 SplitMix128() {
     var random = rng.Next();
     return (UInt128)random << 64 | SplitMix64.Next(ref random);
   }
 
+  /// <summary>
+  /// Generates a random 256-bit vector containing four 64-bit unsigned integers using the SplitMix64 algorithm for three of the elements.
+  /// </summary>
+  /// <returns>A <see cref="Vector256{T}"/> of <see cref="ulong"/> containing four random 64-bit unsigned integers.</returns>
+  /// <example>
+  /// <code>
+  /// Vector256&lt;ulong&gt; randomVector = SplitMix256();
+  /// Console.WriteLine(randomVector);
+  /// // Output: A 256-bit vector with four random 64-bit unsigned integers.
+  /// </code>
+  /// </example>
   public Vector256<ulong> SplitMix256() {
     var random = rng.Next();
     return Vector256.Create(random, SplitMix64.Next(ref random), SplitMix64.Next(ref random), SplitMix64.Next(ref random));
   }
 
+  /// <summary>
+  /// Generates a random 512-bit vector containing eight 64-bit unsigned integers using the SplitMix64 algorithm for seven of the elements.
+  /// </summary>
+  /// <returns>A <see cref="Vector512{T}"/> of <see cref="ulong"/> containing eight random 64-bit unsigned integers.</returns>
+  /// <example>
+  /// <code>
+  /// Vector512&lt;ulong&gt; randomVector = SplitMix512();
+  /// Console.WriteLine(randomVector);
+  /// // Output: A 512-bit vector with eight random 64-bit unsigned integers.
+  /// </code>
+  /// </example>
   public Vector512<ulong> SplitMix512() {
     var random = rng.Next();
     return Vector512.Create(
@@ -106,6 +198,22 @@ partial class ArbitraryNumberGenerator {
     );
   }
 
+  /// <summary>
+  /// Spreads bits of a random 64-bit unsigned integer across a 128-bit unsigned integer according to the provided mask.
+  /// </summary>
+  /// <param name="mask">The mask that defines the bit positions to be set in the result. The number of set bits in the mask must be between 1 and 64.</param>
+  /// <returns>A 128-bit unsigned integer with bits spread according to the mask.</returns>
+  /// <exception cref="System.ArgumentOutOfRangeException">
+  /// Thrown if <paramref name="mask"/> is zero or if the number of set bits in <paramref name="mask"/> exceeds 64.
+  /// </exception>
+  /// <example>
+  /// <code>
+  /// UInt128 mask = 0x0000000000000001_0000000000000001UL; // Two bits set
+  /// UInt128 result = SpreadBits128(mask);
+  /// Console.WriteLine(result);
+  /// // Output: A 128-bit unsigned integer with random bits spread according to the mask.
+  /// </code>
+  /// </example>
   public UInt128 SpreadBits128(UInt128 mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     var bitCount = _PopCount(mask);
@@ -129,6 +237,22 @@ partial class ArbitraryNumberGenerator {
     return result;
   }
 
+  /// <summary>
+  /// Spreads bits of a random 64-bit unsigned integer across a 256-bit vector according to the provided mask.
+  /// </summary>
+  /// <param name="mask">The mask that defines the bit positions to be set in the result. The number of set bits in the mask must be between 1 and 64.</param>
+  /// <returns>A <see cref="Vector256{T}"/> of <see cref="ulong"/> with bits spread according to the mask.</returns>
+  /// <exception cref="System.ArgumentOutOfRangeException">
+  /// Thrown if the number of set bits in <paramref name="mask"/> is zero or exceeds 64.
+  /// </exception>
+  /// <example>
+  /// <code>
+  /// Vector256&lt;ulong&gt; mask = Vector256.Create(0x0000000000000001UL, 0x0000000000000001UL, 0x0UL, 0x0UL); // Two bits set
+  /// Vector256&lt;ulong&gt; result = SpreadBits256(mask);
+  /// Console.WriteLine(result);
+  /// // Output: A 256-bit vector with random bits spread according to the mask.
+  /// </code>
+  /// </example>
   public Vector256<ulong> SpreadBits256(Vector256<ulong> mask) {
     var bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfZero(bitCount, nameof(mask));
@@ -172,6 +296,22 @@ partial class ArbitraryNumberGenerator {
     return result;
   }
 
+  /// <summary>
+  /// Spreads bits of a random 64-bit unsigned integer across a 512-bit vector according to the provided mask.
+  /// </summary>
+  /// <param name="mask">The mask that defines the bit positions to be set in the result. The number of set bits in the mask must be between 1 and 64.</param>
+  /// <returns>A <see cref="Vector512{T}"/> of <see cref="ulong"/> with bits spread according to the mask.</returns>
+  /// <exception cref="System.ArgumentOutOfRangeException">
+  /// Thrown if the number of set bits in <paramref name="mask"/> is zero or exceeds 64.
+  /// </exception>
+  /// <example>
+  /// <code>
+  /// Vector512&lt;ulong&gt; mask = Vector512.Create(0x0000000000000001UL, 0x0UL, 0x0UL, 0x0UL, 0x0UL, 0x0UL, 0x0UL, 0x0UL); // Single bit set
+  /// Vector512&lt;ulong&gt; result = SpreadBits512(mask);
+  /// Console.WriteLine(result);
+  /// // Output: A 512-bit vector with random bits spread according to the mask.
+  /// </code>
+  /// </example>
   public Vector512<ulong> SpreadBits512(Vector512<ulong> mask) {
     var bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfZero(bitCount, nameof(mask));
@@ -202,7 +342,20 @@ partial class ArbitraryNumberGenerator {
 
     return result;
   }
-
+  
+  /// <summary>
+  /// Generates an infinite sequence of random bytes using a Feistel network-based random number generator.
+  /// </summary>
+  /// <returns>An <see cref="IEnumerable{Byte}"/> that produces an infinite sequence of random bytes.</returns>
+  /// <example>
+  /// <code>
+  /// var byteGenerator = FeistelGenerator();
+  /// foreach (var randomByte in byteGenerator.Take(16)) {
+  ///     Console.WriteLine(randomByte);
+  /// }
+  /// // Output: 16 random bytes from the infinite sequence.
+  /// </code>
+  /// </example>
   public IEnumerable<byte> FeistelGenerator() {
     var state = rng.Next();
     var key = rng.Next();
@@ -253,11 +406,41 @@ partial class ArbitraryNumberGenerator {
     // ReSharper disable once IteratorNeverReturns
   }
 
+  /// <summary>
+  /// Generates an infinite sequence of random bytes using a specified hash algorithm.
+  /// </summary>
+  /// <typeparam name="THash">The type of the hash algorithm, which must derive from <see cref="HashAlgorithm"/> and have a parameterless constructor.</typeparam>
+  /// <returns>An <see cref="IEnumerable{Byte}"/> that produces an infinite sequence of bytes generated by the specified hash algorithm.</returns>
+  /// <example>
+  /// <code>
+  /// var byteGenerator = HashGenerator&lt;SHA256&gt;();
+  /// foreach (var randomByte in byteGenerator.Take(16)) {
+  ///     Console.WriteLine(randomByte);
+  /// }
+  /// // Output: 16 random bytes generated by the SHA256 hash algorithm.
+  /// </code>
+  /// </example>
   public IEnumerable<byte> HashGenerator<THash>() where THash : HashAlgorithm, new() {
     using var instance=new THash();
       return this.HashGenerator(instance);
   }
 
+  /// <summary>
+  /// Generates an infinite sequence of random bytes using a specified hash algorithm.
+  /// </summary>
+  /// <param name="instance">The instance of <see cref="HashAlgorithm"/> used to generate the random bytes.</param>
+  /// <returns>An <see cref="IEnumerable{Byte}"/> that produces an infinite sequence of bytes generated by the specified hash algorithm.</returns>
+  /// <exception cref="System.ArgumentNullException">Thrown if <paramref name="instance"/> is <see langword="null"/>.</exception>
+  /// <example>
+  /// <code>
+  /// using var sha256 = SHA256.Create();
+  /// var byteGenerator = HashGenerator(sha256);
+  /// foreach (var randomByte in byteGenerator.Take(16)) {
+  ///     Console.WriteLine(randomByte);
+  /// }
+  /// // Output: 16 random bytes generated by the SHA256 hash algorithm.
+  /// </code>
+  /// </example>
   public IEnumerable<byte> HashGenerator(HashAlgorithm instance) {
     ArgumentNullException.ThrowIfNull(instance);
 
@@ -287,11 +470,41 @@ partial class ArbitraryNumberGenerator {
     // ReSharper disable once IteratorNeverReturns
   }
 
+  /// <summary>
+  /// Generates an infinite sequence of random bytes using a specified symmetric encryption algorithm type in a simulated CTR mode.
+  /// </summary>
+  /// <typeparam name="TCipher">The type of the symmetric encryption algorithm, which must derive from <see cref="SymmetricAlgorithm"/> and have a parameterless constructor.</typeparam>
+  /// <returns>An <see cref="IEnumerable{Byte}"/> that produces an infinite sequence of bytes generated by the specified symmetric encryption algorithm.</returns>
+  /// <example>
+  /// <code>
+  /// var byteGenerator = CipherGenerator&lt;Aes&gt;();
+  /// foreach (var randomByte in byteGenerator.Take(16)) {
+  ///     Console.WriteLine(randomByte);
+  /// }
+  /// // Output: 16 random bytes generated by the AES encryption algorithm.
+  /// </code>
+  /// </example>
   public IEnumerable<byte> CipherGenerator<TCipher>() where TCipher : SymmetricAlgorithm, new() {
     using var instance = new TCipher();
     return this.CipherGenerator(instance);
   }
 
+  /// <summary>
+  /// Generates an infinite sequence of random bytes using a symmetric encryption algorithm in a simulated CTR mode.
+  /// </summary>
+  /// <param name="instance">The instance of <see cref="SymmetricAlgorithm"/> used to generate the random bytes.</param>
+  /// <returns>An <see cref="IEnumerable{Byte}"/> that produces an infinite sequence of bytes generated by the symmetric encryption algorithm.</returns>
+  /// <exception cref="System.ArgumentNullException">Thrown if <paramref name="instance"/> is <see langword="null"/>.</exception>
+  /// <example>
+  /// <code>
+  /// using var aes = Aes.Create();
+  /// var byteGenerator = CipherGenerator(aes);
+  /// foreach (var randomByte in byteGenerator.Take(16)) {
+  ///     Console.WriteLine(randomByte);
+  /// }
+  /// // Output: 16 random bytes generated by the AES encryption algorithm.
+  /// </code>
+  /// </example>
   public IEnumerable<byte> CipherGenerator(SymmetricAlgorithm instance) {
     instance.Mode = CipherMode.ECB; // CTR mode is simulated with ECB
     instance.Padding = PaddingMode.None;
