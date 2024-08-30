@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "pomdtr.excalidraw-editor",
+    "bierner.github-markdown-preview",
+    "bierner.markdown-checkbox",
+    "bierner.markdown-emoji",
+    "bierner.markdown-footnotes",
+    "bierner.markdown-mermaid",
+    "saeris.markdown-github-alerts",
+    "davidanson.vscode-markdownlint"
+  ]
+}

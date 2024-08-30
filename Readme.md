@@ -1,4 +1,4 @@
-
+<!-- omit from toc -->
 # Demystifying Randomness
 
 A Deep Dive into Random Number Generators and Their Implementations.
@@ -440,7 +440,7 @@ This is a comprehensive software library developed by Pierre L'Ecuyer for testin
 * **Crush:** A moderate battery of tests suitable for initial evaluations.
 * **BigCrush:** A large and highly stringent battery for thorough testing.
 
-#### NIST Statistical Test Suite [^3]
+#### NIST Statistical Test Suite[^3]
 
 [^3]: [NIST-STS](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-22r1a.pdf)
 
@@ -1797,171 +1797,6 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 }
 ```
 
-### Box-Muller Method (BM) [^31]
-
-[^31]: [BM](https://www.researchgate.net/publication/264324131_Box-Muller_transformation)
-
-This is another popular algorithm used to generate pairs of independent, normally distributed random variables (also known as Gaussian variables) from uniformly distributed random numbers. The method is named after George E. P. Box and Mervin E. Muller, who introduced it in 1958. It is straightforward to implement and produces two normally distributed values per iteration, making it efficient for simulations and other applications requiring Gaussian distributions.
-
-The BM operates in two main steps:
-
-* **Generate Two Uniform Random Numbers**: The method begins by generating two independent random numbers, $x$ and $y$, from a uniform distribution over the interval $(0, 1]$.
-
-* **Transform to Gaussian Distribution**: The uniform random numbers are then transformed into a pair of independent, normally distributed random variables $z_0$ and $z_1$ using the following formulas:
-
-  $$r = \sqrt{-2 \ln(x)}$$
-
-  $$\theta = 2 \pi y$$
-
-  $$z_0 = r \cdot \cos(\theta)$$
-
-  $$z_1 = r \cdot \sin(\theta)$$
-
-  These transformations are derived from the properties of the normal distribution and trigonometric identities.
-
-```cs
-(double, double) Next() {
-  double x = 2 * generator.NextDouble() - 1;
-  double y = 2 * generator.NextDouble() - 1;
- 
-  double r = Math.Sqrt(-2.0 * Math.Log(x));
-  double theta = 2.0 * Math.PI * y;
-
-  double z0 = r * Math.Cos(theta);
-  double z1 = r * Math.Sin(theta);
-
-  return (z0, z1);
-}
-```
-
-### Marsaglia Polar Method (MP) [^32]
-
-[^32]: [MP](https://www.jstor.org/stable/2027592)
-
-This is a widely used algorithm for generating pairs of Gaussian variables from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
-
-The MP relies on the fact that a pair of independent, uniformly distributed variables can be transformed into a pair of independent, normally distributed variables. The method involves the following steps:
-
-* **Generate Two Uniform Random Numbers**: Two random variables $x$ and $y$ are drawn from a uniform distribution between $-1$ and $+1$. These are mapped from an underlying uniform RNG that typically provides values in the range $[0, 1)$.
-
-* **Calculate their Sum of Squares**: The sum of squares $s = x^2 + y^2$ is computed. This value represents the squared distance of the point $(x, y)$ from the origin in a 2D plane.
-
-* **Accept or Reject the Pair**: If $s$ is outside the interval $(0, 1)$, the pair is rejected, and the process repeats. This ensures the points lie within the unit circle, which is essential for the next step to correctly produce normally distributed outputs.
-
-* **Transform to Gaussian Distribution**: Once a valid pair is found (i.e., when $s$ is within the unit circle), the method uses the formula:
-
-   $$\text{multiplier} = \sqrt{\frac{-2 \cdot \ln(s)}{s}}$$
-
-  to transform the uniform random variables $x$ and $y$ into independent, normally distributed random variables.
-
-* **Return Two Normally Distributed Variables**: The transformed values $x \times \text{multiplier}$ and $y \times \text{multiplier}$ are the resulting Gaussian variables.
-
-```cs
-(double, double) Next() {
-  while (true) {
-    double x = 2 * generator.NextDouble() - 1;
-    double y = 2 * generator.NextDouble() - 1;
-    double s = x * x + y * y;
-
-    if (s is <= 0 or >= 1)
-      continue;
-
-    double multiplier = Math.Sqrt(-2 * Math.Log(s) / s);
-    return (x * multiplier, y * multiplier);
-  }
-}
-```
-
-### Ziggurat (ZIG) [^33]
-
-[^33]: [ZIG](https://www.jstatsoft.org/article/view/v005i08)
-
-This is an efficient algorithm for generating random numbers from a variety of probability distributions, most notably the normal (Gaussian) distribution. It is particularly well-suited for high-performance applications where speed is critical, such as simulations and cryptographic systems.
-
-The ZIG generates random numbers by partitioning the target distribution into multiple layers, resembling a ziggurat (a terraced structure from ancient Mesopotamia). Each layer is either a rectangle or a tail region, and the method efficiently samples from these regions. The key steps in the Ziggurat Method are:
-
-* **Precompute Layers**: The distribution is divided into a series of layers, each represented by a rectangle. These layers cover the bulk of the distribution, with the top layer accounting for the distribution's tails.
-
-* **Uniform Sampling**: A random rectangle is selected uniformly from the precomputed layers. Within this rectangle, a random point is chosen uniformly.
-
-* **Acceptance or Rejection**: If the point falls within the desired distribution, it is accepted as a valid sample. If not, the algorithm resorts to a fallback method, such as the Box-Muller transform or a direct sampling from the tail region, to generate the sample.
-
-* **Efficiency**: The method is efficient because most samples fall within the rectangles, and the expensive fallback step is needed only for a small fraction of cases.
-
-```cs
-class Ziggurat(ArbitraryNumberGenerator generator) {
-
-  private const int NUM_LAYERS = 128;
-  private const double R = 3.442619855899;
-  private const double V = 9.91256303526217e-3;
-  private const double R_INVERSE = 1 / R;
-
-  private static readonly double[] layerWidths = new double[NUM_LAYERS];
-  private static readonly double[] layerHeights = new double[NUM_LAYERS];
-
-  static Ziggurat() {
-
-    // Precompute the widths and heights of the layers
-    var f = Math.Exp(-0.5 * R * R);
-    layerWidths[0] = V / f;
-    layerWidths[1] = R;
-
-    var lastLayerWidth = R;
-    for (var i = 2; i < NUM_LAYERS; ++i) {
-      lastLayerWidth = layerWidths[i] = Math.Sqrt(-2 * Math.Log(V / lastLayerWidth + f));
-      f = Math.Exp(-0.5 * lastLayerWidth * lastLayerWidth);
-    }
-
-    layerHeights[NUM_LAYERS - 1] = 0;
-    for (var i = 0; i < NUM_LAYERS - 1; ++i)
-      layerHeights[i] = layerWidths[i + 1] / layerWidths[i];
-
-  }
-
-  public double Next() {
-    for (;;) {
-      var i = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
-      var u = 2 * generator.NextDouble() - 1;
-
-      /* first try the rectangular boxes */
-      var layerWidth = layerWidths[i];
-      var x = u * layerWidth;
-      if (Math.Abs(u) < layerHeights[i])
-        return x;
-
-      /* bottom box: sample from the tail */
-      if (i == 0)
-        return SampleTail(u < 0);
-
-      /* is this a sample from the wedges? */
-      var xSqr = x * x;
-      var nextLayerWidth = i == NUM_LAYERS - 1 ? 0 : layerWidths[i + 1];
-
-      var f0 = Math.Exp(-0.5 * (layerWidth * layerWidth - xSqr));
-      var f1 = Math.Exp(-0.5 * (nextLayerWidth * nextLayerWidth - xSqr));
-      if (f1 + generator.NextDouble() * (f0 - f1) < 1.0)
-        return x;
-    }
-
-    double SampleTail(bool isNegative) {
-      for (;;) {
-        var x = -Math.Log(generator.NextDouble()) * R_INVERSE;
-        var y = -Math.Log(generator.NextDouble());
-        if (y + y < x * x)
-          continue;
-
-        var result = R + x;
-        if (isNegative)
-          result = -result;
-
-        return result;
-      }
-    }
-  }
-
-}
-```
-
 ### Blum Blum Shub (BBS) [^34] [^35]
 
 [^34]: [BBS](https://www.cs.miami.edu/home/burt/learning/Csc609.062/docs/bbs.pdf)
@@ -2030,6 +1865,7 @@ tbd
 [^38]: [FORT](https://www.codeproject.com/Articles/6321/Fortuna-A-Cryptographically-Secure-Pseudo-Random-N)
 
 [^39]: [FORT-Paper](https://www.schneier.com/wp-content/uploads/2015/12/fortuna.pdf)
+
 tbd
 
 ### Blum-Micali (BM) [^40]
@@ -2290,6 +2126,43 @@ This involves splitting the RNG output into smaller parts and using those parts 
 
 #### Modulo Operation
 
+```mermaid
+flowchart TD
+  subgraph Random["Random: 64-bit Values"]
+    direction LR
+    R1("9")
+    R3("62")
+    R4("15")
+    R2("21")
+    R5("100")
+    R6("1502")
+    R7("999")
+    R8("...")
+  end
+
+  subgraph Modulo["Modulo  3"]
+    direction LR
+    A1("0")
+    A3("2")
+    A4("0")
+    A2("1")
+    A5("1")
+    A6("2")
+    A7("0")
+    A8("...")
+  end
+
+  R1 --> A1
+  R2 --> A2
+  R3 --> A3
+  R4 --> A4
+  R5 --> A5
+  R6 --> A6
+  R7 --> A7
+  R8 --> A8
+  
+```
+
 This operation is commonly used to reduce a large random number to a smaller range. For example, reducing a 64-bit RNG output to a value between 0 and 19.
 
 ```cs
@@ -2300,6 +2173,44 @@ byte NextD20(IRandomNumberGenerator instance) => (byte)(1 + instance.Next() % 20
 > Modulo Bias occurs when the RNG output is not perfectly divisible by the target range. This bias can make certain values more likely than others.
 
 #### Rejection Sampling
+
+```mermaid
+flowchart TD
+    subgraph Random["Random: 64-bit Values"]
+    direction LR
+    R1("0")
+    R3("17")
+    R4("2")
+    R2("100")
+    R5("19337")
+    R6("1")
+    R7("0")
+    R8("...")
+  end
+
+  subgraph Rejection
+    direction LR
+    A1("0")
+    A4("2")
+    A6("1")
+    A7("0")
+    A8("...")
+  end
+  
+  R1-->A1
+  R4-->A4
+  R6-->A6
+  R7-->A7
+  R8-.->A8
+
+  style R1 fill:#32CD32
+  style R4 fill:#32CD32
+  style R6 fill:#32CD32
+  style R7 fill:#32CD32
+  style R2 fill:#FA8072
+  style R3 fill:#FA8072
+  style R5 fill:#FA8072
+```
 
 This is a technique to avoid modulo bias by discarding values that would introduce bias. This method involves generating random numbers until one falls within the desired range without bias.
 
@@ -3096,6 +3007,215 @@ partial class ArbitraryNumberGenerator {
 
       // Increment the counter
       _Increment(counter);
+    }
+  }
+
+}
+```
+
+## Non-Uniform Random Number Generation (NURNG)
+
+This is crucial for simulations, statistical modeling, and machine learning, where specific probability distributions such as Gaussian, exponential, or Poisson more accurately represent underlying data or processes. Unlike uniform random number generators (RNGs) that produce numbers with equal likelihood across a range, NURNG algorithms are designed to generate numbers that are more likely to occur in specific ranges based on these predefined distributions.
+
+In practice, most programming languages come equipped with basic RNGs that only produce uniformly distributed numbers over the unit interval [0,1] or a set range of integers. While this might suffice for simple scenarios like simulating dice rolls, it is inadequate for more complex or nonlinear distributions needed in various applications. These include modeling complex systems such as virus transmission, gene expression, or stock market dynamics, where random samples must be drawn from these specialized distributions. The challenge lies in how to use these basic RNGs to sample from more complex, arbitrary probability distributions effectively.
+
+### NURNG-Algorithms
+
+### Inverse Transform Sampling (ITS) [^42]
+
+[^42]: [ITS](https://brilliant.org/wiki/inverse-transform-sampling/)
+
+Here’s how it works:
+
+1. **Generate a Uniform Random Number**:
+   Start by generating a random number, $U$, uniformly distributed between 0 and 1 using a simple RNG. This $U$ will be the foundation of your transformation.
+
+2. **Compute the Inverse CDF**:
+   The next step is to compute the inverse of the cumulative distribution function (CDF) of your target distribution. The CDF, denoted as $F(x)$, represents the probability that a random variable $X$ takes a value less than or equal to $x$. The inverse CDF, $F^{-1}(u)$, will give you the value $x$ such that the probability of $X$ being less than or equal to $x$ is exactly $u$. Mathematically, this can be written as:
+
+   $$x = F^{-1}(U)$$
+
+   Here, $x$ is the random sample drawn from the desired distribution.
+
+3. **Output the Result**:
+   The value $x$ obtained from the inverse CDF is your random sample that follows the target probability distribution.
+
+Let’s consider an example where you need to sample from an exponential distribution, which is commonly used in survival analysis, queueing theory, and many other fields. The exponential distribution with rate $\lambda$ has the CDF:
+
+$$F(x) = 1 - e^{-\lambda x}$$
+
+To apply inverse transform sampling, you first solve for $x$ in terms of $u$:
+
+$$x = -\frac{1}{\lambda} \ln(1 - u)$$
+
+This equation allows you to convert a uniform random number $u$ into a sample $x$ from the exponential distribution.
+
+```cs
+double Exponential(double lambda, IRandomNumberGenerator rng) {
+  double u = rng.NextDouble();
+  return -Math.Log(1 - u) / lambda;
+}
+```
+
+### Box-Muller Method (BM) [^31]
+
+[^31]: [BM](https://www.researchgate.net/publication/264324131_Box-Muller_transformation)
+
+This is another popular algorithm used to generate pairs of independent, normally distributed random variables (also known as Gaussian variables) from uniformly distributed random numbers. The method is named after George E. P. Box and Mervin E. Muller, who introduced it in 1958. It is straightforward to implement and produces two normally distributed values per iteration, making it efficient for simulations and other applications requiring Gaussian distributions.
+
+The BM operates in two main steps:
+
+* **Generate Two Uniform Random Numbers**: The method begins by generating two independent random numbers, $x$ and $y$, from a uniform distribution over the interval $(0, 1]$.
+
+* **Transform to Gaussian Distribution**: The uniform random numbers are then transformed into a pair of independent, normally distributed random variables $z_0$ and $z_1$ using the following formulas:
+
+  $$r = \sqrt{-2 \ln(x)}$$
+
+  $$\theta = 2 \pi y$$
+
+  $$z_0 = r \cdot \cos(\theta)$$
+
+  $$z_1 = r \cdot \sin(\theta)$$
+
+  These transformations are derived from the properties of the normal distribution and trigonometric identities.
+
+```cs
+(double, double) Next() {
+  double x = 2 * generator.NextDouble() - 1;
+  double y = 2 * generator.NextDouble() - 1;
+ 
+  double r = Math.Sqrt(-2.0 * Math.Log(x));
+  double theta = 2.0 * Math.PI * y;
+
+  double z0 = r * Math.Cos(theta);
+  double z1 = r * Math.Sin(theta);
+
+  return (z0, z1);
+}
+```
+
+### Marsaglia Polar Method (MP) [^32]
+
+[^32]: [MP](https://www.jstor.org/stable/2027592)
+
+This is a widely used algorithm for generating pairs of Gaussian variables from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
+
+The MP relies on the fact that a pair of independent, uniformly distributed variables can be transformed into a pair of independent, normally distributed variables. The method involves the following steps:
+
+* **Generate Two Uniform Random Numbers**: Two random variables $x$ and $y$ are drawn from a uniform distribution between $-1$ and $+1$. These are mapped from an underlying uniform RNG that typically provides values in the range $[0, 1)$.
+
+* **Calculate their Sum of Squares**: The sum of squares $s = x^2 + y^2$ is computed. This value represents the squared distance of the point $(x, y)$ from the origin in a 2D plane.
+
+* **Accept or Reject the Pair**: If $s$ is outside the interval $(0, 1)$, the pair is rejected, and the process repeats. This ensures the points lie within the unit circle, which is essential for the next step to correctly produce normally distributed outputs.
+
+* **Transform to Gaussian Distribution**: Once a valid pair is found (i.e., when $s$ is within the unit circle), the method uses the formula:
+
+   $$\text{multiplier} = \sqrt{\frac{-2 \cdot \ln(s)}{s}}$$
+
+  to transform the uniform random variables $x$ and $y$ into independent, normally distributed random variables.
+
+* **Return Two Normally Distributed Variables**: The transformed values $x \times \text{multiplier}$ and $y \times \text{multiplier}$ are the resulting Gaussian variables.
+
+```cs
+(double, double) Next() {
+  while (true) {
+    double x = 2 * generator.NextDouble() - 1;
+    double y = 2 * generator.NextDouble() - 1;
+    double s = x * x + y * y;
+
+    if (s is <= 0 or >= 1)
+      continue;
+
+    double multiplier = Math.Sqrt(-2 * Math.Log(s) / s);
+    return (x * multiplier, y * multiplier);
+  }
+}
+```
+
+### Ziggurat (ZIG) [^33]
+
+[^33]: [ZIG](https://www.jstatsoft.org/article/view/v005i08)
+
+This is an efficient algorithm for generating random numbers from a variety of probability distributions, most notably the normal (Gaussian) distribution. It is particularly well-suited for high-performance applications where speed is critical, such as simulations and cryptographic systems.
+
+The ZIG generates random numbers by partitioning the target distribution into multiple layers, resembling a ziggurat (a terraced structure from ancient Mesopotamia). Each layer is either a rectangle or a tail region, and the method efficiently samples from these regions. The key steps in the Ziggurat Method are:
+
+* **Precompute Layers**: The distribution is divided into a series of layers, each represented by a rectangle. These layers cover the bulk of the distribution, with the top layer accounting for the distribution's tails.
+
+* **Uniform Sampling**: A random rectangle is selected uniformly from the precomputed layers. Within this rectangle, a random point is chosen uniformly.
+
+* **Acceptance or Rejection**: If the point falls within the desired distribution, it is accepted as a valid sample. If not, the algorithm resorts to a fallback method, such as the Box-Muller transform or a direct sampling from the tail region, to generate the sample.
+
+* **Efficiency**: The method is efficient because most samples fall within the rectangles, and the expensive fallback step is needed only for a small fraction of cases.
+
+```cs
+class Ziggurat(ArbitraryNumberGenerator generator) {
+
+  private const int NUM_LAYERS = 128;
+  private const double R = 3.442619855899;
+  private const double V = 9.91256303526217e-3;
+  private const double R_INVERSE = 1 / R;
+
+  private static readonly double[] layerWidths = new double[NUM_LAYERS];
+  private static readonly double[] layerHeights = new double[NUM_LAYERS];
+
+  static Ziggurat() {
+
+    // Precompute the widths and heights of the layers
+    var f = Math.Exp(-0.5 * R * R);
+    layerWidths[0] = V / f;
+    layerWidths[1] = R;
+
+    var lastLayerWidth = R;
+    for (var i = 2; i < NUM_LAYERS; ++i) {
+      lastLayerWidth = layerWidths[i] = Math.Sqrt(-2 * Math.Log(V / lastLayerWidth + f));
+      f = Math.Exp(-0.5 * lastLayerWidth * lastLayerWidth);
+    }
+
+    layerHeights[NUM_LAYERS - 1] = 0;
+    for (var i = 0; i < NUM_LAYERS - 1; ++i)
+      layerHeights[i] = layerWidths[i + 1] / layerWidths[i];
+
+  }
+
+  public double Next() {
+    for (;;) {
+      var i = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
+      var u = 2 * generator.NextDouble() - 1;
+
+      /* first try the rectangular boxes */
+      var layerWidth = layerWidths[i];
+      var x = u * layerWidth;
+      if (Math.Abs(u) < layerHeights[i])
+        return x;
+
+      /* bottom box: sample from the tail */
+      if (i == 0)
+        return SampleTail(u < 0);
+
+      /* is this a sample from the wedges? */
+      var xSqr = x * x;
+      var nextLayerWidth = i == NUM_LAYERS - 1 ? 0 : layerWidths[i + 1];
+
+      var f0 = Math.Exp(-0.5 * (layerWidth * layerWidth - xSqr));
+      var f1 = Math.Exp(-0.5 * (nextLayerWidth * nextLayerWidth - xSqr));
+      if (f1 + generator.NextDouble() * (f0 - f1) < 1.0)
+        return x;
+    }
+
+    double SampleTail(bool isNegative) {
+      for (;;) {
+        var x = -Math.Log(generator.NextDouble()) * R_INVERSE;
+        var y = -Math.Log(generator.NextDouble());
+        if (y + y < x * x)
+          continue;
+
+        var result = R + x;
+        if (isNegative)
+          result = -result;
+
+        return result;
+      }
     }
   }
 

@@ -39,6 +39,10 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>  
   </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="NonUniform\" />
+  </ItemGroup>
  
     
 </Project>

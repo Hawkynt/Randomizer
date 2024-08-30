@@ -1,6 +1,7 @@
 ﻿using System;
+using Hawkynt.RandomNumberGenerators.Composites;
 
-namespace Hawkynt.RandomNumberGenerators.Composites;
+namespace Hawkynt.RandomNumberGenerators.NonUniform;
 
 public class MarsagliaPolar(ArbitraryNumberGenerator generator) {
 

@@ -8,6 +8,7 @@ using Hawkynt.RandomNumberGenerators.Composites;
 using Hawkynt.RandomNumberGenerators.Cryptographic;
 using Hawkynt.RandomNumberGenerators.Deterministic;
 using Hawkynt.RandomNumberGenerators.Interfaces;
+using Hawkynt.RandomNumberGenerators.NonUniform;
 
 //BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
 //return;
