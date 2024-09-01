@@ -52,14 +52,12 @@ You can reference this library in your projects by adding the `RandomNumberGener
 ```csharp
 using RandomNumberGenerators.Interfaces;
 
-public class Example
-{
-    public static void Main()
-    {
-        IRandomNumberGenerator rng = new SomeSpecificRNG();
-        ulong randomNumber = rng.Next();
-        Console.WriteLine(randomNumber);
-    }
+public class Program {
+  static void Main() {
+    IRandomNumberGenerator rng = new SomeSpecificRNG();
+    ulong randomNumber = rng.Next();
+    Console.WriteLine(randomNumber);
+  }
 }
 ```
 
