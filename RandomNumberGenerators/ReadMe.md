@@ -1,5 +1,9 @@
+# Hawkynt.RandomNumberGenerators
 
-# Random Number Generators Library
+[![Build](https://github.com/Hawkynt/Randomizer/actions/workflows/Build.yml/badge.svg)](https://github.com/Hawkynt/Randomizer/actions/workflows/Build.yml)
+[![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/Randomizer?branch=main)](https://github.com/Hawkynt/Randomizer/commits/main/RandomNumberGenerators)
+[![NuGet](https://img.shields.io/nuget/v/Hawkynt.RandomNumberGenerators)](https://www.nuget.org/packages/Hawkynt.RandomNumberGenerators/)
+![License](https://img.shields.io/github/license/Hawkynt/Randomizer)
 
 ## Overview
 
