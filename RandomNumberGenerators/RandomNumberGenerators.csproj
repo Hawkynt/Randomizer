@@ -34,7 +34,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.328" />
+    <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.*" />
     <None Include="..\Readme.md" Pack="True" PackagePath=".">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>  

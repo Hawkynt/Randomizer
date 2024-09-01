@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
-    <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.328" />
+    <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.*" />
   </ItemGroup>
 
   <ItemGroup>

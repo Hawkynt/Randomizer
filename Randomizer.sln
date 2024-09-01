@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{3C5B2B
 	ProjectSection(SolutionItems) = preProject
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
+		.github\FUNDING.yml = .github\FUNDING.yml
 		LICENSE = LICENSE
 		Readme.md = Readme.md
 	EndProjectSection
@@ -30,6 +31,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{B2
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RandomNumberGenerators", "RandomNumberGenerators\RandomNumberGenerators.csproj", "{23FD653A-C700-403F-8837-DFBE1FAB5DED}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{561D8524-81C4-4F5A-9B7D-15323130EBE9}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\Build.yml = .github\workflows\Build.yml
+		.github\workflows\UpdateVersions.pl = .github\workflows\UpdateVersions.pl
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +54,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{561D8524-81C4-4F5A-9B7D-15323130EBE9} = {3C5B2B72-BA8D-4058-9D5D-15211B190E9F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {09FC203F-BDA4-4E74-A6B1-E9B87D24B8E1}
