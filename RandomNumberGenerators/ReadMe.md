@@ -69,7 +69,7 @@ Contributions are welcome! Please feel free to submit issues, fork the repositor
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
+This project is licensed under the LGPL License. See the [`LICENSE`](../LICENSE) file for more details.
 
 ## Contact
 
