@@ -3,7 +3,6 @@
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class XorShiftStar : IRandomNumberGenerator {
-
   private const ulong _MULTIPLICATOR = 0x2545F4914F6CDD1D;
   private ulong _state;
 
@@ -17,5 +16,4 @@ public class XorShiftStar : IRandomNumberGenerator {
 
     return (this._state = s) * _MULTIPLICATOR;
   }
-
 }

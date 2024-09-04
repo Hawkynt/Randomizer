@@ -3,7 +3,6 @@
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class SplitMix64 : IRandomNumberGenerator {
-
   private const ulong _GOLDEN_GAMMA = 0x9E3779B97F4A7C15;
   private ulong _state;
 
@@ -18,5 +17,4 @@ public class SplitMix64 : IRandomNumberGenerator {
     z ^= z >> 31;
     return z;
   }
-
 }

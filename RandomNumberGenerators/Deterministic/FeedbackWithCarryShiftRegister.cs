@@ -42,13 +42,11 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
       var result = this._state & POLY;
       result ^= result >> 32;
       result ^= result >> 16;
-      result ^= result >> 8; 
-      result ^= result >> 4; 
-      result ^= result >> 2; 
-      result ^= result >> 1; 
+      result ^= result >> 8;
+      result ^= result >> 4;
+      result ^= result >> 2;
+      result ^= result >> 1;
       return (byte)(result & 1);
     }
-
   }
-
 }

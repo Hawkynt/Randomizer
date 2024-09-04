@@ -1,14 +1,14 @@
 ﻿using System;
 using Hawkynt.RandomNumberGenerators.Composites;
+using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.NonUniform;
 
-public class BoxMuller(ArbitraryNumberGenerator generator) {
-
+public class BoxMuller(ArbitraryNumberGenerator generator) : IDoubleRandomNumberGenerator {
   public (double, double) Next() {
     var x = 2 * generator.NextDouble() - 1;
     var y = 2 * generator.NextDouble() - 1;
-   
+
     var r = Math.Sqrt(-2.0 * Math.Log(x));
     var theta = 2.0 * Math.PI * y;
 
@@ -17,5 +17,4 @@ public class BoxMuller(ArbitraryNumberGenerator generator) {
 
     return (z0, z1);
   }
-
 }

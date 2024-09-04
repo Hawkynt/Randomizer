@@ -12,7 +12,7 @@ public class WichmannHill : IRandomNumberGenerator {
   private const ulong _MULTIPLIER_Z = 1229782938247303441;
 
   private UInt128 _x, _y, _z;
-  
+
   public void Seed(ulong seed) {
     var (q, r) = Math.DivRem(seed, _MODULUS_X);
     this._x = r == 0 ? ~r : r;

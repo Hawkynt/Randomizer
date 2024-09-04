@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 
-namespace Hawkynt.RandomNumberGenerators.Deterministic ;
+namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class SubtractWithBorrow : IRandomNumberGenerator {
   private const ulong M = ulong.MaxValue;

@@ -3017,7 +3017,7 @@ partial class ArbitraryNumberGenerator {
 
 This is crucial for simulations, statistical modeling, and machine learning, where specific probability distributions such as Gaussian, exponential, or Poisson more accurately represent underlying data or processes. Unlike uniform random number generators (RNGs) that produce numbers with equal likelihood across a range, NURNG algorithms are designed to generate numbers that are more likely to occur in specific ranges based on these predefined distributions.
 
-In practice, most programming languages come equipped with basic RNGs that only produce uniformly distributed numbers over the unit interval [0,1] or a set range of integers. While this might suffice for simple scenarios like simulating dice rolls, it is inadequate for more complex or nonlinear distributions needed in various applications. These include modeling complex systems such as virus transmission, gene expression, or stock market dynamics, where random samples must be drawn from these specialized distributions. The challenge lies in how to use these basic RNGs to sample from more complex, arbitrary probability distributions effectively.
+In practice, most programming languages come equipped with basic RNGs that only produce uniformly distributed numbers over the unit interval [0,1) or a set range of integers. While this might suffice for simple scenarios like simulating dice rolls, it is inadequate for more complex or nonlinear distributions needed in various applications. These include modeling complex systems such as virus transmission, gene expression, or stock market dynamics, where random samples must be drawn from these specialized distributions. The challenge lies in how to use these basic RNGs to sample from more complex, arbitrary probability distributions effectively.
 
 ### NURNG-Algorithms
 
@@ -3033,7 +3033,7 @@ Here’s how it works:
 2. **Compute the Inverse CDF**:
    The next step is to compute the inverse of the cumulative distribution function (CDF) of your target distribution. The CDF, denoted as $F(x)$, represents the probability that a random variable $X$ takes a value less than or equal to $x$. The inverse CDF, $F^{-1}(u)$, will give you the value $x$ such that the probability of $X$ being less than or equal to $x$ is exactly $u$. Mathematically, this can be written as:
 
-   $$x = F^{-1}(U)$$
+   $$X = F^{-1}(U)$$
 
    Here, $x$ is the random sample drawn from the desired distribution.
 

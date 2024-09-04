@@ -3,7 +3,6 @@
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class Mixmax : IRandomNumberGenerator {
-  
   private const int _matrixSize = 256;
   private const long _magicNumber = -3;
   private ulong[] _state;
@@ -25,7 +24,7 @@ public class Mixmax : IRandomNumberGenerator {
           this._matrix[row, column] = (ulong)(row - column + 2);
     }
 
-    this._matrix[2, 1]+= unchecked((ulong)_magicNumber);
+    this._matrix[2, 1] += unchecked((ulong)_magicNumber);
   }
 
   public void Seed(ulong seed) {
@@ -33,7 +32,8 @@ public class Mixmax : IRandomNumberGenerator {
       this._state[i] = SplitMix64.Next(ref seed);
   }
 
-  public ulong Next() { // implicit mod 2^64
+  public ulong Next() {
+    // implicit mod 2^64
 
     ulong result = 0;
     for (var i = 0; i < _matrixSize; ++i)

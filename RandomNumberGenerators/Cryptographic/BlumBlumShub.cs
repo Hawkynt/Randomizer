@@ -19,7 +19,7 @@ public class BlumBlumShub : IRandomNumberGenerator {
 
   public void Seed(ulong seed) {
     this._state = seed % this._modulus;
-    
+
     // Ensure seed is relatively prime to modulus
     while (BigInteger.GreatestCommonDivisor(this._state, this._modulus) != 1)
       this._state = (this._state + 1) % this._modulus;
@@ -27,10 +27,13 @@ public class BlumBlumShub : IRandomNumberGenerator {
 
   public ulong Next() {
     ulong result = 0;
-    for (var i = 0; i < 64; i += 8) { // extract 8 bits at a time
+    
+    // extract 8 bits at a time
+    for (var i = 0; i < 64; i += 8) {
       this._state = this._state * this._state % this._modulus;
       result |= (ulong)(this._state & 0xff) << i;
     }
+
     return result;
   }
 }

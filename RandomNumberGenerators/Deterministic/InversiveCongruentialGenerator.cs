@@ -4,7 +4,6 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class InversiveCongruentialGenerator : IRandomNumberGenerator {
-
   private ulong _state;
   private const ulong _A = 6364136223846793005;
   private const ulong _C = 1442695040888963407;
@@ -24,7 +23,7 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
         var quotient = r / newR;
         var tProduct = quotient * newT;
         var rProduct = quotient * newR;
-        
+
         (t, newT) = (newT, tProduct > t ? modulus + t - tProduct : t - tProduct);
         (r, newR) = (newR, rProduct > t ? modulus + r - rProduct : r - rProduct);
       }
@@ -32,5 +31,4 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
       return r > 1 ? 0 : t;
     }
   }
-
 }

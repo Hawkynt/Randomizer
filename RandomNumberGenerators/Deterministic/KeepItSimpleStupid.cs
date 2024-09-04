@@ -2,8 +2,7 @@
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
-public class KeepItSimpleStupid:IRandomNumberGenerator {
-
+public class KeepItSimpleStupid : IRandomNumberGenerator {
   private readonly LinearCongruentialGenerator _lcg = new();
   private readonly XorShift _xs = new();
   private readonly MultiplyWithCarry _mwc = new();
@@ -15,5 +14,4 @@ public class KeepItSimpleStupid:IRandomNumberGenerator {
   }
 
   public ulong Next() => this._lcg.Next() ^ this._xs.Next() ^ this._mwc.Next();
-
 }

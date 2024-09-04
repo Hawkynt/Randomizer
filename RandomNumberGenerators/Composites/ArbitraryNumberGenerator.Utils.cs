@@ -6,19 +6,20 @@ using System.Runtime.Intrinsics.X86;
 namespace Hawkynt.RandomNumberGenerators.Composites;
 
 partial class ArbitraryNumberGenerator {
-
   /// <summary>
-  /// Extracts bits from the specified <paramref name="value"/> according to the bit positions set in the <paramref name="mask"/>.
+  ///   Extracts bits from the specified <paramref name="value" /> according to the bit positions set in the
+  ///   <paramref name="mask" />.
   /// </summary>
-  /// <param name="value">The <see cref="ulong"/> value from which bits are extracted.</param>
-  /// <param name="mask">The <see cref="ulong"/> mask that specifies which bits to extract.</param>
+  /// <param name="value">The <see cref="ulong" /> value from which bits are extracted.</param>
+  /// <param name="mask">The <see cref="ulong" /> mask that specifies which bits to extract.</param>
   /// <returns>
-  /// A <see cref="ulong"/> value containing the bits extracted from <paramref name="value"/> and positioned contiguously
-  /// based on the <paramref name="mask"/>.
+  ///   A <see cref="ulong" /> value containing the bits extracted from <paramref name="value" /> and positioned contiguously
+  ///   based on the <paramref name="mask" />.
   /// </returns>
   /// <remarks>
-  /// If the CPU supports the BMI2 instruction set, the PEXT (Parallel Bits Extract) instruction is used for optimal performance.
-  /// If not, a manual bit-by-bit extraction is performed.
+  ///   If the CPU supports the BMI2 instruction set, the PEXT (Parallel Bits Extract) instruction is used for optimal
+  ///   performance.
+  ///   If not, a manual bit-by-bit extraction is performed.
   /// </remarks>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static ulong _ParallelBitExtract(ulong value, ulong mask) {
@@ -42,12 +43,12 @@ partial class ArbitraryNumberGenerator {
   }
 
   /// <summary>
-  /// Calculates the population count (the number of 1-bits) in a 128-bit unsigned integer.
+  ///   Calculates the population count (the number of 1-bits) in a 128-bit unsigned integer.
   /// </summary>
   /// <param name="mask">The 128-bit unsigned integer.</param>
   /// <returns>The number of 1-bits in the provided 128-bit unsigned integer.</returns>
   /// <example>
-  /// <code>
+  ///   <code>
   /// UInt128 mask = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
   /// byte count = _PopCount(mask);
   /// Console.WriteLine(count); 
@@ -58,12 +59,12 @@ partial class ArbitraryNumberGenerator {
   private static byte _PopCount(UInt128 mask) => (byte)(ulong.PopCount((ulong)mask) + ulong.PopCount((ulong)(mask >> 64)));
 
   /// <summary>
-  /// Calculates the population count (the number of 1-bits) in a 256-bit vector.
+  ///   Calculates the population count (the number of 1-bits) in a 256-bit vector.
   /// </summary>
   /// <param name="mask">The 256-bit vector.</param>
   /// <returns>The total number of 1-bits in the vector.</returns>
   /// <example>
-  /// <code>
+  ///   <code>
   /// var vector = Vector256.Create(0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL, 0x0UL, 0x0UL);
   /// ushort count = _PopCount(vector);
   /// Console.WriteLine(count);
@@ -84,12 +85,12 @@ partial class ArbitraryNumberGenerator {
   }
 
   /// <summary>
-  /// Calculates the population count (the number of 1-bits) in a 512-bit vector.
+  ///   Calculates the population count (the number of 1-bits) in a 512-bit vector.
   /// </summary>
   /// <param name="mask">The 512-bit vector.</param>
   /// <returns>The total number of 1-bits in the vector.</returns>
   /// <example>
-  /// <code>
+  ///   <code>
   /// var vector = Vector512.Create(0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL, 0xFFFFFFFFFFFFFFFFUL,
   ///                                0x0UL, 0x0UL, 0x0UL, 0x0UL);
   /// ushort count = _PopCount(vector);
@@ -99,7 +100,6 @@ partial class ArbitraryNumberGenerator {
   /// </example>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static ushort _PopCount(Vector512<ulong> mask) {
-    
     var pc0123 = _PopCount(mask.GetLower());
     var pc4567 = _PopCount(mask.GetUpper());
 
@@ -107,11 +107,11 @@ partial class ArbitraryNumberGenerator {
   }
 
   /// <summary>
-  /// Increments a multi-byte counter represented as a byte array, treating the byte array as a little-endian integer.
+  ///   Increments a multi-byte counter represented as a byte array, treating the byte array as a little-endian integer.
   /// </summary>
   /// <param name="counter">The byte array representing the counter to increment.</param>
   /// <example>
-  /// <code>
+  ///   <code>
   /// byte[] counter = { 0xFF, 0xFF, 0xFF, 0xFE };
   /// _Increment(counter);
   /// // After increment: counter = { 0x00, 0x00, 0x00, 0xFF }
@@ -126,5 +126,4 @@ partial class ArbitraryNumberGenerator {
         break;
     }
   }
-
 }

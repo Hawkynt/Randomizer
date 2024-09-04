@@ -23,5 +23,4 @@ public class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 
     return result;
   }
-
 }

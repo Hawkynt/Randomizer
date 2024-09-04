@@ -28,5 +28,4 @@ public class Xoshiro256SS : IRandomNumberGenerator {
 
     return result;
   }
-
 }

@@ -4,7 +4,6 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class XorWow : IRandomNumberGenerator {
-
   private const uint _WEYL_CONSTANT = 362437;
   private uint _x, _y, _z, _w, _v, _weyl;
 
@@ -28,7 +27,7 @@ public class XorWow : IRandomNumberGenerator {
   public ulong Next() {
     var high = Next32();
     var low = Next32();
-    return (ulong)high << 32 | low;
+    return ((ulong)high << 32) | low;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     uint Next32() {
@@ -45,5 +44,4 @@ public class XorWow : IRandomNumberGenerator {
       return (this._v = v) + (this._weyl += _WEYL_CONSTANT);
     }
   }
-
 }

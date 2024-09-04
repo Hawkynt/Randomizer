@@ -16,7 +16,7 @@ public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
     return result;
 
     byte StepLFSR() {
-      this._state = (ulong)CalculateFeedback() << 63 | (this._state >> 1);
+      this._state = ((ulong)CalculateFeedback() << 63) | (this._state >> 1);
       return (byte)(this._state & 1);
 
       byte CalculateFeedback() {
@@ -31,5 +31,4 @@ public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
       }
     }
   }
-
 }

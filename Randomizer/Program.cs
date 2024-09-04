@@ -20,13 +20,13 @@ generator.Seed(seedNumber);
 var y = generator.ConcatGenerator(15).ToHex();
 var x = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
 
-var z = new Ziggurat(generator);
+var z = new InverseTransformSampling(generator);
 var histogram = new ulong[256];
 for (var i = 0; i < 1000000; ++i) {
   double random;
   do {
     random = z.Next() / 3.72;
-  } while (random < -1 || random > 1);
+  } while (random is < -1 or > 1);
   random=++random*0.5;
 
   var limited=(int)(random * 256);

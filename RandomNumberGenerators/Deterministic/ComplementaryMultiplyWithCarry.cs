@@ -17,7 +17,8 @@ public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
     this._carry = SplitMix64.Next(ref seed);
   }
 
-  public ulong Next() { // implicit mod 2^64
+  public ulong Next() {
+    // implicit mod 2^64
     this._index = (this._index + 1) % R;
     var t = A * this._state[this._index] + this._carry;
 

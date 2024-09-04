@@ -1,10 +1,10 @@
 ﻿using System;
 using Hawkynt.RandomNumberGenerators.Composites;
+using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.NonUniform;
 
-public class MarsagliaPolar(ArbitraryNumberGenerator generator) {
-
+public class MarsagliaPolar(ArbitraryNumberGenerator generator) : IDoubleRandomNumberGenerator {
   public (double, double) Next() {
     for (;;) {
       var x = 2 * generator.NextDouble() - 1;
@@ -17,5 +17,4 @@ public class MarsagliaPolar(ArbitraryNumberGenerator generator) {
       return (x * multiplier, y * multiplier);
     }
   }
-
 }

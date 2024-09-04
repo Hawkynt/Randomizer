@@ -1,6 +1,7 @@
 ﻿using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
+
 public class MersenneTwister : IRandomNumberGenerator {
   private const int N = 624;
   private const int PERIOD = 397;
@@ -22,8 +23,8 @@ public class MersenneTwister : IRandomNumberGenerator {
   }
 
   public ulong Next() {
-    return (ulong)Next32() << 32 | Next32();
-    
+    return ((ulong)Next32() << 32) | Next32();
+
     uint Next32() {
       if (this._index >= N) {
         int i;
@@ -56,5 +57,4 @@ public class MersenneTwister : IRandomNumberGenerator {
       return x;
     }
   }
-  
 }

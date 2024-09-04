@@ -11,7 +11,7 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 
   private uint index;
   private readonly uint[] _state = new uint[R];
-  
+
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static uint MAT0POS(int t, uint v) => v ^ (v >> t);
 
@@ -40,7 +40,7 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 
   private uint VRm1 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => this._state[(this.index + R - 1) % R]; 
+    get => this._state[(this.index + R - 1) % R];
   }
 
   private uint newV0 {
@@ -60,7 +60,7 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
   }
 
   public ulong Next() {
-    return (ulong)Next32() << 32 | Next32();
+    return ((ulong)Next32() << 32) | Next32();
 
     uint Next32() {
       const int T1 = 8;
@@ -69,7 +69,7 @@ public class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
       const int T4 = -11;
       const int T5 = -7;
       const int T6 = -13;
-      
+
       var z0 = this.VRm1;
       var z1 = this.V0 ^ MAT0POS(T1, this.VM1);
       var z2 = MAT0NEG(T2, this.VM2) ^ MAT0NEG(T3, this.VM3);

@@ -5,7 +5,6 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class LaggedFibonacciGenerator : IRandomNumberGenerator {
-
   public enum Mode {
     Additive,
     Subtractive,
@@ -50,7 +49,8 @@ public class LaggedFibonacciGenerator : IRandomNumberGenerator {
       this._state[i] = SplitMix64.Next(ref seed);
   }
 
-  public ulong Next() { // implicit mod 2^64
+  public ulong Next() {
+    // implicit mod 2^64
     var state = this._state;
     var length = state.Length;
     var index = this._index;
@@ -79,5 +79,4 @@ public class LaggedFibonacciGenerator : IRandomNumberGenerator {
   private static ulong _Subtractive(ulong a, ulong b) => unchecked(a - b);
   private static ulong _Multiplicative(ulong a, ulong b) => a * b;
   private static ulong _Xor(ulong a, ulong b) => a ^ b;
-
 }

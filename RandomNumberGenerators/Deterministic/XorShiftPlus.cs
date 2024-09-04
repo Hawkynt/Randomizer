@@ -3,7 +3,6 @@
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class XorShiftPlus : IRandomNumberGenerator {
-
   private ulong _x, _y;
 
   public void Seed(ulong seed) {
@@ -21,5 +20,4 @@ public class XorShiftPlus : IRandomNumberGenerator {
 
     return (this._x = y) + (this._y = x);
   }
-
 }
