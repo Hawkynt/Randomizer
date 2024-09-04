@@ -1852,7 +1852,125 @@ class BlumBlumShub : IRandomNumberGenerator {
 
 [^36]: [CC20](https://www.chronox.de/chacha20_drng/)
 
-tbd
+This is a stream cipher designed by Daniel J. Bernstein, known for its simplicity, speed, and security. Although originally intended for encryption, ChaCha20 can also be effectively used as a CSPRNG. Its strong diffusion properties and resistance to cryptanalytic attacks make it an excellent choice for generating high-quality random numbers.
+
+**Key Characteristics of ChaCha20 for RNG:**
+
+* **Cryptographic Security**: ChaCha20 generates random numbers that are resistant to a wide range of attacks, making it suitable for security-sensitive applications.
+* **High Performance**: ChaCha20 is optimized for performance, providing fast random number generation on a wide variety of hardware, from small embedded systems to powerful servers.
+* **Simplicity**: The design of ChaCha20 is straightforward, ensuring ease of implementation and reducing the risk of errors.
+
+**How ChaCha20 Works as an RNG:**
+
+ChaCha20 operates on 512-bit blocks, divided into 16 words of 32 bits each. When used as an RNG, the basic process remains the same as in its encryption use, but instead of XORing the keystream with plaintext, the keystream itself is used directly as the source of random numbers.
+
+Here’s how you can implement ChaCha20 as an RNG:
+
+1. **Initialization**: ChaCha20 initializes a 512-bit state from a 256-bit key, a 32-bit counter, and a 96-bit nonce. These values seed the RNG, ensuring that the output sequence is pseudorandom and difficult to predict.
+
+2. **Keystream Generation**: ChaCha20 generates a keystream by processing the state through its quarter-round functions over multiple rounds. This keystream can then be directly used as random numbers.
+
+3. **Output**: The output of the ChaCha20 block function is a series of 32-bit words, which can be used as random numbers. By repeatedly generating new blocks, you can produce as many random numbers as needed.
+
+```cs
+class ChaCha20 : IRandomNumberGenerator {
+  
+  // The number of rounds used in the ChaCha20 algorithm, as specified by RFC 7539 for enhanced security.
+  private const int ROUNDS = 20;
+
+  // State array to hold the internal state of the ChaCha20 algorithm.
+  // It's initialized with 16 32-bit words: 4 constant words, 8 key words, 1 counter, and 3 nonce words.
+  private readonly uint[] state=new uint[16];
+  
+  // Constants for positioning the counter and nonce within the state array
+  // COUNTER is used to track the block number being processed.
+  private const int COUNTER = 12;
+  private const int NONCE_0 = COUNTER + 1;
+  private const int NONCE_1 = NONCE_0 + 1;
+  private const int NONCE_2 = NONCE_1 + 1;
+  private const int NONCE_3 = NONCE_2 + 1;
+
+  public void Seed(ulong seed) {
+
+    // Set the first 4 words to ChaCha20-specific constants (from "expand 32-byte k").
+    this.state[0] = 0x61707865;
+    this.state[1] = 0x3320646e;
+    this.state[2] = 0x79622d32;
+    this.state[3] = 0x6b206574;
+
+    // Derive the key and nonce from the seed to fill the remaining 12 state elements.
+    // This design choice ensures that the nonce is unique per seed, preventing nonce reuse across different sessions.
+    for (int i = 4; i < this.state.Length; ++i) {
+      var current = SplitMix64.Next(ref seed);
+      this.state[i] = (uint)(current >> 32 ^ current);
+    }
+
+    // Initialize the block counter to 0, as required by the ChaCha20 algorithm.
+    this.state[COUNTER] = 0;
+  }
+
+  public ulong Next() {
+    uint[] result = new uint[this.state.Length];
+    ChaCha20Block(ref result);
+    return ((ulong)result[0] << 32) | result[1];
+
+    void ChaCha20Block(ref uint[] output) {
+
+      // Copy the current state into the output buffer before applying the ChaCha20 rounds.
+      for (int i = 0; i < this.state.Length; ++i)
+        output[i] = this.state[i];
+
+      for (int i = 0; i < ROUNDS; i += 2) {
+
+        // Column rounds
+        QuarterRound(ref output[0], ref output[4], ref output[8], ref output[12]);
+        QuarterRound(ref output[1], ref output[5], ref output[9], ref output[13]);
+        QuarterRound(ref output[2], ref output[6], ref output[10], ref output[14]);
+        QuarterRound(ref output[3], ref output[7], ref output[11], ref output[15]);
+
+        // Diagonal rounds
+        QuarterRound(ref output[0], ref output[5], ref output[10], ref output[15]);
+        QuarterRound(ref output[1], ref output[6], ref output[11], ref output[12]);
+        QuarterRound(ref output[2], ref output[7], ref output[8], ref output[13]);
+        QuarterRound(ref output[3], ref output[4], ref output[9], ref output[14]);
+      }
+
+      for (int i = 0; i < this.state.Length; ++i)
+        output[i] += this.state[i];
+
+      // Increment the block counter.
+      if (++this.state[COUNTER] != 0)
+        return;
+
+      // Handle counter overflow by incrementing the nonce, ensuring continuous unique state and extending the counter space.
+      // This deviates from RFC 7539 where the nonce is fixed and counter wraps around.
+      // Implication: Enables generation of a larger stream.
+      if (++this.state[NONCE_0] == 0)
+        if (++this.state[NONCE_1] == 0)
+          if (++this.state[NONCE_2] == 0)
+            ++this.state[NONCE_3];
+
+      return;
+
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
+      static void QuarterRound(ref uint a, ref uint b, ref uint c, ref uint d) {
+        a += b;
+        d ^= a;
+        d = BitOperations.RotateLeft(d, 16);
+        c += d;
+        b ^= c;
+        b = BitOperations.RotateLeft(b, 12);
+        a += b;
+        d ^= a;
+        d = BitOperations.RotateLeft(d, 8);
+        c += d;
+        b ^= c;
+        b = BitOperations.RotateLeft(b, 7);
+      }
+    }
+  }
+}
+```
 
 ### Yarrow (YAR) [^37]
 
@@ -3162,30 +3280,30 @@ class Ziggurat(ArbitraryNumberGenerator generator) {
   static Ziggurat() {
 
     // Precompute the widths and heights of the layers
-    var f = Math.Exp(-0.5 * R * R);
+    double f = Math.Exp(-0.5 * R * R);
     layerWidths[0] = V / f;
     layerWidths[1] = R;
 
-    var lastLayerWidth = R;
-    for (var i = 2; i < NUM_LAYERS; ++i) {
+    double lastLayerWidth = R;
+    for (int i = 2; i < NUM_LAYERS; ++i) {
       lastLayerWidth = layerWidths[i] = Math.Sqrt(-2 * Math.Log(V / lastLayerWidth + f));
       f = Math.Exp(-0.5 * lastLayerWidth * lastLayerWidth);
     }
 
     layerHeights[NUM_LAYERS - 1] = 0;
-    for (var i = 0; i < NUM_LAYERS - 1; ++i)
+    for (int i = 0; i < NUM_LAYERS - 1; ++i)
       layerHeights[i] = layerWidths[i + 1] / layerWidths[i];
 
   }
 
   public double Next() {
     for (;;) {
-      var i = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
-      var u = 2 * generator.NextDouble() - 1;
+      int i = (int)generator.ModuloRejectionSampling(NUM_LAYERS);
+      double u = 2 * generator.NextDouble() - 1;
 
       /* first try the rectangular boxes */
-      var layerWidth = layerWidths[i];
-      var x = u * layerWidth;
+      double layerWidth = layerWidths[i];
+      double x = u * layerWidth;
       if (Math.Abs(u) < layerHeights[i])
         return x;
 
@@ -3194,23 +3312,23 @@ class Ziggurat(ArbitraryNumberGenerator generator) {
         return SampleTail(u < 0);
 
       /* is this a sample from the wedges? */
-      var xSqr = x * x;
-      var nextLayerWidth = i == NUM_LAYERS - 1 ? 0 : layerWidths[i + 1];
+      double xSqr = x * x;
+      double nextLayerWidth = i == NUM_LAYERS - 1 ? 0 : layerWidths[i + 1];
 
-      var f0 = Math.Exp(-0.5 * (layerWidth * layerWidth - xSqr));
-      var f1 = Math.Exp(-0.5 * (nextLayerWidth * nextLayerWidth - xSqr));
+      double f0 = Math.Exp(-0.5 * (layerWidth * layerWidth - xSqr));
+      double f1 = Math.Exp(-0.5 * (nextLayerWidth * nextLayerWidth - xSqr));
       if (f1 + generator.NextDouble() * (f0 - f1) < 1.0)
         return x;
     }
 
     double SampleTail(bool isNegative) {
       for (;;) {
-        var x = -Math.Log(generator.NextDouble()) * R_INVERSE;
-        var y = -Math.Log(generator.NextDouble());
+        double x = -Math.Log(generator.NextDouble()) * R_INVERSE;
+        double y = -Math.Log(generator.NextDouble());
         if (y + y < x * x)
           continue;
 
-        var result = R + x;
+        double result = R + x;
         if (isNegative)
           result = -result;
 

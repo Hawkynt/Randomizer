@@ -13,7 +13,7 @@ using Hawkynt.RandomNumberGenerators.NonUniform;
 //BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
 //return;
 
-var generator = new ArbitraryNumberGenerator(new Xoroshiro128PlusPlus());
+var generator = new ArbitraryNumberGenerator(new ChaCha20());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
