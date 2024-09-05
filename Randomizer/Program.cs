@@ -13,12 +13,12 @@ using Hawkynt.RandomNumberGenerators.NonUniform;
 //BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
 //return;
 
-var generator = new ArbitraryNumberGenerator(new MiddleSquareWeylSequence());
+var generator = new ArbitraryNumberGenerator(new BlumMicali());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
-var y = generator.ConcatGenerator(8192).ToHex();
-var x = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
+var concat = generator.ConcatGenerator(8192).ToHex();
+var aes = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
 
 var z = new InverseTransformSampling(generator);
 var histogram = new ulong[256];

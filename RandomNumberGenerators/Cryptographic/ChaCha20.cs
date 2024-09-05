@@ -34,7 +34,7 @@ public class ChaCha20 : IRandomNumberGenerator {
     // This design choice ensures that the nonce is unique per seed, preventing nonce reuse across different sessions.
     for (var i = 4; i < this.state.Length; ++i) {
       var current = SplitMix64.Next(ref seed);
-      this.state[i] = (uint)(current >> 32 ^ current);
+      this.state[i] = (uint)((current >> 32) ^ current);
     }
 
     // Initialize the block counter to 0, as required by the ChaCha20 algorithm.

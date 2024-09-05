@@ -709,8 +709,8 @@ The standard formula for an ICG, modulo a prime number $q$, is:
 $$
 X_i =
 \begin{cases}
-(a \cdot X_{i-1}^{-1} + c) \mod M & \text{if } X_{i-1} \neq 0 \\
-c & \text{if } X_{i-1} = 0
+  (a \cdot X_{i-1}^{-1} + c) \mod M & \text{if } X_{i-1} \neq 0 \\
+  c & \text{if } X_{i-1} = 0
 \end{cases}
 $$
 
@@ -737,7 +737,6 @@ class InversiveCongruentialGenerator : IRandomNumberGenerator {
   public ulong Next() {
     return this._state = this._state == 0 ? _C : (_A * ModInverse(this._state, _M) + _C) % _M;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     ulong ModInverse(ulong value, ulong modulus) {
       ulong t = 0, newT = 1;
       ulong r = modulus, newR = value;
@@ -929,7 +928,6 @@ class XorWow : IRandomNumberGenerator {
     uint low = Next32();
     return (ulong)high << 32 | low;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     uint Next32() {
       uint x = this._x;
       x ^= x >> 2;
@@ -1534,7 +1532,6 @@ class PermutedCongruentialGenerator : IRandomNumberGenerator {
     return Permute(this._state);
 
     // Apply RXS-M-XS permutation
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static ulong Permute(UInt128 state) {
       int count = (int)(state >> 122);
       state ^= state >> (5 + count);
@@ -1725,47 +1722,16 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
   private uint index;
   private readonly uint[] _state = new uint[R];
   
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static uint MAT0POS(int t, uint v) => v ^ (v >> t);
-
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static uint MAT0NEG(int t, uint v) => v ^ (v << -t);
-
-  private uint V0 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => this._state[this.index];
-  }
-
-  private uint VM1 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => this._state[(this.index + M1) % R];
-  }
-
-  private uint VM2 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => this._state[(this.index + M2) % R];
-  }
-
-  private uint VM3 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => this._state[(this.index + M3) % R];
-  }
-
-  private uint VRm1 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => this._state[(this.index + R - 1) % R]; 
-  }
-
-  private uint newV0 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    set => this._state[(this.index + R - 1) % R] = value;
-  }
-
-  private uint newV1 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    set => this._state[this.index] = value;
-  }
-
+  private uint V0 => this._state[this.index];
+  private uint VM1 => this._state[(this.index + M1) % R];
+  private uint VM2 => this._state[(this.index + M2) % R];
+  private uint VM3 => this._state[(this.index + M3) % R];
+  private uint VRm1 => this._state[(this.index + R - 1) % R]; 
+  private uint newV0 => this._state[(this.index + R - 1) % R] = value;
+  private uint newV1 => this._state[this.index] = value;
+  
   public void Seed(ulong seed) {
     this.index = 0;
     for (int i = 0; i < this._state.Length; ++i)
@@ -1783,10 +1749,10 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
       const int T5 = -7;
       const int T6 = -13;
       
-      var z0 = this.VRm1;
-      var z1 = this.V0 ^ MAT0POS(T1, this.VM1);
-      var z2 = MAT0NEG(T2, this.VM2) ^ MAT0NEG(T3, this.VM3);
-      var z3 = z1 ^ z2;
+      uint z0 = this.VRm1;
+      uint z1 = this.V0 ^ MAT0POS(T1, this.VM1);
+      uint z2 = MAT0NEG(T2, this.VM2) ^ MAT0NEG(T3, this.VM3);
+      uint z3 = z1 ^ z2;
 
       this.newV1 = z3;
       this.newV0 = MAT0NEG(T4, z0) ^ MAT0NEG(T5, z1) ^ MAT0NEG(T6, z2);
@@ -1952,7 +1918,6 @@ class ChaCha20 : IRandomNumberGenerator {
 
       return;
 
-      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       static void QuarterRound(ref uint a, ref uint b, ref uint c, ref uint d) {
         a += b;
         d ^= a;
@@ -2029,13 +1994,118 @@ Yarrow is designed to be robust against several types of attacks:
 
 [^39]: [FORT-Paper](https://www.schneier.com/wp-content/uploads/2015/12/fortuna.pdf)
 
-tbd
+This was designed by Bruce Schneier, Niels Ferguson, and other cryptographers. It was developed as a successor to the [YAR](#yarrow-yar) and addresses some of its limitations, while also improving security and flexibility. Fortuna is notable for its simplicity, robustness, and the ability to withstand various types of attacks, making it a reliable choice for cryptographic applications.
+
+**Key Components:**
+
+It consists of several key components that work together to ensure the generation of secure random numbers:
+
+1. **Entropy Accumulators:**
+   * Fortuna gathers entropy from multiple sources and stores it in a series of 32 entropy pools. Each pool is designed to accumulate entropy independently, ensuring that even if one pool is compromised, others remain secure.
+   * Entropy sources can include system events, user inputs, hardware noise, and more. The randomness from these sources is distributed across the pools using a round-robin technique, ensuring an even distribution of entropy.
+
+2. **Reseeding Mechanism:**
+   * Fortuna uses a reseeding mechanism to periodically refresh its internal state with new entropy from the pools. The reseeding process is triggered after generating a certain number of outputs or after a specified time interval.
+   * Each reseeding operation pulls entropy from one or more of the pools, with the frequency of use varying among them. The first pool is used frequently, while the others are used less often, based on a geometric series. This staggered use ensures that even if an attacker gains knowledge of the generator’s state, they cannot easily predict future outputs.
+
+3. **Generator Function:**
+   * Fortuna’s generator function is built around a cryptographic algorithm, typically AES in counter mode (AES-CTR). The internal state of the generator, combined with the counter, is used to produce a stream of random numbers.
+   * The use of AES-CTR ensures that the output is cryptographically secure and resistant to attacks. The generator also employs key updates after every reseed, further enhancing security.
+
+4. **Key Management:**
+   * Fortuna includes a key management process that updates the generator's key after each reseed. This key update is crucial for maintaining the security of the random number generator, especially in the face of potential state compromises.
+   * By regularly changing the key, Fortuna ensures that even if part of the state is leaked or compromised, future outputs remain secure.
+
+**Fortuna’s Operation:**
+
+The operation of Fortuna can be divided into three main phases:
+
+1. **Entropy Collection:**
+   * Fortuna collects entropy from various sources and distributes it across the 32 pools. The distribution is managed in a way that ensures each pool receives entropy, but some pools will accumulate more slowly than others.
+
+2. **Reseeding:**
+   * Reseeding occurs at regular intervals or after a certain amount of data has been generated. During a reseed, Fortuna combines entropy from one or more of the pools to update its internal state and key.
+   * The frequency and pool selection for reseeding are designed to prevent attackers from predicting or controlling the reseeding process, thereby maintaining the security of the PRNG.
+
+3. **Random Number Generation:**
+   * Once seeded, Fortuna uses its generator function to produce random numbers. The generator runs AES-CTR to produce a secure stream of bits, which are then used as random numbers for cryptographic purposes.
+   * The counter used in AES-CTR mode is incremented with each output, ensuring a fresh and unpredictable sequence of random numbers.
+
+**Security Considerations:**
+
+Fortuna was designed with several key security principles in mind:
+
+* **Resilience Against State Compromise:**
+  Fortuna’s multiple entropy pools and staggered reseeding ensure that even if an attacker gains partial knowledge of the internal state, they cannot easily predict future outputs. The periodic key updates further protect the generator from state compromise attacks.
+
+* **Flexible and Scalable:**
+  Fortuna is designed to be flexible and scalable, capable of handling different amounts of entropy and operating in a variety of environments. The use of 32 pools allows the system to adapt to different levels of entropy input while maintaining security.
+
+* **Defense Against Entropy Source Attacks:**
+  Fortuna’s design assumes that some entropy sources may be compromised or less random. By using multiple independent pools, the generator mitigates the risk of any single source influencing the overall security of the system.
 
 ### Blum-Micali (BM) [^40]
 
 [^40]: [BM](https://pages.cs.wisc.edu/~cs812-1/blum.micali82.pdf)
 
-tbd
+This was developed by Manuel Blum and Silvio Micali in 1982. It is one of the earliest CSPRNGs and is based on the hardness of the discrete logarithm problem. The BM generator is designed to produce a sequence of bits that are computationally indistinguishable from a truly random sequence, assuming the underlying mathematical problem remains intractable.
+
+**Key Concepts:**
+
+1. **Underlying Hard Problem:**
+   * The security of the BM generator is based on the discrete logarithm problem, which is considered to be computationally hard. Specifically, it is assumed that given a number $g^x$ (where $g$ is a generator of a cyclic group and $x$ is an integer), it is computationally infeasible to determine $x$ from $g^x$ without additional information.
+
+2. **Mathematical Setup:**
+   * The BM generator operates within a finite cyclic group $G$ of prime order $p$. A generator $g$ of this group is selected, and a secret seed $s_0$ is chosen such that $1 < s_0 < p-1$.
+   * The generator then iteratively computes values based on the following recurrence relation:
+
+     $$ s_{i+1} = g^{s_i} \mod p $$
+
+   * For each $s_i$, a bit $b_i$ is generated based on whether $s_i$ is greater than or less than $\frac{p-1}{2}$.
+
+3. **Bit Generation:**
+   * In each iteration, the BM generator produces a single bit of output. The bit \( b_i \) is determined as follows:
+
+   $$
+     b_i =
+     \begin{cases}
+       1 & \text{if } s_i \leq \frac{p-1}{2} \\
+       0 & \text{if } s_i > \frac{p-1}{2}
+     \end{cases}
+   $$
+
+   * The resulting sequence of bits $X_n = \langle b_0, b_1, \ldots \rangle$ forms the output of the BM generator.
+
+4. **Computational Security:**
+   * The security of the BM generator relies on the difficulty of predicting any bit of the output sequence given knowledge of the previous bits. This security property is derived from the hardness of the discrete logarithm problem.
+
+```cs
+class BlumMicali(ulong p, ulong g) :IRandomNumberGenerator {
+
+  private ulong _state;
+
+  public BlumMicali() : this(6364136223846793005UL, 2147483647) { }
+
+  public void Seed(ulong seed) {
+    ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(seed,1UL);
+    ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(seed,p-1);
+    this._state = seed;
+  }
+
+  public ulong Next() {
+    ulong result = 0UL;
+    for (int i = 0; i < 64; ++i)
+      result = (result << 1) | (NextBit() ? 1UL : 0);
+
+    return result;
+
+    bool NextBit() 
+      => (this._state = (ulong)BigInteger.ModPow(g, this._state, p)) <= (p - 1) / 2
+      ;
+
+  }
+}
+```
 
 ### ANSI X9.17 (ANSI) [^41]
 
@@ -2508,20 +2578,20 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public uint Sponge32() {
-    var result = rng.Next();
+    ulong result = rng.Next();
     result ^= result >> 32;
     return (uint)result;
   }
 
   public ushort Sponge16() {
-    var result = rng.Next();
+    ulong result = rng.Next();
     result ^= result >> 32;
     result ^= result >> 16;
     return (ushort)result;
   }
 
   public byte Sponge8() {
-    var result = rng.Next();
+    ulong result = rng.Next();
     result ^= result >> 32;
     result ^= result >> 16;
     result ^= result >> 8;
@@ -2529,7 +2599,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public byte Sponge4() {
-    var result = rng.Next();
+    ulong result = rng.Next();
     result ^= result >> 32;
     result ^= result >> 16;
     result ^= result >> 8;
@@ -2538,7 +2608,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public byte Sponge2() {
-    var result = rng.Next();
+    ulong result = rng.Next();
     result ^= result >> 32;
     result ^= result >> 16;
     result ^= result >> 8;
@@ -2548,7 +2618,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public bool Sponge1() {
-    var result = rng.Next();
+    ulong result = rng.Next();
     result ^= result >> 32; 
     result ^= result >> 16; 
     result ^= result >> 8;  
@@ -2562,13 +2632,13 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
     ArgumentOutOfRangeException.ThrowIfZero(bitsTotal);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitsTotal, 64);
     ArgumentOutOfRangeException.ThrowIfZero(mask);
-    var bitsPerRound = (byte)BitOperations.PopCount(mask);
+    byte bitsPerRound = (byte)BitOperations.PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfNotEqual(bitsTotal % bitsPerRound,0, nameof(mask));
     
-    var result = 0UL;
+    ulong result = 0UL;
     do {
-      var random = rng.Next();
-      var roundBits = _ParallelBitExtract(random, mask);
+      ulong random = rng.Next();
+      ulong roundBits = _ParallelBitExtract(random, mask);
       result <<= bitsPerRound;
       result |= roundBits;
       bitsTotal -= bitsPerRound;
@@ -2578,7 +2648,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public (uint,uint) Slice32x2() {
-    var random = new SliceUnion(rng.Next());
+    SliceUnion random = new SliceUnion(rng.Next());
     return (
       random.R32_0,
       random.R32_1
@@ -2586,7 +2656,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public (ushort, ushort, ushort, ushort) Slice16x4() {
-    var random = new SliceUnion(rng.Next());
+    SliceUnion random = new SliceUnion(rng.Next());
     return (
       random.R16_0,
       random.R16_1,
@@ -2596,7 +2666,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public (byte, byte, byte, byte, byte, byte, byte, byte) Slice8x8() {
-    var random = new SliceUnion(rng.Next());
+    SliceUnion random = new SliceUnion(rng.Next());
     return (
       random.R8_0,
       random.R8_1,
@@ -2621,7 +2691,7 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   }
 
   public ulong ModuloRejectionSampling(ulong mod) {
-    var maxValidRange = ulong.MaxValue - ulong.MaxValue % mod;
+    ulong maxValidRange = ulong.MaxValue - ulong.MaxValue % mod;
     ulong result;
     do 
       result = rng.Next();
@@ -2633,14 +2703,14 @@ partial class ArbitraryNumberGenerator(IRandomNumberGenerator rng) : IRandomNumb
   public double Scale(double scale) => rng.Next() * scale / ulong.MaxValue;
 
   public float NextSingle() {
-    var mantissa = (uint)(rng.Next() >> (64 - 23));
-    var floatBits = (127 << 23) | mantissa;
+    uint mantissa = (uint)(rng.Next() >> (64 - 23));
+    uint floatBits = (127 << 23) | mantissa;
     return BitConverter.Int32BitsToSingle((int)floatBits) - 1.0f;
   }
 
   public double NextDouble() {
-    var mantissa = rng.Next() >> (64 - 52);
-    var doubleBits = (1023UL << 52) | mantissa;
+    ulong mantissa = rng.Next() >> (64 - 52);
+    ulong doubleBits = (1023UL << 52) | mantissa;
     return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
   }
   
@@ -2797,7 +2867,7 @@ IEnumerable<byte> HashGenerator() {
     byte[] hash = instance.ComputeHash(plainData);
     
     // Yield each byte of the hash as part of the random stream
-    foreach (var entry in hash)
+    foreach (byte entry in hash)
       yield return entry;
 
     // Increment the counter
@@ -2817,14 +2887,14 @@ This method leverages a block cipher in Counter (CTR) mode to generate a stream 
 
 ```cs
 IEnumerable<byte> CipherGenerator() {
-  using var instance = Aes.Create();
+  using SymmetricAlgorithm instance = Aes.Create();
   instance.Mode = CipherMode.ECB; // CTR mode is simulated with ECB
   instance.Padding = PaddingMode.None;
 
   // Generate a random key and initialization vector (IV)
   byte[] key = this.ConcatGenerator().Take(instance.KeySize >> 3).ToArray();
 
-  var blockSizeInBytes = instance.BlockSize >> 3;
+  int blockSizeInBytes = instance.BlockSize >> 3;
   byte[] iv = this.ConcatGenerator().Take(blockSizeInBytes).ToArray();
   
   instance.Key = key;
@@ -2834,14 +2904,14 @@ IEnumerable<byte> CipherGenerator() {
   byte[] counter = new byte[blockSizeInBytes];
 
   byte[] cipherText = new byte[blockSizeInBytes];
-  using var encryptor = instance.CreateEncryptor();
+  using ICryptoTransform encryptor = instance.CreateEncryptor();
   for (;;) {
     
     // Encrypt the counter block
     encryptor.TransformBlock(counter, 0, blockSizeInBytes, cipherText, 0);
 
     // Yield each byte from the encrypted block as random output
-    foreach (var value in cipherText)
+    foreach (byte value in cipherText)
       yield return value;
 
     // Increment the counter
@@ -2875,7 +2945,7 @@ partial class ArbitraryNumberGenerator {
 
   public IEnumerable<byte> ConcatGenerator() {
     for (;;) {
-      var random = new SliceUnion(rng.Next());
+      SliceUnion random = new SliceUnion(rng.Next());
       yield return random.R8_0;
       yield return random.R8_1;
       yield return random.R8_2;
@@ -2890,11 +2960,11 @@ partial class ArbitraryNumberGenerator {
   public unsafe byte[] ConcatGenerator(int count) {
     ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
-    var result = new byte[count];
+    byte[] result = new byte[count];
 
     fixed (byte* pointer = &result[0]) {
-      var index = pointer;
-      var random = rng.Next();
+      byte* index = pointer;
+      ulong random = rng.Next();
 
       // full rounds
       while (count >= 8) {
@@ -2940,17 +3010,17 @@ partial class ArbitraryNumberGenerator {
   }
 
   public UInt128 SplitMix128() {
-    var random = rng.Next();
+    ulong random = rng.Next();
     return (UInt128)random << 64 | SplitMix64.Next(ref random);
   }
 
   public Vector256<ulong> SplitMix256() {
-    var random = rng.Next();
+    ulong random = rng.Next();
     return Vector256.Create(random, SplitMix64.Next(ref random), SplitMix64.Next(ref random), SplitMix64.Next(ref random));
   }
 
   public Vector512<ulong> SplitMix512() {
-    var random = rng.Next();
+    ulong random = rng.Next();
     return Vector512.Create(
       random, SplitMix64.Next(ref random), SplitMix64.Next(ref random), SplitMix64.Next(ref random),
       SplitMix64.Next(ref random), SplitMix64.Next(ref random), SplitMix64.Next(ref random), SplitMix64.Next(ref random)
@@ -2959,17 +3029,17 @@ partial class ArbitraryNumberGenerator {
 
   public UInt128 SpreadBits128(UInt128 mask) {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
-    var bitCount = _PopCount(mask);
+    byte bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, 64);
 
-    var random = rng.Next();
-    var result = UInt128.Zero;
-    for (var i = 0; i < bitCount; ++i) {
+    ulong random = rng.Next();
+    UIn128 result = UInt128.Zero;
+    for (int i = 0; i < bitCount; ++i) {
       UInt128 bit = random & 1;
       random >>= 1;
 
-      var upperZero= BitOperations.TrailingZeroCount((ulong)(mask >> 64));
-      var nextPosition = BitOperations.TrailingZeroCount((ulong)mask);
+      int upperZero= BitOperations.TrailingZeroCount((ulong)(mask >> 64));
+      int nextPosition = BitOperations.TrailingZeroCount((ulong)mask);
       if (nextPosition == 64)
         nextPosition += upperZero;
 
@@ -2981,27 +3051,27 @@ partial class ArbitraryNumberGenerator {
   }
 
   public Vector256<ulong> SpreadBits256(Vector256<ulong> mask) {
-    var bitCount = _PopCount(mask);
+    ushort bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfZero(bitCount, nameof(mask));
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, 64);
 
-    var random = rng.Next();
-    var result = Vector256<ulong>.Zero;
-    for (var i = 0; i < bitCount; ++i) {
-      var bit = random & 1;
+    ulong random = rng.Next();
+    Vector256<ulong> result = Vector256<ulong>.Zero;
+    for (int i = 0; i < bitCount; ++i) {
+      ulong bit = random & 1;
       random >>= 1;
 
-      var value0 = mask.GetElement(0);
-      var value1 = mask.GetElement(1);
-      var value2 = mask.GetElement(2);
-      var value3 = mask.GetElement(3);
+      ulong value0 = mask.GetElement(0);
+      ulong value1 = mask.GetElement(1);
+      ulong value2 = mask.GetElement(2);
+      ulong value3 = mask.GetElement(3);
 
-      var zeroes0 = BitOperations.TrailingZeroCount(value0);
-      var zeroes1 = BitOperations.TrailingZeroCount(value1);
-      var zeroes2 = BitOperations.TrailingZeroCount(value2);
-      var zeroes3 = BitOperations.TrailingZeroCount(value3);
+      int zeroes0 = BitOperations.TrailingZeroCount(value0);
+      int zeroes1 = BitOperations.TrailingZeroCount(value1);
+      int zeroes2 = BitOperations.TrailingZeroCount(value2);
+      int zeroes3 = BitOperations.TrailingZeroCount(value3);
 
-      var nextPosition = zeroes0;
+      int nextPosition = zeroes0;
       if (zeroes0 == 64) {
         nextPosition += zeroes1;
         if (zeroes1 == 64) {
@@ -3011,9 +3081,9 @@ partial class ArbitraryNumberGenerator {
         }
       }
 
-      var elementIndex = nextPosition >> 6;
-      var intraElementIndex = nextPosition & 63;
-      var element = result.GetElement(elementIndex);
+      int elementIndex = nextPosition >> 6;
+      int intraElementIndex = nextPosition & 63;
+      ulong element = result.GetElement(elementIndex);
       element |= bit << intraElementIndex;
       result = result.WithElement(elementIndex, element);
 
@@ -3024,27 +3094,27 @@ partial class ArbitraryNumberGenerator {
   }
 
   public Vector512<ulong> SpreadBits512(Vector512<ulong> mask) {
-    var bitCount = _PopCount(mask);
+    ushort bitCount = _PopCount(mask);
     ArgumentOutOfRangeException.ThrowIfZero(bitCount, nameof(mask));
     ArgumentOutOfRangeException.ThrowIfGreaterThan(bitCount, 64);
 
-    var random = rng.Next();
-    var result = Vector512<ulong>.Zero;
-    for (var i = 0; i < bitCount; ++i) {
-      var bit = random & 1;
+    ulong random = rng.Next();
+    Vector512<ulong> result = Vector512<ulong>.Zero;
+    for (int i = 0; i < bitCount; ++i) {
+      ulong bit = random & 1;
       random >>= 1;
 
-      var nextPosition = 0;
-      for (var j = 0; j < 8; ++j) {
-        var currentZeroes = BitOperations.TrailingZeroCount(mask.GetElement(j));
+      int nextPosition = 0;
+      for (int j = 0; j < 8; ++j) {
+        int currentZeroes = BitOperations.TrailingZeroCount(mask.GetElement(j));
         nextPosition += currentZeroes;
         if (currentZeroes != 64)
           break;
       }
 
-      var elementIndex = nextPosition >> 6;
-      var intraElementIndex = nextPosition & 63;
-      var element = result.GetElement(elementIndex);
+      int elementIndex = nextPosition >> 6;
+      int intraElementIndex = nextPosition & 63;
+      ulong element = result.GetElement(elementIndex);
       element |= bit << intraElementIndex;
       result = result.WithElement(elementIndex, element);
 
