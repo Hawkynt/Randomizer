@@ -4,16 +4,16 @@ using Hawkynt.RandomNumberGenerators.Deterministic;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Cryptographic;
-  
-public class ChaCha20 : IRandomNumberGenerator {
-  
+
+public class ChaCha20(int rounds) : IRandomNumberGenerator {
+
   // The number of rounds used in the ChaCha20 algorithm, as specified by RFC 7539 for enhanced security.
-  private const int ROUNDS = 20;
+  public ChaCha20() : this(20) { }
 
   // State array to hold the internal state of the ChaCha20 algorithm.
   // It's initialized with 16 32-bit words: 4 constant words, 8 key words, 1 counter, and 3 nonce words.
-  private readonly uint[] state=new uint[16];
-  
+  private readonly uint[] state = new uint[16];
+
   // Constants for positioning the counter and nonce within the state array
   // COUNTER is used to track the block number being processed.
   private const int COUNTER = 12;
@@ -52,7 +52,7 @@ public class ChaCha20 : IRandomNumberGenerator {
       for (var i = 0; i < this.state.Length; ++i)
         output[i] = this.state[i];
 
-      for (var i = 0; i < ROUNDS; i += 2) {
+      for (var i = 0; i < rounds; i += 2) {
 
         // Column rounds
         QuarterRound(ref output[0], ref output[4], ref output[8], ref output[12]);
@@ -106,5 +106,3 @@ public class ChaCha20 : IRandomNumberGenerator {
   }
 
 }
-
-

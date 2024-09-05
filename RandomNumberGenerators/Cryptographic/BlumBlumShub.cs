@@ -5,9 +5,7 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 namespace Hawkynt.RandomNumberGenerators.Cryptographic;
 
 public class BlumBlumShub : IRandomNumberGenerator {
-  private UInt128 _state;
-  private readonly UInt128 _modulus;
-
+  
   public BlumBlumShub() : this(18446744073709551559, 30064771079) { }
 
   public BlumBlumShub(ulong p, ulong q) {
@@ -17,6 +15,9 @@ public class BlumBlumShub : IRandomNumberGenerator {
     this._modulus = (UInt128)p * q;
   }
 
+  private UInt128 _state;
+  private readonly UInt128 _modulus;
+  
   public void Seed(ulong seed) {
     this._state = seed % this._modulus;
 

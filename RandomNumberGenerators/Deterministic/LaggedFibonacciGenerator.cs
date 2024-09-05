@@ -5,6 +5,7 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class LaggedFibonacciGenerator : IRandomNumberGenerator {
+  
   public enum Mode {
     Additive,
     Subtractive,

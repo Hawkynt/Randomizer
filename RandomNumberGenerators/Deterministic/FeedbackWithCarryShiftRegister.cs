@@ -3,12 +3,13 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
-public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
+public class FeedbackWithCarryShiftRegister(ulong poly) : IRandomNumberGenerator {
+
+  public FeedbackWithCarryShiftRegister() : this(0b1000_1101__0101_1101__1100_1011__1101_1011__0110_0111__1100_1010__1101_1011__0110_0111) { }
+
   private ulong _state;
   private byte _carryBit;
-
-  private const ulong POLY = 0b1000_1101__0101_1101__1100_1011__1101_1011__0110_0111__1100_1010__1101_1011__0110_0111;
-
+  
   public void Seed(ulong seed) {
     this._carryBit = (byte)(seed & 1);
     this._state = seed;
@@ -39,7 +40,7 @@ public class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte ComputeFeedbackBit() {
-      var result = this._state & POLY;
+      var result = this._state & poly;
       result ^= result >> 32;
       result ^= result >> 16;
       result ^= result >> 8;

@@ -2462,7 +2462,7 @@ byte NextD20(IRandomNumberGenerator instance) => (byte)(1 + instance.Next() % 20
 ```
 
 > [!CAUTION]
-> Modulo Bias occurs when the RNG output is not perfectly divisible by the target range. This bias can make certain values more likely than others.
+> [Modulo Bias](https://research.kudelskisecurity.com/2020/07/28/the-definitive-guide-to-modulo-bias-and-how-to-avoid-it/) occurs when the RNG output is not perfectly divisible by the target range. This bias can make certain values more likely than others.
 
 ```mermaid
 xychart-beta

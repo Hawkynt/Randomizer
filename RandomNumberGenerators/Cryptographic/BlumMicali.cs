@@ -7,9 +7,9 @@ namespace Hawkynt.RandomNumberGenerators.Cryptographic;
 
 public class BlumMicali(ulong p, ulong g) : IRandomNumberGenerator {
 
-  private ulong _state;
-
   public BlumMicali() : this(6364136223846793005UL, 2147483647) { }
+
+  private ulong _state;
 
   public void Seed(ulong seed) {
     ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(seed, 1UL);
