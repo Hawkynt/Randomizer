@@ -1976,7 +1976,52 @@ class ChaCha20 : IRandomNumberGenerator {
 
 [^37]: [YAR](https://www.schneier.com/wp-content/uploads/2016/02/paper-yarrow.pdf)
 
-tbd
+This was developed by Bruce Schneier, John Kelsey, and Niels Ferguson. It was designed with a strong emphasis on security, efficiency, and robustness against various types of attacks. The Yarrow algorithm is particularly notable for its use in environments requiring high levels of security, such as cryptographic key generation, secure communications, and digital signatures even for environments where entropy collection may be sparse.
+
+**Key Components of Yarrow:**
+
+Yarrow is built around three main principles:
+
+1. **Entropy Accumulation:**
+   * Yarrow collects entropy from multiple, independent sources to ensure that the randomness it produces is unpredictable. Entropy sources might include hardware events, user inputs, and system timings.
+   * Yarrow uses a technique called "entropy pool management," where entropy is collected and stored in one or more pools. These pools serve as reservoirs for the randomness that Yarrow extracts to produce secure random numbers.
+
+2. **Reseed Mechanism:**
+   * One of the core features of Yarrow is its reseeding mechanism, which allows the PRNG to periodically mix new entropy into its internal state. This process enhances security by making it difficult for an attacker to predict future outputs, even if they have knowledge of past states.
+   * Yarrow defines two types of reseeding: fast reseeding and slow reseeding. Fast reseeding happens frequently and uses less entropy, while slow reseeding happens less frequently but uses more entropy, ensuring that the generator’s state is refreshed thoroughly over time.
+
+3. **Generator Function:**
+   * Yarrow uses a cryptographic algorithm, typically a block cipher like AES, to generate random outputs from its internal state. The generator function takes the internal state, processes it through the cipher, and produces pseudorandom output bits.
+   * The output of the generator function is not directly influenced by the entropy inputs; instead, the generator produces a stream of random numbers from the internal state, which is periodically refreshed by the reseeding mechanism.
+
+**Yarrow's Operation:**
+
+The operation of Yarrow can be broken down into three main phases:
+
+1. **Entropy Collection:**
+   * Yarrow monitors various sources of entropy, such as hardware interrupts, mouse movements, and keystrokes. Each event contributes a small amount of randomness to one or more entropy pools.
+   * The amount of entropy estimated from each event is carefully measured, ensuring that Yarrow does not overestimate the randomness it collects.
+
+2. **Reseeding:**
+   * Periodically, Yarrow assesses whether enough entropy has been collected to perform a reseed. This decision is made based on thresholds defined for the fast and slow reseeding processes.
+   * During reseeding, entropy from the pools is mixed into the internal state of the PRNG. Fast reseeding adds less entropy and occurs more frequently, while slow reseeding adds more entropy and occurs less often.
+
+3. **Random Number Generation:**
+   * Once reseeded, Yarrow uses its generator function to produce pseudorandom numbers. The internal state, influenced by the entropy pools, ensures that the output is unpredictable.
+   * The block cipher used in the generator function provides cryptographic strength to the generated numbers, making them suitable for high-security applications.
+
+**Security Considerations:**
+
+Yarrow is designed to be robust against several types of attacks:
+
+* **State Compromise Extension Attacks:**
+  Yarrow’s reseeding mechanism ensures that even if an attacker compromises the internal state of the generator, they will not be able to predict future outputs after a reseed has occurred. This resilience is critical for maintaining security over long periods.
+
+* **Backtracking Resistance:**
+  The internal state of Yarrow is regularly updated with fresh entropy, making it difficult for an attacker to reconstruct previous outputs, even if they obtain the current state.
+
+* **Predictable Entropy Sources:**
+  Yarrow is designed to handle cases where some entropy sources may be less random or potentially biased. By combining multiple sources and carefully managing entropy, Yarrow ensures the randomness of its output remains high.
 
 ### Fortuna (FORT) [^38] [^39]
 

@@ -13,11 +13,11 @@ using Hawkynt.RandomNumberGenerators.NonUniform;
 //BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
 //return;
 
-var generator = new ArbitraryNumberGenerator(new ChaCha20());
+var generator = new ArbitraryNumberGenerator(new MiddleSquareWeylSequence());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
-var y = generator.ConcatGenerator(15).ToHex();
+var y = generator.ConcatGenerator(8192).ToHex();
 var x = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
 
 var z = new InverseTransformSampling(generator);
