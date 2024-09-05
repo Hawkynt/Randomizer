@@ -5,15 +5,15 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Cryptographic;
 
-public class BlumMicali(ulong p, ulong g) :IRandomNumberGenerator {
+public class BlumMicali(ulong p, ulong g) : IRandomNumberGenerator {
 
   private ulong _state;
 
   public BlumMicali() : this(6364136223846793005UL, 2147483647) { }
 
   public void Seed(ulong seed) {
-    ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(seed,1UL);
-    ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(seed,p-1);
+    ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(seed, 1UL);
+    ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(seed, p - 1);
     this._state = seed;
   }
 
@@ -25,9 +25,9 @@ public class BlumMicali(ulong p, ulong g) :IRandomNumberGenerator {
     return result;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    bool NextBit() 
+    bool NextBit()
       => (this._state = (ulong)BigInteger.ModPow(g, this._state, p)) <= (p - 1) / 2
-      ;
+    ;
 
   }
 }
