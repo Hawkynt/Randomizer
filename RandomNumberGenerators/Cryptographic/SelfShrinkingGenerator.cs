@@ -28,8 +28,9 @@ public class SelfShrinkingGenerator(ulong polynom) : IRandomNumberGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     byte StepLFSR() {
-      this._state = ((ulong)CalculateFeedback() << 63) | (this._state >> 1);
-      return (byte)(this._state & 1);
+      var state = this._state >> 1;
+      this._state = ((ulong)CalculateFeedback() << 63) | state;
+      return (byte)(state & 1);
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       byte CalculateFeedback() {

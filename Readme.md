@@ -2170,7 +2170,28 @@ Fortuna was designed with several key security principles in mind:
 
 [^39]: [ANSI](https://www.researchgate.net/publication/267297736_EFFICIENT_COMBINATION_OF_SEVERAL_TECHNIQUES_IN_THE_DESIGN_AND_IMPLEMENTATION_OF_A_NETWORKS_SECURITY_SYSTEM)
 
-tbd
+This standard specifies a method for generating cryptographically secure random numbers, particularly for the purpose of key generation. It leverages the Data Encryption Standard (DES), which was the prevailing symmetric key encryption algorithm at the time of writing in 1985. The RNG process involves a combination of a seed value, a date/time component, and a secret key, all of which are processed using DES to produce a CSRN.
+
+**Process:**
+
+1. **Initialization**:
+   * The process begins with a secret key $𝐾$, which is used with the DES algorithm.
+   * A 64-bit seed value $𝑉_0$ is also required. This seed value is usually derived from a secure source of entropy and is kept secret.
+
+2. **Generation Loop**:
+   * Step 1: Concatenate the current date/time (in a 64-bit format) with the seed value $𝑉_𝑛$ to form a 128-bit input.
+   * Step 2: Encrypt this 128-bit input using the DES algorithm with key $K$ to produce a 64-bit output.
+   * Step 3: The output from Step 2 is XORed with the current date/time to produce the next seed value  $𝑉_{n+1}$.
+   * Step 4: Encrypt the new seed value $𝑉_{n+1}$ using the DES algorithm with key $𝐾$ to produce the final 64-bit random number.
+
+3. **Iteration**:
+   * The newly generated seed value $𝑉_{n+1} is used in subsequent iterations, ensuring that each random number is dependent on the previous one, the date/time, and the secret key.
+
+**Security Considerations:**
+
+* DES Dependency: The security of the ANSI X9.17 RNG is tightly coupled with the security of DES. As DES has a 56-bit key length, which is now considered insecure against brute-force attacks, the ANSI X9.17 standard is generally considered obsolete for modern cryptographic applications.
+* Key Management: The secrecy of the key $𝐾$ is critical. If the key is compromised, the entire sequence of generated random numbers can be predicted, undermining the security of the system.
+* Entropy Source: The initial seed $𝑉_0$ and the date/time component must be chosen carefully to ensure that the generator's output remains unpredictable. Any weakness in these components can lead to predictability in the generated numbers.
 
 ## Drinking Bit-Soup
 

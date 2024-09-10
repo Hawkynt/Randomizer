@@ -1,19 +1,70 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using Hawkynt.RandomNumberGenerators.Deterministic;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Cryptographic;
 
-public class ChaCha20(int rounds) : IRandomNumberGenerator {
+public class ChaCha20 : IRandomNumberGenerator {
 
   // The number of rounds used in the ChaCha20 algorithm, as specified by RFC 7539 for enhanced security.
-  public ChaCha20() : this(20) { }
+  // Default constants (from "expand 32-byte k")
+  public ChaCha20(
+    int rounds = 20, 
+    uint constant1 = 0x61707865, 
+    uint constant2 = 0x3320646e, 
+    uint constant3 = 0x79622d32, 
+    uint constant4 = 0x6b206574
+  ) {
+    ArgumentOutOfRangeException.ThrowIfLessThan(rounds, 1);
+    this._rounds = rounds;
+    this._constant1 = constant1;
+    this._constant2 = constant2;
+    this._constant3 = constant3;
+    this._constant4 = constant4;
+  }
+
+  public ChaCha20(int rounds, Vector128<uint> constants):this(
+    rounds, 
+    constants.GetElement(0), 
+    constants.GetElement(1), 
+    constants.GetElement(2), 
+    constants.GetElement(3)
+  ) { }
+
+  public ChaCha20(Vector128<uint> constants) : this(
+    constant1: constants.GetElement(0),
+    constant2: constants.GetElement(1),
+    constant3: constants.GetElement(2),
+    constant4: constants.GetElement(3)
+  ) { }
+
+  public ChaCha20(int rounds, ulong constants12, ulong constants34) : this(
+    rounds,
+    (uint)(constants12 >> 32),
+    (uint)constants12,
+    (uint)(constants34 >> 32),
+    (uint)constants34
+  ) { }
+
+  public ChaCha20(ulong constants12, ulong constants34) : this(
+    constant1: (uint)(constants12 >> 32),
+    constant2: (uint)constants12,
+    constant3: (uint)(constants34 >> 32),
+    constant4: (uint)constants34
+  ) { }
 
   // State array to hold the internal state of the ChaCha20 algorithm.
   // It's initialized with 16 32-bit words: 4 constant words, 8 key words, 1 counter, and 3 nonce words.
   private readonly uint[] state = new uint[16];
-
+  private readonly int _rounds;
+  private readonly uint _constant1;
+  private readonly uint _constant2;
+  private readonly uint _constant3;
+  private readonly uint _constant4;
+  
   // Constants for positioning the counter and nonce within the state array
   // COUNTER is used to track the block number being processed.
   private const int COUNTER = 12;
@@ -24,11 +75,11 @@ public class ChaCha20(int rounds) : IRandomNumberGenerator {
 
   public void Seed(ulong seed) {
 
-    // Set the first 4 words to ChaCha20-specific constants (from "expand 32-byte k").
-    this.state[0] = 0x61707865;
-    this.state[1] = 0x3320646e;
-    this.state[2] = 0x79622d32;
-    this.state[3] = 0x6b206574;
+    // Set the first 4 words to ChaCha20-specific constants.
+    this.state[0] = this._constant1;
+    this.state[1] = this._constant2;
+    this.state[2] = this._constant3;
+    this.state[3] = this._constant4;
 
     // Derive the key and nonce from the seed to fill the remaining 12 state elements.
     // This design choice ensures that the nonce is unique per seed, preventing nonce reuse across different sessions.
@@ -52,7 +103,7 @@ public class ChaCha20(int rounds) : IRandomNumberGenerator {
       for (var i = 0; i < this.state.Length; ++i)
         output[i] = this.state[i];
 
-      for (var i = 0; i < rounds; i += 2) {
+      for (var i = 0; i < this._rounds; i += 2) {
 
         // Column rounds
         QuarterRound(ref output[0], ref output[4], ref output[8], ref output[12]);

@@ -6,8 +6,14 @@ namespace Hawkynt.RandomNumberGenerators.NonUniform;
 
 public class BoxMuller(ArbitraryNumberGenerator generator) : IDoubleRandomNumberGenerator {
   public (double, double) Next() {
-    var x = 2 * generator.NextDouble() - 1;
-    var y = 2 * generator.NextDouble() - 1;
+    var x = generator.NextDouble();
+    var y = generator.NextDouble();
+
+    x *= 2;
+    y *= 2;
+
+    x -= 1;
+    y -= 1;
 
     var r = Math.Sqrt(-2.0 * Math.Log(x));
     var theta = 2.0 * Math.PI * y;
