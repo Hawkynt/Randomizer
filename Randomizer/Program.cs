@@ -17,8 +17,9 @@ var generator = new ArbitraryNumberGenerator(new BlumBlumShub());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
-var concatHex = generator.ConcatGenerator(8192).ToHex();
-var concatBin = generator.ConcatGenerator(1024).ToBin();
+var bytes = generator.ConcatGenerator(8192);
+var concatHex = bytes.ToHex();
+var concatBin = bytes.ToBin();
 var aes = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
 
 var z = new InverseTransformSampling(generator);
@@ -76,15 +77,21 @@ public class Benchy {
 
   public IEnumerable<object[]> AlgorithmSource() {
     yield return ["ACORN", new AdditiveCongruentialRandomNumberGenerator()];
-    yield return ["Combined LCG", new CombinedLinearCongruentialGenerator()];
+    yield return ["Combined LCG (add)", new CombinedLinearCongruentialGenerator(CombinationMode.Additive)];
+    yield return ["Combined LCG (sub)", new CombinedLinearCongruentialGenerator(CombinationMode.Subtractive)];
+    yield return ["Combined LCG (mul)", new CombinedLinearCongruentialGenerator(CombinationMode.Multiplicative)];
+    yield return ["Combined LCG (xor)", new CombinedLinearCongruentialGenerator(CombinationMode.Xor)];
     yield return ["Complementary MWC", new ComplementaryMultiplyWithCarry()];
     yield return ["Feedback with Carry-Shift-Register", new FeedbackWithCarryShiftRegister()];
     yield return ["Inversive Congruential Generator", new InversiveCongruentialGenerator()];
-    yield return ["KISS", new KeepItSimpleStupid()];
-    yield return ["Lagged Fibonacci Generator (add)", new LaggedFibonacciGenerator(mode: LaggedFibonacciGenerator.Mode.Additive)];
-    yield return ["Lagged Fibonacci Generator (sub)", new LaggedFibonacciGenerator(mode: LaggedFibonacciGenerator.Mode.Subtractive)];
-    yield return ["Lagged Fibonacci Generator (mul)", new LaggedFibonacciGenerator(mode: LaggedFibonacciGenerator.Mode.Multiplicative)];
-    yield return ["Lagged Fibonacci Generator (xor)", new LaggedFibonacciGenerator(mode: LaggedFibonacciGenerator.Mode.Xor)];
+    yield return ["KISS (add)", new KeepItSimpleStupid(CombinationMode.Additive)];
+    yield return ["KISS (sub)", new KeepItSimpleStupid(CombinationMode.Subtractive)];
+    yield return ["KISS (mul)", new KeepItSimpleStupid(CombinationMode.Multiplicative)];
+    yield return ["KISS (xor)", new KeepItSimpleStupid(CombinationMode.Xor)];
+    yield return ["Lagged Fibonacci Generator (add)", new LaggedFibonacciGenerator(mode: CombinationMode.Additive)];
+    yield return ["Lagged Fibonacci Generator (sub)", new LaggedFibonacciGenerator(mode: CombinationMode.Subtractive)];
+    yield return ["Lagged Fibonacci Generator (mul)", new LaggedFibonacciGenerator(mode: CombinationMode.Multiplicative)];
+    yield return ["Lagged Fibonacci Generator (xor)", new LaggedFibonacciGenerator(mode: CombinationMode.Xor)];
     yield return ["Linear Congruential Generator", new LinearCongruentialGenerator()];
     yield return ["Linear Feedback Shift Register", new LinearFeedbackShiftRegister()];
     yield return ["Mersenne Twister", new MersenneTwister()];
@@ -106,6 +113,8 @@ public class Benchy {
     yield return ["XoShiRo 256 SS", new Xoshiro256SS()];
 
     yield return ["Blum-Blum-Shub", new BlumBlumShub()];
+    yield return ["ChaCha20", new ChaCha20()];
+    yield return ["BlumMicali", new BlumMicali()];
     yield return ["Self Shrinking Generator", new SelfShrinkingGenerator()];
   }
 

@@ -2,8 +2,7 @@
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
-public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
-  private const ulong POLYNOM = 0b110110010010001001010;
+public class LinearFeedbackShiftRegister(ulong polynom = 0b110110010010001001010UL) : IRandomNumberGenerator {
   private ulong _state;
 
   public void Seed(ulong seed) => this._state = seed;
@@ -20,7 +19,7 @@ public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
       return (byte)(this._state & 1);
 
       byte CalculateFeedback() {
-        var masked = this._state & POLYNOM;
+        var masked = this._state & polynom;
         masked ^= masked >> 32;
         masked ^= masked >> 16;
         masked ^= masked >> 8;
@@ -31,4 +30,5 @@ public class LinearFeedbackShiftRegister : IRandomNumberGenerator {
       }
     }
   }
+
 }

@@ -34,7 +34,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.*" />
+    <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.395" />
   </ItemGroup>
   
   <ItemGroup>

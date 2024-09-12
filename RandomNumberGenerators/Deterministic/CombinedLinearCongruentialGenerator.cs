@@ -1,23 +1,42 @@
-﻿using Hawkynt.RandomNumberGenerators.Interfaces;
+﻿using System;
+using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
-public class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
-  private ulong _state1;
-  private ulong _state2;
+public class CombinedLinearCongruentialGenerator(CombinationMode mode, LinearCongruentialGenerator first, LinearCongruentialGenerator second, params LinearCongruentialGenerator[] others) : IRandomNumberGenerator {
 
-  private const ulong _A1 = 6364136223846793005; // Multiplier for LCG1
-  private const ulong _C1 = 1442695040888963407; // Increment  for LCG1
+  private readonly Func<ulong, ulong, ulong> _combiner = Utils.GetOperation(mode);
+  private readonly LinearCongruentialGenerator _first = first ?? throw new ArgumentNullException(nameof(first));
+  private readonly LinearCongruentialGenerator _second = second ?? throw new ArgumentNullException(nameof(second));
+  private readonly LinearCongruentialGenerator[] _others = others ?? [];
 
-  private const ulong _A2 = 3935559000370003845; // Multiplier for LCG2
-  private const ulong _C2 = 2691343689449507681; // Increment  for LCG2
+  public CombinedLinearCongruentialGenerator() : this(
+    CombinationMode.Additive,
+    new(6364136223846793005, 1442695040888963407, 0),
+    new(3935559000370003845, 2691343689449507681, 0)
+  ) { }
+
+  public CombinedLinearCongruentialGenerator(CombinationMode mode) : this(
+    mode,
+    new(6364136223846793005, 1442695040888963407, 0),
+    new(3935559000370003845, 2691343689449507681, 0)
+  ) { }
 
   public void Seed(ulong seed) {
-    this._state1 = seed;
-    this._state2 = seed ^ 0x5DEECE66D; // Ensure different seeds for the two LCGs
+    this._first.Seed(SplitMix64.Next(ref seed));
+    this._second.Seed(SplitMix64.Next(ref seed));
+    foreach (var other in this._others)
+      other.Seed(SplitMix64.Next(ref seed));
   }
 
-  public ulong Next() // implicit mod 2^64
-    => (this._state1 = _A1 * this._state1 + _C1)
-       + (this._state2 = _A2 * this._state2 + _C2);
+  public ulong Next() {
+    // implicit mod 2^64
+    var result = this._first.Next();
+    result = this._combiner(result, this._second.Next());
+    foreach (var other in this._others)
+      result = this._combiner(result, other.Next());
+
+    return result;
+  }
+
 }

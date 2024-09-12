@@ -3,26 +3,34 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
-public class LinearCongruentialGenerator(ulong multiplier, ulong increment, ulong modulo) : IRandomNumberGenerator {
-  private struct LCGWithoutModulo(ulong multiplier, ulong increment) : IRandomNumberGenerator {
-    private ulong _state;
-    public void Seed(ulong seed) => this._state = seed;
-    public ulong Next() => this._state = this._state * multiplier + increment;
+public class LinearCongruentialGenerator : IRandomNumberGenerator {
+
+  private ulong _state;
+  private readonly Func<ulong> _generator;
+  private readonly ulong _multiplier;
+  private readonly ulong _increment;
+  private readonly ulong _modulo;
+
+  public LinearCongruentialGenerator(ulong multiplier = 6364136223846793005, ulong increment = 1442695040888963407, ulong modulo = 0) {
+    this._multiplier = multiplier;
+    this._increment = increment;
+    this._modulo = modulo;
+    this._generator = modulo.IsNotSet() ? this._NextImplicitModulo : this._NextWithModulo;
   }
 
-  private struct LCGWithModulo(ulong multiplier, ulong increment, ulong modulo) : IRandomNumberGenerator {
-    private UInt128 _state;
-    public void Seed(ulong seed) => this._state = seed % modulo;
-    public ulong Next() => (ulong)(this._state = (this._state * multiplier + increment) % modulo);
+  public void Seed(ulong seed) => this._state = this._modulo.IsNotSet() ? seed : seed % this._modulo;
+
+  public ulong Next() => this._generator();
+
+  private ulong _NextImplicitModulo() => this._state * this._multiplier + this._increment;
+
+  private ulong _NextWithModulo() {
+    UInt128 state = this._state;
+    state *= this._multiplier;
+    state += this._increment;
+    state %= this._modulo;
+    return this._state = (ulong)state;
+
   }
 
-  private readonly IRandomNumberGenerator _instance = modulo <= 1
-    ? new LCGWithoutModulo(multiplier, increment)
-    : new LCGWithModulo(multiplier, increment, modulo);
-
-  public LinearCongruentialGenerator() : this(6364136223846793005, 1442695040888963407, 0) { }
-
-  public void Seed(ulong seed) => this._instance.Seed(seed);
-
-  public ulong Next() => this._instance.Next();
 }

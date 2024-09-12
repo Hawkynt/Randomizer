@@ -3,8 +3,7 @@ using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
-public class MiddleSquareWeylSequence : IRandomNumberGenerator {
-  private const ulong _WEYL_CONSTANT = 0xB5AD4ECEDA1CE2A9;
+public class MiddleSquareWeylSequence(ulong weylConstant = 0xB5AD4ECEDA1CE2A9) : IRandomNumberGenerator {
   private UInt128 _state;
   private UInt128 _weyl;
 
@@ -15,7 +14,7 @@ public class MiddleSquareWeylSequence : IRandomNumberGenerator {
 
   public ulong Next() {
     this._state *= this._state;
-    this._state += this._weyl += _WEYL_CONSTANT;
+    this._state += this._weyl += weylConstant;
     return (ulong)(this._state >> 32);
   }
 }

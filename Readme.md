@@ -532,14 +532,14 @@ If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or 
 
 This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is 8n. It is defined by this formula:
 
-$$s_i = s_{i-1}^2$$
+$$Q_i = Q_{i-1}^2$$
 
-$$X_i= \left\lfloor \frac{s_{i}}{m} \right\rfloor \mod M$$
+$$X_i= \left\lfloor \frac{Q_{i}}{m} \right\rfloor \mod m$$
 
 Where:
 
-* $s$ is the internal state
-* $M$ is the modulo (typical $2^{bits}$)
+* $Q$ is the internal state
+* $m$ is the modulo (typical $2^{bits}$)
 * $X$ is the result
 
 Although it is historically significant, it is not widely used today due to its poor randomness quality. The middle-square method is often ineffective for practical applications because it typically has a very short period and significant shortcomings. With enough repetitions, it will start to generate the same number repeatedly (for example 0 or 1) or revert to a previous number in the sequence, causing an endless loop.
@@ -564,7 +564,21 @@ class MiddleSquare : IRandomNumberGenerator {
 
 This method was proposed by Bernard Widynski in 2017. This algorithm improves upon the classic [MS](#middle-square-ms) method by incorporating a Weyl sequence, which helps to avoid the short periods and cycles that the original Middle Square method suffers from. MSWS combines the squaring process of the MS method with an additional [Weyl sequence](https://en.wikipedia.org/wiki/Weyl_sequence) to improve randomness quality and performance.
 
-The Weyl sequence is an integer stepping sequence $0, w, 2w, 3w, ...$ of period $2^{64}$, requiring $w$ to be odd (eitherwise half of all elements will never be taken), which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs.
+The Weyl sequence is an integer stepping sequence $0, w, 2w, 3w, ...$ of period $2^{64}$, requiring $w$ to be odd (eitherwise half of all elements will never be taken), which is used to add an additional element of randomness to each iteration. This sequence ensures that the generator does not fall into short cycles or the "zero mechanism" problem where the generator would continue to produce zero outputs. It is defined by this formula:
+
+$$W_i = W_{i-1}+w$$
+
+$$Q_i = Q_{i-1}^2 + W_i$$
+
+$$X_i= \left\lfloor \frac{Q_{i}}{m} \right\rfloor \mod m$$
+
+Where:
+
+* $Q$ is the internal state
+* $W$ is the Weyl sequence
+* $w$ is the Weyl constant
+* $m$ is the modulo (typical $2^{bits}$)
+* $X$ is the result
 
 ```cs
 class MiddleSquareWeylSequence : IRandomNumberGenerator {
@@ -593,14 +607,14 @@ class MiddleSquareWeylSequence : IRandomNumberGenerator {
 
 Originally introduced by D.H. Lehmer in 1951, this is a simple and efficient method for generating pseudo-random numbers. It uses the following formula:
 
-$$X_i = (a \cdot X_{i-1}) \mod M$$
+$$X_i = (a \cdot X_{i-1}) \mod m$$
 
 * $X$ is the sequence of pseudo-random values.
-* $M$ is the modulus, $1 < M$.
-* $a$ is the multiplier, $1 < a < M$.
-* $X_0$ is the seed or start value, $1 \leq X_0 < M$.
+* $m$ is the modulus, $1 < m$.
+* $a$ is the multiplier, $1 < a < m$.
+* $X_0$ is the seed or start value, $1 \leq X_0 < m$.
 
-In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $M=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_i$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
+In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_i$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
 
 ```cs
 class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -625,19 +639,19 @@ The WH uses three individual MLCGs, each with its own modulus, multiplier, and s
 
 **First LCG:**
 
-   $$x_i = (171 \cdot x_{i-1}) \mod 30269$$
+   $$Q^1_i = (171 \cdot Q^1_{i-1}) \mod 30269$$
 
 **Second LCG:**
 
-   $$y_i = (172 \cdot y_{i-1}) \mod 30307$$
+   $$Q^2_i = (172 \cdot Q^2_{i-1}) \mod 30307$$
 
 **Third LCG:**
 
-   $$z_i = (170 \cdot z_{i-1}) \mod 30323$$
+   $$Q^3_i = (170 \cdot Q^3_{i-1}) \mod 30323$$
 
 The combined output $X_i$ of the Wichmann-Hill generator at step $i$ is given by:
 
-$$X_i = x_i + y_i + z_i$$
+$$X_i = Q^1_i + Q^2_i + Q^3_i$$
 
 This combination ensures that the resulting sequence has a very long period, specifically the least common multiple of the three moduli, which is approximately $2.8 \times 10^{12}$ however it can only produce numbers between $0$ and the sum of the three moduli: $90899$ in this case.
 
@@ -650,22 +664,22 @@ class WichmannHill : IRandomNumberGenerator {
   private const ulong _MULTIPLIER_Y = 1442695040888963407;
   private const ulong _MULTIPLIER_Z = 1229782938247303441;
 
-  private UInt128 _x, _y, _z;
+  private UInt128 _stateX, _stateY, _stateZ;
   
   public void Seed(ulong seed) {
     ulong (q, r) = Math.DivRem(seed, _MODULUS_X);
-    this._x = r == 0 ? ~r : r;
+    this._stateX = r == 0 ? ~r : r;
     (q, r) = Math.DivRem(q, _MODULUS_Y);
-    this._y = r == 0 ? ~r : r;
-    this._z = q == 0 ? ~q : q;
+    this._stateY = r == 0 ? ~r : r;
+    this._stateZ = q == 0 ? ~q : q;
   }
 
   public ulong Next() {
-    this._x = this._x * _MULTIPLIER_X % _MODULUS_X;
-    this._y = this._y * _MULTIPLIER_Y % _MODULUS_Y;
-    this._z = this._z * _MULTIPLIER_Z % _MODULUS_Z;
+    this._stateX = this._stateX * _MULTIPLIER_X % _MODULUS_X;
+    this._stateY = this._stateY * _MULTIPLIER_Y % _MODULUS_Y;
+    this._stateZ = this._stateZ * _MULTIPLIER_Z % _MODULUS_Z;
 
-    return (ulong)(this._x + this._y + this._z);
+    return (ulong)(this._stateX + this._stateY + this._stateZ);
   }
 }
 ```
@@ -676,17 +690,17 @@ class WichmannHill : IRandomNumberGenerator {
 
 This is one of the oldest and most well-known PRNG algorithms. Introduced by W. E. Thomson and A. Rotenberg in 1958, it generates a sequence of numbers using a piecewise linear equation. The generator is defined by the recurrence relation:
 
-$$X_i = (a \cdot X_{i-1} + c) \mod M$$
+$$X_i = (a \cdot X_{i-1} + c) \mod m$$
 
 Where:
 
 * $X$ is the sequence of pseudo-random values.
-* $M$ is the modulus, $0 < M$.
-* $a$ is the multiplier, $0 < a < M$.
-* $c$ is the increment, $0 \leq c < M$.
-* $X_0$ is the seed or start value, $0 \leq X_0 < M$.
+* $m$ is the modulus, $0 < m$.
+* $a$ is the multiplier, $0 < a < m$.
+* $c$ is the increment, $0 \leq c < m$.
+* $X_0$ is the seed or start value, $0 \leq X_0 < m$.
 
-The Linear Congruential Generator is a simple and efficient way to produce pseudo-random numbers. However, the quality of the output is highly dependent on the choice of parameters $a$, $c$, and $M$. Properly chosen parameters ensure a long period and good statistical properties, making the LCG suitable for many applications, although it is generally not recommended for cryptographic purposes due to its predictability.
+The Linear Congruential Generator is a simple and efficient way to produce pseudo-random numbers. However, the quality of the output is highly dependent on the choice of parameters $a$, $c$, and $m$. Properly chosen parameters ensure a long period and good statistical properties, making the LCG suitable for many applications, although it is generally not recommended for cryptographic purposes due to its predictability.
 
 ```cs
 class LinearCongruentialGenerator : IRandomNumberGenerator {
@@ -710,25 +724,25 @@ This is an extension of the [LCG](#linear-congruential-generator-lcg) designed t
 
 In a CLCG, multiple LCGs are run in parallel, and their outputs are combined using addition or XOR operations to produce the final random number. The combination of multiple generators with carefully chosen parameters ensures that the resulting sequence has a much longer period and better statistical properties than any individual LCG.
 
-Each $x_{i,j}$ is generated by an individual LCG with its own set of parameters:
+Each $Q^j_i$ is generated by an individual LCG with its own set of parameters:
 
-$$x_{i,j} = (a_j \cdot x_{i-1,j} + c_j) \mod M_j$$
+$$Q^j_i = (a_j \cdot Q^j_{i-1} + c_j) \mod m_j$$
 
 The CLCG can be defined using one of the following formulas, where $k$ LCGs are combined:
 
-$$X_i = \left [ \sum_{j=1}^k {(a_j \cdot x_{i-1,j} + c_j) \mod M_j} \right ] \mod M = \left [ \sum_{j=1}^k {x_{i,j}} \right ] \mod M = [x_{i,1}+\cdots+x_{i,k}] \mod M$$
+$$X_i = \left [ \sum_{j=1}^k {(a_j \cdot Q^j_{i-1} + c_j) \mod m_j} \right ] \mod m = \left [ \sum_{j=1}^k {Q^j_i} \right ] \mod m = [Q^1_i+\cdots+Q^k_i] \mod m$$
 
-$$X_i = \left [ \prod_{j=1}^k {(a_j \cdot x_{i-1,j} + c_j) \mod M_j} \right ] \mod M = \left [ \prod_{j=1}^k {x_{i,j}} \right ] \mod M = [x_{i,1} \cdot \cdots \cdot x_{i,k}] \mod M$$
+$$X_i = \left [ \prod_{j=1}^k {(a_j \cdot Q^j_{i-1} + c_j) \mod m_j} \right ] \mod m = \left [ \prod_{j=1}^k {Q^j_i} \right ] \mod m = [Q^1_i \cdot \cdots \cdot Q^k_i] \mod m$$
 
 Where:
 
 * $X$ is the sequence of pseudo-random values.
-* $x_{i,j}$ is the sequence of pseudo-random values from the $j$-th LCG.
-* $M$ is the modulus of the CLCG.
-* $M_j$ is the modulus of the $j$-th LCG.
+* $Q^j_i$ is the sequence of pseudo-random values from the $j$-th LCG.
+* $m$ is the modulus of the CLCG.
+* $m_j$ is the modulus of the $j$-th LCG.
 * $a_j$ is the multiplier of the $j$-th LCG.
 * $c_j$ is the increment of the $j$-th LCG.
-* $x_{0,j}$ is the seed of the $j$-th LCG.
+* $Q^j_0$ is the seed of the $j$-th LCG.
 
 ```cs
 class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
@@ -749,7 +763,7 @@ class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
 
   public ulong Next() // implicit mod 2^64
     => (this._state1 = _A1 * this._state1 + _C1) 
-       + (this._state2 = _A2 * this._state2 + _C2)
+     + (this._state2 = _A2 * this._state2 + _C2)
   ;
     
 }
@@ -766,7 +780,7 @@ The standard formula for an ICG, modulo a prime number $q$, is:
 $$
 X_i =
 \begin{cases}
-  (a \cdot X_{i-1}^{-1} + c) \mod M & \text{if } X_{i-1} \neq 0 \\
+  (a \cdot X_{i-1}^{-1} + c) \mod m & \text{if } X_{i-1} \neq 0 \\
   c & \text{if } X_{i-1} = 0
 \end{cases}
 $$
@@ -776,10 +790,10 @@ Where:
 * $X_i$ is the current value in the sequence.
 * $a$ is the multiplier.
 * $c$ is the increment.
-* $M$ is the modulus.
+* $m$ is the modulus.
 * $X_{i-1}^{-1}$ is the modular multiplicative inverse of $X_{i-1}$ modulo $M$.
 
-The maximum period for an ICG is $M$, provided $a$ and $c$ are chosen appropriately, such that the polynomial $f(x) = x^2 - cx - a$ is primitive over the finite field $\mathbb{F}_M$.
+The maximum period for an ICG is $m$, provided $a$ and $c$ are chosen appropriately, such that the polynomial $f(x) = x^2 - cx - a$ is primitive over the finite field $\mathbb{F}_m$.
 
 ```cs
 class InversiveCongruentialGenerator : IRandomNumberGenerator {
@@ -824,18 +838,18 @@ The key difference between MWC and [LCG](#linear-congruential-generator-lcg) is 
 
 The general formula for an MWC generator is as follows:
 
-$$X_i = (a \cdot X_{i-1} + C_{i-1}) \mod M$$
+$$X_i = (a \cdot X_{i-1} + C_{i-1}) \mod m$$
 
 Where:
 
 * $X_{i}$ is the current state.
 * $a$ is the multiplier.
 * $C_{i-1}$ is the carry from the previous step.
-* $M$ is the modulus.
+* $m$ is the modulus.
 
 The carry value $C_i$ is updated in each step as follows:
 
-$$C_i = \left\lfloor \frac{X_i}{M} \right\rfloor$$
+$$C_i = \left\lfloor \frac{X_i}{m} \right\rfloor$$
 
 In this mechanism, the next state $X_i$ depends not only on the current state $X_{i-1}$ and the multiplier $a$, but also on the carry value $C_{i-1}$, which introduces a non-linear component to the generator, distinguishing it from the linear nature of LCGs.
 
@@ -904,22 +918,22 @@ It is also designed to avoid weaknesses in lower bits that were observed in some
 ```cs
 class XorShiftPlus : IRandomNumberGenerator {
 
-  private ulong _x, _y;
+  private ulong _stateX, _stateY;
 
   public void Seed(ulong seed) {
-    this._x = seed == 0 ? 1 : seed;
-    this._y = ~seed == 0 ? 1 : ~seed;
+    this._stateX = seed == 0 ? 1 : seed;
+    this._stateY = ~seed == 0 ? 1 : ~seed;
   }
 
   public ulong Next() {
-    ulong x = this._x;
-    ulong y = this._y;
+    ulong x = this._stateX;
+    ulong y = this._stateY;
 
     x ^= x << 23;
     x ^= x >> 17;
     x ^= y ^ (y >> 26);
 
-    return (this._x = y) + (this._y = x);
+    return (this._stateX = y) + (this._stateY = x);
   }
 
 }
@@ -961,7 +975,7 @@ This is another variant introduced by Marsaglia, that adds a simple additive cou
 class XorWow : IRandomNumberGenerator {
   
   private const uint _WEYL_CONSTANT = 362437;
-  private uint _x, _y, _z, _w, _v, _weyl;
+  private uint _stateX, _stateY, _stateZ, _stateW, _stateV, _weyl;
   
   public void Seed(ulong seed) {
     uint low = (uint)seed;
@@ -973,11 +987,11 @@ class XorWow : IRandomNumberGenerator {
     uint t1 = 2591861531 * s1;
 
     this._weyl = 6615241 + t1 + t0;
-    this._x = 123456789 + t0;
-    this._y = 362436069 ^ t0;
-    this._z = 521288629 + t1;
-    this._w = 88675123 ^ t1;
-    this._v = 5783321 + t0;
+    this._stateX = 123456789 + t0;
+    this._stateY = 362436069 ^ t0;
+    this._stateZ = 521288629 + t1;
+    this._stateW = 88675123 ^ t1;
+    this._stateV = 5783321 + t0;
   }
 
   public ulong Next() {
@@ -986,19 +1000,19 @@ class XorWow : IRandomNumberGenerator {
     return (ulong)high << 32 | low;
 
     uint Next32() {
-      uint x = this._x;
+      uint x = this._stateX;
       x ^= x >> 2;
       x ^= x << 1;
 
-      (this._x, this._y, this._z, this._w) 
-      = (this._y, this._z, this._w, this._v)
+      (this._stateX, this._stateY, this._stateZ, this._stateW) 
+      = (this._stateY, this._stateZ, this._stateW, this._stateV)
       ;
 
-      uint v = this._v;
+      uint v = this._stateV;
       v ^= v << 4;
       v ^= x;
 
-      return (this._v = v) + (this._weyl += _WEYL_CONSTANT);
+      return (this._stateV = v) + (this._weyl += _WEYL_CONSTANT);
     }
   }
 
@@ -1040,27 +1054,27 @@ This algorithm is designed for high performance and quality. It uses a combinati
 
 ```cs
 class Xoshiro256SS : IRandomNumberGenerator {
-  private ulong _w, _x, _y, _z;
+  private ulong _stateW, _stateX, _stateY, _stateZ;
 
   public void Seed(ulong seed) {
-    this._w = SplitMix64.Next(ref seed);
-    this._x = SplitMix64.Next(ref seed);
-    this._y = SplitMix64.Next(ref seed);
-    this._z = SplitMix64.Next(ref seed);
+    this._stateW = SplitMix64.Next(ref seed);
+    this._stateX = SplitMix64.Next(ref seed);
+    this._stateY = SplitMix64.Next(ref seed);
+    this._stateZ = SplitMix64.Next(ref seed);
   }
 
   public ulong Next() {
-    ulong result = BitOperations.RotateLeft(this._x * 5, 7) * 9;
+    ulong result = BitOperations.RotateLeft(this._stateX * 5, 7) * 9;
 
-    ulong x = this._x << 17;
+    ulong x = this._stateX << 17;
 
-    this._y ^= this._w;
-    this._z ^= this._x;
-    this._x ^= this._y;
-    this._w ^= this._z;
+    this._stateY ^= this._stateW;
+    this._stateZ ^= this._stateX;
+    this._stateX ^= this._stateY;
+    this._stateW ^= this._stateZ;
 
-    this._y ^= x;
-    this._z = BitOperations.RotateLeft(this._z, 45);
+    this._stateY ^= x;
+    this._stateZ = BitOperations.RotateLeft(this._stateZ, 45);
 
     return result;
   }
@@ -1076,22 +1090,22 @@ The name stands for XOR/rotate/shift/rotate, which describes the core operations
 
 ```cs
 class Xoroshiro128PlusPlus : IRandomNumberGenerator {
-  private ulong _x;
-  private ulong _y;
+  private ulong _stateX;
+  private ulong _stateY;
 
   public void Seed(ulong seed) {
-    this._x = SplitMix64.Next(ref seed);
-    this._y = SplitMix64.Next(ref seed);
+    this._stateX = SplitMix64.Next(ref seed);
+    this._stateY = SplitMix64.Next(ref seed);
   }
 
   public ulong Next() {
-    ulong x = this._x;
-    ulong y = this._y;
+    ulong x = this._stateX;
+    ulong y = this._stateY;
     ulong result = BitOperations.RotateLeft(x + y, 17) + x;
 
     y ^= x;
-    this._x = BitOperations.RotateLeft(x, 49) ^ y ^ (y << 21);
-    this._y = BitOperations.RotateLeft(y, 28);
+    this._stateX = BitOperations.RotateLeft(x, 49) ^ y ^ (y << 21);
+    this._stateY = BitOperations.RotateLeft(y, 28);
 
     return result;
   }
@@ -1106,6 +1120,13 @@ class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 This generator is a combination of several simple and fast pseudorandom number generators. It was introduced by George Marsaglia to create a generator with a longer period and better statistical properties by combining the outputs of multiple generators. The idea behind KISS is to use the strengths of different RNGs to compensate for each other's weaknesses.
 
 A typical KISS generator combines [LCG](#linear-congruential-generator-lcg), [XS](#xorshift-xs), and a [MWC](#multiply-with-carry-mwc). Each of these generators produces a sequence of pseudorandom numbers independently, and their outputs are combined using a simple bitwise operation to produce the final random number.
+
+However one may choose to extend the principle by combining more than three and utilizing another combination operation:
+
+* **Additive KISS**: Uses addition as the operation.
+* **Subtractive KISS**: Uses subtraction.
+* **Multiplicative KISS**: Uses multiplication.
+* **XOR KISS**: Uses the XOR operation (default).
 
 ```cs
 class KeepItSimpleStupid:IRandomNumberGenerator {
@@ -1148,15 +1169,15 @@ The generator produces the next random number using the following steps:
 
 3. The new state value is given by the lower bits of $t$:
 
-   $$Q_j = t \mod M$$
+   $$Q_j = t \mod m$$
 
 4. The carry value is updated using the upper bits of $t$:
 
-   $$c = \left\lfloor \frac{t}{M} \right\rfloor$$
+   $$c = \left\lfloor \frac{t}{m} \right\rfloor$$
 
 5. The new random number is the complement of the new state value:
 
-   $$X_i = (M - 1) - Q_j$$
+   $$X_i = (m - 1) - Q_j$$
 
 This process ensures that the state values are updated in a way that maintains a high-quality sequence of random numbers with a long period.
 
@@ -1195,15 +1216,15 @@ This is a type of pseudo-random number generator that extends the Fibonacci sequ
 
 The general form of the LFG is:
 
-$$X_i = (X_{i-S} \, \circ \, X_{i-L}) \mod M$$
+$$X_i = (X_{i-s} \, \circ \, X_{i-l}) \mod m$$
 
 Where:
 
 * $X_i$ is the current value in the sequence.
-* $S$ and $L$ are lags, where $L > S \geq 0$.
+* $s$ and $l$ are lags, where $l > s \geq 0$.
 * $\circ$ is a binary operation, such as addition, subtraction, multiplication, or bitwise XOR.
-* $M$ is the modulus, which defines the range of the output values.
-* The initial values, $X_0$ to $X_L$, are the seed values.
+* $m$ is the modulus, which defines the range of the output values.
+* The initial values, $X_0$ to $X_l$, are the seed values.
 
 Depending on the operation used, LFGs can be categorized into different types:
 
@@ -1214,7 +1235,7 @@ Depending on the operation used, LFGs can be categorized into different types:
 
 The LFG can be highly efficient and capable of generating sequences with very long periods, especially when properly chosen lags and modulus are used.
 
-To further increase period length, one may store more than the last $L$ values in the internal state and utilize an incrementing index.
+To further increase period length, one may store more than the last $l$ values in the internal state and utilize an incrementing index.
 
 ```cs
 class LaggedFibonacciGenerator : IRandomNumberGenerator {
@@ -1255,23 +1276,23 @@ This is a type of PRNG in the family of [LFG](#lagged-fibonacci-generator-lfg), 
 The SWC generator is defined by the following parameters:
 
 * $r$: The size of the state array
-* $S$: Short lag
-* $L$: Long lag
+* $s$: Short lag
+* $l$: Long lag
 * $c$: Carry value
-* $M$: Modulus (typically a power of 2 for computational efficiency)
+* $m$: Modulus (typically a power of 2 for computational efficiency)
 * $Q$: State array of size $r$
 
 The generator produces the next random number using the following steps:
 
-1. Select two indices, $i - S$ and $i - L$, from the state array.
+1. Select two indices, $i - s$ and $i - l$, from the state array.
 2. Calculate the new value using the formula:
 
-   $$X_i = (X_{i-S} - X_{i-L} - c) \mod M$$
+   $$X_i = (X_{i-s} - X_{i-l} - c) \mod m$$
 
 3. Update the carry value $c$ based on the result:
 
    $`c = \begin{cases}
-      1 & \text{if } X_{i-S} - X_{i-L} - c < 0 \\
+      1 & \text{if } X_{i-s} - X_{i-l} - c < 0 \\
       0 & \text{otherwise}
       \end{cases}`$
 
@@ -1326,19 +1347,23 @@ where $c_i$ are coefficients that are either $0$ or $1$. This polynomial is used
 
 The feedback bit $f_i$ is calculated as follows:
 
-$$f_i = X_{i,0} \oplus X_{i,k_1} \oplus \cdots \oplus X_{i,k_m} $$
+$$f_i = X^0_i \oplus X^{p_1}_i \oplus \cdots \oplus X^{p_n}_i$$
 
-where $k_{1..m}$ are the positions of the bits that correspond to the non-zero coefficients of the feedback polynomial.
+where $p_{1..n}$ are the positions of the bits that correspond to the non-zero coefficients of the feedback polynomial.
+
+Therefore:
+
+$$X_i = \langle X^1_{i-1} \cdots X^n_{i-1}, f_i \rangle$$
 
 Consider the polynomial $P(x) = x^{21} + x^{20} + x^{18} + x^{14} + x^{13} + x^{11} + x^9 + x^8 + x^6 + x^5 + x^2 + 1$. This polynomial can be represented as a binary number:
 
-$$\text{POLYNOM} = 0b110100011010110110011$$
+$$\text{POLYNOM} = 0b110100011010110110010$$
 
 This polynomial will be used to compute the feedback bit for the LFSR.
 
 ```cs
 class LinearFeedbackShiftRegister : IRandomNumberGenerator {
-  private const ulong POLYNOM = 0b110100011010110110011;
+  private const ulong POLYNOM = 0b110100011010110110010;
   private ulong _state;
 
   public void Seed(ulong seed) => this._state = seed;
@@ -1465,18 +1490,18 @@ This generator that uses modular arithmetic and addition to produce a sequence o
 
 The ACORN generator is defined by the following parameters:
 
-* $M$: Modulus (a large integer, typically a power of 2)
+* $m$: Modulus (a large integer, typically a power of 2)
 * $k$: Order of the generator
-* $Y_0$: Initial seed, where $0 < Y_0 < M$
-* $Y^m_0$: Initial values for $m = 1, \ldots, k$, where $0 \leq Y^m_0 < M$
+* $Q^j_0$: Initial seed for $j = 1, \ldots, k$, where $0 \leq Q^j_0 < m$
+* $Q^j_i$: State for $j = 1, \ldots, k$, where $0 \leq Q^j_i < m$
 
 The sequence is generated using the following steps:
 
-For $i \geq 1$ and $m = 1, \ldots, k$:
+For $i \geq 1$ and $j = 1, \ldots, k$:
 
-$$Y^m_i = \left(Y^m_{i-1} + Y^{m-1}_{i-1} \right) \mod M$$
+$$Q^j_i = \left(Q^j_{i-1} + Q^{j-1}_{i-1} \right) \mod m$$
 
-$$X_i = Y^k_i$$
+$$X_i = Q^k_i$$
 
 ```cs
 class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator {
@@ -1895,11 +1920,11 @@ This generator is a cryptographically secure pseudorandom number generator based
 The BBS is defined by the following parameters:
 
 * Two large prime numbers, $p$ and $q$, where both $p$ and $q$ are congruent to 3 modulo 4.
-* The modulus $M = p \cdot q$ .
-* An initial seed $s$ such that $s$ is relatively prime to $M$ (i.e., $\gcd(s, M) = 1$).
+* The modulus $m = p \cdot q$ .
+* An initial seed $s$ such that $s$ is relatively prime to $m$ (i.e., $\gcd(s, m) = 1$).
 
 The generator produces the next state using the recurrence relation:
-$$X_i = X_{i-1}^2 \mod M$$
+$$X_i = X_{i-1}^2 \mod m$$
 
 To generate pseudorandom bits, the least significant bit (LSB) of each $X_i$ is used. For more bits, several of the least significant bits can be extracted.
 
