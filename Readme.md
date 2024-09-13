@@ -1,7 +1,7 @@
 <!-- omit from toc -->
 # Demystifying Randomness
 
-A Deep Dive into Random Number Generators and Their Implementations.
+A Deep Dive into Random Number Generators and their Implementations.
 
 # Introduction
 
@@ -3578,7 +3578,15 @@ class Ziggurat(ArbitraryNumberGenerator generator) {
 
 # Points of Interest
 
-tbd: comparison table of all in the mentioned test categories and suites
+## Comparative Tests
+
+There nearly infinite methods to compare algorithms against each other so I have to decide which I want to include even though the table won't ever be complete.
+
+tbd: speed
+tbd: histogramm of 64 1-bits above line and 64 0-bits below line
+tbd: histogramm of spacing
+tbd: repetition test for n iterations
+tbd: randogram
 
 ## The NuGet package
 
