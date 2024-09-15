@@ -2,22 +2,34 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Metadata;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Xml.Linq;
 using BenchmarkDotNet.Attributes;
 using Hawkynt.RandomNumberGenerators.Composites;
 using Hawkynt.RandomNumberGenerators.Cryptographic;
 using Hawkynt.RandomNumberGenerators.Deterministic;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 using Hawkynt.RandomNumberGenerators.NonUniform;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Diagnostics.Runtime.Utilities;
+using Microsoft.Diagnostics.Tracing.Parsers.MicrosoftWindowsTCPIP;
+using static System.IO.VolumeExtensions;
+
 
 //BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
 //return;
+var benchy = new Benchy();
+benchy.MeasureThroughput();
+return;
 
-var generator = new ArbitraryNumberGenerator(new BlumBlumShub());
+var generator = new ArbitraryNumberGenerator(new BlumMicali());
 const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
-var bytes = generator.ConcatGenerator(8192);
+var bytes = generator.ConcatGenerator(1<<10);
 var concatHex = bytes.ToHex();
 var concatBin = bytes.ToBin();
 var aes = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
@@ -61,21 +73,128 @@ Console.WriteLine($"We seeded with {seedNumber} and have repeated ourselves afte
 public class Benchy {
   
   private readonly Random _builtIn = new();
+  private readonly Random _builtInOld = new((int)SEED);
   
-  [Params(10, 100, 1000000)]
-  public int N { get; set; } = 1;
+  private readonly RNGCryptoServiceProvider _crypto = new();
+  private readonly byte[] _longStorage = new byte[sizeof(ulong)];
 
-  [Benchmark(Baseline = true, Description = "Built-In")]
+  //[Params(16, 128, 1024)]
+  //[Params(1024)]
+  public const int N=1024;
+  public const ulong SEED = 131;
+  public static readonly TimeSpan TIME_TO_MEASURE = TimeSpan.FromSeconds(30);
+
+  [Benchmark(Baseline = true, Description = "Built-In (w/o Seed)")]
   [Arguments("Random", null)]
   public ulong BuiltIn(string name, IRandomNumberGenerator instance) {
     var result = 0UL;
-    for (var i = 0; i < this.N; ++i)
-      result^=(ulong)this._builtIn.NextInt64();
+    for (var i = 0; i < N; ++i)
+      result ^= (ulong)this._builtIn.NextInt64();
 
     return result;
   }
 
-  public IEnumerable<object[]> AlgorithmSource() {
+  [Benchmark(Baseline = true, Description = "Built-In (w Seed)")]
+  [Arguments("Random", null)]
+  public ulong BuiltInOldRng(string name, IRandomNumberGenerator instance) {
+    var result = 0UL;
+    for (var i = 0; i < N; ++i)
+      result ^= (ulong)this._builtInOld.NextInt64();
+
+    return result;
+  }
+
+  [Benchmark(Baseline = true, Description = "Built-In CSRNG")]
+  [Arguments("Random", null)]
+  public ulong BuiltInCsrng(string name, IRandomNumberGenerator instance) {
+    var result = 0UL;
+    var buffer = this._longStorage;
+    for (var i = 0; i < N; ++i) {
+      this._crypto.GetBytes(buffer);
+      result ^= Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference<byte>(buffer));
+    }
+
+    return result;
+  }
+
+  public void MeasureThroughput() {
+    
+    (string, Func<ulong>)[] allCalls = new (string, Func<ulong>)[]{
+      ("Measuring Overhead", () => SEED),
+      ("Reference RNG(with Seed)", () => (ulong)this._builtInOld.NextInt64()),
+      ("Reference RNG(without Seed)", () => (ulong)this._builtIn.NextInt64()),
+      ("Reference CSRNG", () => {
+        this._crypto.GetBytes(this._longStorage);
+        return Unsafe.ReadUnaligned<ulong>(ref MemoryMarshal.GetReference<byte>(this._longStorage));
+      })
+    }.Concat(
+      this.SeededAlgorithmSource().Select(rngData=> {
+        var name = (string)rngData[0];
+        var rng = (IRandomNumberGenerator)rngData[1];
+        return (name, (Func<ulong>)rng.Next);
+      })
+    ).ToArray();
+
+    WarmUp();
+    var overhead = Measure(allCalls[0].Item1, allCalls[0].Item2);
+    Console.WriteLine("Benchmarking...");
+
+    var referenceIterations = Measure(allCalls[1].Item1, allCalls[1].Item2, emptyIterationsPerSecond: overhead);
+    for (var i = 2; i < allCalls.Length; ++i)
+      Measure(allCalls[i].Item1, allCalls[i].Item2, referenceIterations, overhead);
+    
+    return;
+
+    void WarmUp() {
+      Console.WriteLine("Warming up...");
+      for (var i = 0; i < 100; ++i)
+        foreach ((string name, Func<ulong> rng) in allCalls)
+          rng();
+    }
+
+    double Measure(string name, Func<ulong> call, double referenceIterationsPerSecond = 0, double emptyIterationsPerSecond = 0) {
+      var dummy = 0UL;
+      var iterations = 0UL;
+      var ticksPerSecond = Stopwatch.Frequency;
+      var ticksToMeasure = (long)(ticksPerSecond * TIME_TO_MEASURE.TotalSeconds);
+
+      var startTicks = Stopwatch.GetTimestamp();
+      var endTicks = startTicks + ticksToMeasure;
+      long ticksTaken;
+      do {
+        ++iterations;
+        dummy ^= call();
+      } while ((ticksTaken = Stopwatch.GetTimestamp()) < endTicks);
+      ticksTaken -= startTicks;
+
+      var overheadTicks = 0L;
+      if (emptyIterationsPerSecond != 0) {
+        var secondsPerEmptyIteration = 1 / emptyIterationsPerSecond;
+        var ticksPerEmptyIteration = ticksPerSecond * secondsPerEmptyIteration;
+        overheadTicks = (long)(iterations * ticksPerEmptyIteration);
+      }
+
+      ticksTaken -= overheadTicks;
+
+      var iterationsPerTick = (double)iterations / ticksTaken;
+      var iterationsPerSecond = iterationsPerTick * ticksPerSecond;
+      if (referenceIterationsPerSecond <= 0)
+        referenceIterationsPerSecond = iterationsPerSecond;
+
+      Console.WriteLine($"{name,-38}: {iterationsPerSecond,15:0} iterations per second. {iterationsPerSecond / referenceIterationsPerSecond,5:0.0}x ({100 * (iterationsPerSecond / referenceIterationsPerSecond - 1),6:0.0}%)");
+      return iterationsPerSecond;
+    }
+
+  }
+
+  public IEnumerable<object[]> SeededAlgorithmSource() {
+    foreach (var rngdata in this._AlgorithmSource()) {
+      ((IRandomNumberGenerator)rngdata[1]).Seed(SEED);
+      yield return rngdata;
+    }
+  }
+
+  private IEnumerable<object[]> _AlgorithmSource() {
     yield return ["ACORN", new AdditiveCongruentialRandomNumberGenerator()];
     yield return ["Combined LCG (add)", new CombinedLinearCongruentialGenerator(CombinationMode.Additive)];
     yield return ["Combined LCG (sub)", new CombinedLinearCongruentialGenerator(CombinationMode.Subtractive)];
@@ -111,21 +230,21 @@ public class Benchy {
     yield return ["XorShift*", new XorShiftStar()];
     yield return ["XorWow", new XorWow()];
     yield return ["XoShiRo 256 SS", new Xoshiro256SS()];
-
     yield return ["Blum-Blum-Shub", new BlumBlumShub()];
     yield return ["ChaCha20", new ChaCha20()];
     yield return ["BlumMicali", new BlumMicali()];
     yield return ["Self Shrinking Generator", new SelfShrinkingGenerator()];
   }
 
-  [Benchmark]
-  [ArgumentsSource(nameof(AlgorithmSource))]
+  [Benchmark(OperationsPerInvoke = N)]
+  [ArgumentsSource(nameof(Benchy.SeededAlgorithmSource))]
   public ulong Algorithm(string name, IRandomNumberGenerator instance) {
     var result = 0UL;
-    for (var i = 0; i < this.N; ++i)
+    for (var i = 0; i < N; ++i)
       result ^= instance.Next();
 
     return result;
   }
 
 }
+

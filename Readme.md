@@ -1212,7 +1212,7 @@ class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 
 [^22]: [LFG](https://asecuritysite.com/encryption/fab)
 
-This is a type of pseudo-random number generator that extends the Fibonacci sequence concept to generate random numbers. Instead of simply adding the two previous numbers, as in the Fibonacci sequence, the LFG uses a combination of past values with different operations to produce the next value in the sequence.
+This is a type of pseudo-random number generator that extends the Fibonacci sequence concept to generate random numbers. Instead of simply adding the two previous numbers, as in the Fibonacci sequence, the LFG uses a combination of past values with different operations to produce the next value in the sequence. Donald Erwin Knuth described a subtractive LFG in "The Art of Computer Programming, Volume 2 - Seminumerical Algorithms".
 
 The general form of the LFG is:
 
@@ -3582,7 +3582,24 @@ class Ziggurat(ArbitraryNumberGenerator generator) {
 
 There nearly infinite methods to compare algorithms against each other so I have to decide which I want to include even though the table won't ever be complete.
 
-tbd: speed
+**Speed:**
+
+```mermaid
+xychart-beta
+title "Iterations (PRNG)"
+x-axis "Generator" [".Net (LFG-)",".Net (XSR)","ACORN","CLCG+","CLCG*","CLCG-","CLCG^","CMWC","FCSR","ICG","KISS+","KISS*","KISS-","KISS^","LFG+","LFG*","LFG-","LFG^","LCG","LFSR","MSWS","MT","MS","MIXMAX","MLCG","MWC","PCG","SM","SWB","WELL","WH","XRSR","XSR","XS","XS*","XS+","XW"]
+y-axis "n per second" 0 --> 600000000
+bar [44818626,126791754,54975851,85551683,70581807,85189867,85375903,82336337,1385721,1393418,35862063,31158437,35700225,36277953,201233809,116802800,214732595,210058585,437237817,2322534,46301877,100168236,80102319,3432,534813227,99674069,26159920,82859539,60330350,113894566,3127692,231898703,102368211,582731386,306999423,352346539,251089139]
+```
+
+```mermaid
+xychart-beta
+title "Iterations (CSRNG)"
+x-axis "Generator" [".Net","BBS","CC20","BM","SSG"]
+y-axis "n per second" 0 --> 5000000
+bar [4533512,1492202,1608890,1827,629546]
+```
+
 tbd: histogramm of 64 1-bits above line and 64 0-bits below line
 tbd: histogramm of spacing
 tbd: repetition test for n iterations
@@ -3597,6 +3614,7 @@ The library includes performance-oriented implementations of most of the example
 * [RNG Engines](https://pracrand.sourceforge.net/RNG_engines.txt)
 * [Reversable RNG](http://robotics.ucsd.edu/ReversibleRNG.pdf)
 * [FastRNG](https://github.com/SommerEngineering/FastRng)
+* [Randomness in .NET](https://blogs.siliconorchid.com/post/coding-inspiration/randomness-in-dotnet/)
 
 # History
 
