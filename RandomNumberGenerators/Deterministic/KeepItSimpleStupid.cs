@@ -31,8 +31,9 @@ public class KeepItSimpleStupid(CombinationMode mode, IRandomNumberGenerator fir
 
   public ulong Next() {
     var result = this._first.Next();
+    var operation = this._operation;
     foreach (var rng in this._others)
-      result = this._operation(result, rng.Next());
+      result = operation(result, rng.Next());
 
     return result;
   }

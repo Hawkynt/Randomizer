@@ -13,8 +13,11 @@ public class MiddleSquareWeylSequence(ulong weylConstant = 0xB5AD4ECEDA1CE2A9) :
   }
 
   public ulong Next() {
-    this._state *= this._state;
-    this._state += this._weyl += weylConstant;
-    return (ulong)(this._state >> 32);
+    var state = this._state;
+    state *= state;
+    var weyl = this._weyl += weylConstant;
+    state += weyl;
+    this._state = state;
+    return (ulong)(state >> 32);
   }
 }

@@ -40,8 +40,9 @@ public class XorWow : IRandomNumberGenerator {
       var v = this._v;
       v ^= v << 4;
       v ^= x;
+      this._v = v;
 
-      return (this._v = v) + (this._weyl += _WEYL_CONSTANT);
+      return v + (this._weyl += _WEYL_CONSTANT);
     }
   }
 }

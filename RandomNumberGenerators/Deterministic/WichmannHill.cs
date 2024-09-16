@@ -22,10 +22,20 @@ public class WichmannHill : IRandomNumberGenerator {
   }
 
   public ulong Next() {
-    this._x = this._x * _MULTIPLIER_X % _MODULUS_X;
-    this._y = this._y * _MULTIPLIER_Y % _MODULUS_Y;
-    this._z = this._z * _MULTIPLIER_Z % _MODULUS_Z;
+    var x = this._x;
+    var y = this._y;
+    var z = this._z;
+    x*=_MULTIPLIER_X;
+    y*=_MULTIPLIER_Y;
+    z*=_MULTIPLIER_Z;
+    x%=_MODULUS_X;
+    y%=_MODULUS_Y;
+    z%=_MODULUS_Z;
+    
+    this._x = x;
+    this._y = y;
+    this._z = z;
 
-    return (ulong)(this._x + this._y + this._z);
+    return (ulong)(x + y + z);
   }
 }

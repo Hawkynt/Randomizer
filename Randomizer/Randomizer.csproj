@@ -17,7 +17,12 @@
     <PublishTrimmed>True</PublishTrimmed>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Hawkynt/Randomizer/tree/master/Randomizer</RepositoryUrl>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Benchy.cs~RFe66c2527.TMP" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />

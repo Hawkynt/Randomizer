@@ -19,12 +19,15 @@ public class ComplementaryMultiplyWithCarry : IRandomNumberGenerator {
 
   public ulong Next() {
     // implicit mod 2^64
-    this._index = (this._index + 1) % R;
-    var t = A * this._state[this._index] + this._carry;
+    var state = this._state;
+    var index = (this._index + 1) % R;
+    
+    var t = A * state[index] + this._carry;
 
     this._carry = (ulong)(t >> 64);
-    this._state[this._index] = (ulong)t;
+    state[index] = (ulong)t;
 
-    return ulong.MaxValue - this._state[this._index];
+    this._index = index;
+    return ulong.MaxValue - state[index];
   }
 }

@@ -21,17 +21,18 @@ public class SubtractWithBorrow : IRandomNumberGenerator {
   }
 
   public ulong Next() {
-    this._index = (this._index + 1) % R;
-    var j = (this._index + R - S) % R;
-    var k = (this._index + R - L) % R;
+    var index= (this._index + 1) % R;
+    var j = (index + R - S) % R;
+    var k = (index + R - L) % R;
 
-    var t = (Int128)this._state[j] - this._state[k] - this._carry;
+    var state = this._state;
+    var t = (Int128)state[j] - state[k] - this._carry;
     this._carry = t < 0 ? 1UL : 0UL;
     if (t < 0)
       t += M;
 
-    this._state[this._index] = (ulong)t;
-
-    return this._state[this._index];
+    state[index] = (ulong)t;
+    this._index = index;
+    return (ulong)t;
   }
 }

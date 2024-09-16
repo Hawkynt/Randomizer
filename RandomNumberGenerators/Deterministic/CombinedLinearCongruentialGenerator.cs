@@ -32,9 +32,10 @@ public class CombinedLinearCongruentialGenerator(CombinationMode mode, LinearCon
   public ulong Next() {
     // implicit mod 2^64
     var result = this._first.Next();
-    result = this._combiner(result, this._second.Next());
+    var combiner = this._combiner;
+    result = combiner(result, this._second.Next());
     foreach (var other in this._others)
-      result = this._combiner(result, other.Next());
+      result = combiner(result, other.Next());
 
     return result;
   }

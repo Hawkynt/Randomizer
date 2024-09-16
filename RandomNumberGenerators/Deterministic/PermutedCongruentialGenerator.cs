@@ -8,15 +8,17 @@ namespace Hawkynt.RandomNumberGenerators.Deterministic;
 public class PermutedCongruentialGenerator : IRandomNumberGenerator {
   private UInt128 _state;
 
-  private static readonly UInt128 MULTIPLIER = UInt128.Parse("110282366920938463463374607431768211483", NumberStyles.Integer, CultureInfo.InvariantCulture);
-  private static readonly UInt128 INCREMENT = 1442695040888963407UL;
+  private readonly UInt128 MULTIPLIER = UInt128.Parse("110282366920938463463374607431768211483", NumberStyles.Integer, CultureInfo.InvariantCulture);
+  private readonly UInt128 INCREMENT = 1442695040888963407UL;
 
   public void Seed(ulong seed) => this._state = ((UInt128)seed << 64) | ~seed;
 
   public ulong Next() {
-    this._state = this._state * MULTIPLIER + INCREMENT;
+    var state=this._state;
+    state = state * MULTIPLIER + INCREMENT;
+    this._state = state;
 
-    return Permute(this._state);
+    return Permute(state);
 
     // Apply RXS-M-XS permutation
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

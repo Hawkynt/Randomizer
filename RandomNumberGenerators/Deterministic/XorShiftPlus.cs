@@ -18,6 +18,8 @@ public class XorShiftPlus : IRandomNumberGenerator {
     x ^= x >> 17;
     x ^= y ^ (y >> 26);
 
-    return (this._x = y) + (this._y = x);
+    this._x = y;
+    this._y = x;
+    return x + y;
   }
 }

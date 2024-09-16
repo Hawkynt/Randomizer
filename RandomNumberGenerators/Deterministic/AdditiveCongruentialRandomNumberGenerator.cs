@@ -26,21 +26,23 @@ public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator 
   public ulong Next() => this._generator();
   
   private ulong _NextImplicitModulo() {
-    for (var m = 1; m < this._state.Length; ++m)
-      this._state[m] += this._state[m - 1];
+    var states = this._state;
+    for (var m = 1; m < states.Length; ++m)
+      states[m] += states[m - 1];
 
-    return this._state[^1];
+    return states[^1];
   }
 
   private ulong _NextWithModulo() {
-    for (var m = 1; m < this._state.Length; ++m) {
-      UInt128 state = this._state[m];
-      state += this._state[m - 1];
+    var states = this._state;
+    for (var m = 1; m < states.Length; ++m) {
+      UInt128 state = states[m];
+      state += states[m - 1];
       state %= this._modulo;
-      this._state[m] = (ulong)state;
+      states[m] = (ulong)state;
     }
 
-    return this._state[^1];
+    return states[^1];
   }
 
 }

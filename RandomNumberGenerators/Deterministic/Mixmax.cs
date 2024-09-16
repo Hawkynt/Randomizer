@@ -36,14 +36,16 @@ public class Mixmax : IRandomNumberGenerator {
     // implicit mod 2^64
 
     ulong result = 0;
-    for (var i = 0; i < _matrixSize; ++i)
-      result += this._state[i];
+    var state = this._state;
+
+    for (var i = 0; i < state.Length; ++i)
+      result += state[i];
 
     var newState = new ulong[_matrixSize];
-    for (var i = 0; i < _matrixSize; ++i) {
+    for (var i = 0; i < newState.Length; ++i) {
       newState[i] = 0;
       for (var j = 0; j < _matrixSize; ++j)
-        newState[i] += this._matrix[i, j] * this._state[j];
+        newState[i] += this._matrix[i, j] * state[j];
     }
 
     this._state = newState;
