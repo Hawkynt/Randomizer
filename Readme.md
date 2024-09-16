@@ -3587,20 +3587,21 @@ There nearly infinite methods to compare algorithms against each other so I have
 ```mermaid
 xychart-beta
 title "Iterations (PRNG)"
-x-axis "Generator" [".Net (LFG-)",".Net (XSR)","ACORN","CLCG+","CLCG*","CLCG-","CLCG^","CMWC","FCSR","ICG","KISS+","KISS*","KISS-","KISS^","LFG+","LFG*","LFG-","LFG^","LCG","LFSR","MSWS","MT","MS","MIXMAX","MLCG","MWC","PCG","SM","SWB","WELL","WH","XRSR","XSR","XS","XS*","XS+","XW"]
-y-axis "n per second" 0 --> 600000000
-bar [44818626,126791754,54975851,85551683,70581807,85189867,85375903,82336337,1385721,1393418,35862063,31158437,35700225,36277953,201233809,116802800,214732595,210058585,437237817,2322534,46301877,100168236,80102319,3432,534813227,99674069,26159920,82859539,60330350,113894566,3127692,231898703,102368211,582731386,306999423,352346539,251089139]
+x-axis "Generator" [".Net (LFG-)",".Net (XSR)","ACORN","CLCG+","CLCG-","CLCG*","CLCG^","CMWC","FCSR","ICG","KISS+","KISS-","KISS*","KISS^","LFG+","LFG-","LFG*","LFG^","LCG","LFSR","MT","MS","MSWS","MIXMAX","MLCG","MWC","PCG","SM","SWB","WELL","WH","XRSR","XS","XS+","XS*","XW","XSR"]
+y-axis "n per second" 0 --> 45000000
+bar [25860404, 41502895, 24141225, 41068247, 41180385, 41121380, 41185898, 42286394, 3162065, 6544910, 36399195, 36608783, 36509695, 36584089, 41126514, 41048069, 41315409, 40896199, 44379396, 3580744, 35036819, 42932495, 42359983, 13300, 46167931, 45209291, 42154250, 45800946, 38437975, 38184646, 6437107, 46023155, 46447791, 46073354, 45825078, 43358518, 44978039]
 ```
 
 ```mermaid
 xychart-beta
 title "Iterations (CSRNG)"
 x-axis "Generator" [".Net","BBS","CC20","BM","SSG"]
-y-axis "n per second" 0 --> 5000000
-bar [4533512,1492202,1608890,1827,629546]
+y-axis "n per second" 0 --> 11000000
+bar [10941568,3076239,1673562,3708,668359]
 ```
 
-tbd: histogramm of 64 1-bits above line and 64 0-bits below line
+tbd: histogramm of 64 1-bits above line and 64 0-bits below line (64 buckets * 2)
+tbd: histogramm of 1-bit counts (64 buckets)
 tbd: histogramm of spacing
 tbd: repetition test for n iterations
 tbd: randogram
