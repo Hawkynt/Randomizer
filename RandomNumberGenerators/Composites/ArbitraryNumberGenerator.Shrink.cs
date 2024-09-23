@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 
 // ReSharper disable UnusedMember.Global
 
@@ -395,6 +396,9 @@ partial class ArbitraryNumberGenerator {
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public bool Sponge1() {
     var result = rng.Next();
+    if (Popcnt.X64.IsSupported)
+      return (Popcnt.X64.PopCount(result) & 1) != 0;
+
     result ^= result >> 32;
     result ^= result >> 16;
     result ^= result >> 8;

@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using Hawkynt.RandomNumberGenerators.Interfaces;
 
 namespace Hawkynt.RandomNumberGenerators.Cryptographic;
@@ -35,6 +36,9 @@ public class SelfShrinkingGenerator(ulong polynom) : IRandomNumberGenerator {
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
       byte CalculateFeedback() {
         var masked = this._state & polynom;
+        if (Popcnt.X64.IsSupported)
+          return (byte)(Popcnt.X64.PopCount(masked) & 1);
+        
         masked ^= masked >> 32;
         masked ^= masked >> 16;
         masked ^= masked >> 8;
