@@ -8,9 +8,9 @@ public class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator 
   private readonly Func<ulong> _generator;
   private readonly ulong _modulo;
 
-  public AdditiveCongruentialRandomNumberGenerator(ulong modulo = 0, int k = 12) {
+  public AdditiveCongruentialRandomNumberGenerator(ulong modulo = 0, int order = 12) {
     this._modulo = modulo;
-    this._state = new ulong[k + 1];
+    this._state = new ulong[order + 1];
     this._generator = modulo.IsNotSet() ? this._NextImplicitModulo : this._NextWithModulo;
   }
 

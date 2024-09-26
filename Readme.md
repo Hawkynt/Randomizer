@@ -25,7 +25,10 @@ In gaming, randomness ensures that outcomes are unpredictable and fair, enhancin
 
 ## What is Randomness?
 
-Randomness refers to the lack of pattern or predictability in events. In the context of computing and mathematics, randomness is the concept of generating sequences of numbers or symbols that cannot be reasonably predicted better than by random chance. This unpredictability is essential to ensure fairness, security, and accurate simulation of real-world phenomena.
+It refers to the lack of pattern or predictability in events. In the context of computing and mathematics, randomness is the concept of generating sequences of numbers or symbols that cannot be reasonably predicted better than by random chance. This unpredictability is essential to ensure fairness, security, and accurate simulation of real-world phenomena.
+
+> [!TIP]
+> The following examples use different programming languages on purpose to give the reader something usable no matter which language he chose to code in.
 
 ## Types of Randomness?
 
@@ -41,7 +44,7 @@ Non-deterministic randomness, often referred to as "true randomness," is derived
 
 * **Quantum Randomness**: Quantum mechanics provides several phenomena that are inherently random. For example, measurements of quantum states, such as the polarization of photons or spin of electrons, yield results that are unpredictable.
 
-* **Atmospheric Noise**: Variations in atmospheric conditions, such as radio noise from lightning or other natural sources, can be captured and used as a source of true randomness.
+* **Atmospheric Noise**: Variations in atmospheric conditions, such as radio noise from lightning or other natural sources, can be captured and used as a source of [true randomness](https://www.random.org).
 
 #### Challenges in Generating True Randomness
 
@@ -57,7 +60,7 @@ While true random number generators offer high-quality randomness, they also com
 
 In personal computers, true randomness can be sourced from several hardware-based mechanisms:
 
-* **Peripheral Devices**: Some peripherals, such as network cards, sound cards, and disk drives, can capture environmental noise and other random events to generate random numbers. Additionally, using keyboard, gamepad, and mouse inputs as an additional entropy source is common.
+* **Peripheral Devices**: Some peripherals, such as network cards, sound cards, and disk drives, can capture environmental noise and other random events to generate random numbers. Additionally, using keyboard, gamepad, and mouse inputs as an additional entropy source is common (especially when no other source is available like on certain [gaming consoles](https://www.smogon.com/ingame/rng/)).
 
 * **Hardware Random Number Generators (HRNGs)**: Many modern hardware comes with built-in HRNGs that utilize physical phenomena to generate random numbers.
 
@@ -129,7 +132,7 @@ In personal computers, true randomness can be sourced from several hardware-base
 
   * **Operating System Support**
   
-    * **Windows**: Windows operating systems provide access to hardware-based randomness through the Cryptography API: Next Generation (CNG) using functions such as [`BCryptGenRandom`](https://learn.microsoft.com/de-de/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom).
+    * **Windows** operating systems provide access to hardware-based randomness through the "Cryptography: Next Generation"-API (CNG) using functions such as [`BCryptGenRandom`](https://learn.microsoft.com/de-de/windows/win32/api/bcrypt/nf-bcrypt-bcryptgenrandom).
 
       Here’s an example in [C++](https://en.wikipedia.org/wiki/C%2B%2B), using the bcrypt library to generate a 64-Bit number:
 
@@ -163,7 +166,7 @@ In personal computers, true randomness can be sourced from several hardware-base
       }
       ```
 
-    * **Linux**: Linux offers support for HRNGs through the virtual devices [`/dev/random` and `/dev/urandom`](https://en.wikipedia.org/wiki//dev/random), which include entropy from hardware sources. Additionally, the [`getrandom()`](https://man7.org/linux/man-pages/man2/getrandom.2.html) system call can be used for this purpose. The `getrandom()` system call is recommended because it blocks until enough entropy is available, ensuring high-quality random numbers, especially useful during the early boot phase.
+    * **Linux** offers support for HRNGs through the virtual devices [`/dev/random` and `/dev/urandom`](https://en.wikipedia.org/wiki//dev/random), which include entropy from hardware sources. Additionally, the [`getrandom()`](https://man7.org/linux/man-pages/man2/getrandom.2.html) system call can be used for this purpose. The `getrandom()` system call is recommended because it blocks until enough entropy is available, ensuring high-quality random numbers, especially useful during the early boot phase.
 
       Here’s an example in [Perl](https://en.wikipedia.org/wiki/Perl), using the virtual devices to generate a 64-Bit number:
 
@@ -184,7 +187,7 @@ In personal computers, true randomness can be sourced from several hardware-base
       print "\n";
       ```
 
-    * **macOS**: macOS provides access to high-quality random numbers through the [`SecRandomCopyBytes`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) function in the Security framework.
+    * **macOS** provides access to high-quality random numbers through the [`SecRandomCopyBytes`](https://developer.apple.com/documentation/security/1399291-secrandomcopybytes?language=objc) function in the Security framework.
 
       Here’s an example in [Python](https://en.wikipedia.org/wiki/Python_(programming_language)), using the OS-function to generate a 64-Bit number:
 
@@ -206,11 +209,11 @@ In personal computers, true randomness can be sourced from several hardware-base
 
 ### Deterministic
 
-Deterministic randomness is generated by algorithms designed to produce sequences of numbers that appear random but are actually determined by some initial value. Unlike true random numbers, these sequences are predictable if the state and algorithm are known. Despite this predictability, high-quality deterministic random number generators can produce sequences that are sufficiently random for many practical applications. All of them use an internal state and perform various computational operations to generate each number in the sequence, updating the internal state with each invocation to ensure the sequence continues.
+This type of randomness is generated by algorithms designed to produce sequences of numbers that appear random but are actually based on some initial value. Unlike true random numbers, these sequences are predictable if the state and algorithm are known. Despite this predictability, high-quality deterministic random number generators can produce sequences that are sufficiently random for many practical applications. All of them use an internal state (or the last known value) and perform various computational operations to generate each number in the sequence, updating the internal state with each invocation to ensure the sequence continues.
 
 ### Seeds - Sources of Entropy
 
-Seeds play a crucial role in generating deterministic random numbers. A seed is an initial value provided to a generator that determines the sequence of numbers it produces. The same seed will always result in the same sequence, which is essential for reproducibility in many applications. In most cases the seed will not be the first value produced, but a starting point for the internal state machine.
+They play a crucial role in generating deterministic random numbers. A seed is an initial value provided to a generator that determines the sequence of numbers it produces. The same seed will always result in the same sequence, which is essential for reproducibility in many applications. In most cases the seed will (and should!) not be the first value produced, but a starting point for the internal state machine.
 
 #### Importance of Seeds
 
@@ -230,9 +233,9 @@ Seeds play a crucial role in generating deterministic random numbers. A seed is 
   async function getNetworkLatencySeed() {
     return await _getNetworkLatencySeed(
       [
-        'https://google.com',
-        'https://bing.com',
-        'https://yahoo.com',
+        'https://google.de',
+        'https://bing.se',
+        'https://br.search.yahoo.com',
         'https://duckduckgo.com',
         'https://ecosia.org',
       ], 
@@ -310,6 +313,9 @@ Seeds play a crucial role in generating deterministic random numbers. A seed is 
   end.
   ```
 
+  > [!WARNING]
+  > If [Randomize](https://lazarus-ccr.sourceforge.io/docs/rtl/system/randomize.html) has only second precision (which depends on compiler implementation), this example may produce the same number twice because the same seed may be utilized.
+
 Using a high-entropy seed source, especially in cryptographic applications, ensures that the generator produces a sequence that is difficult to predict and reverse-engineer.
 
 ## Types of Random Number Generators (RNG)
@@ -320,7 +326,7 @@ Using a high-entropy seed source, especially in cryptographic applications, ensu
 
 * **Deterministic**: PRNGs generate sequences of numbers that are determined by an initial seed. The same seed will always produce the same sequence.
 
-* **Fast**: PRNGs are typically faster than true random number generators because they use algorithmic processes rather than physical phenomena.
+* **Fast**: PRNGs are typically faster than TRNG because they use algorithmic processes rather than physical phenomena.
 
 * **Reproducible**: Essential for applications where reproducibility is necessary, such as simulations and debugging.
 
@@ -340,13 +346,13 @@ Using a high-entropy seed source, especially in cryptographic applications, ensu
 
 * **High Entropy**: They use high-entropy sources for seeding to ensure the randomness quality.
 
-* **Security**: They incorporate mechanisms to prevent attackers from predicting future outputs even if some internal states are known.
+* **Security**: They incorporate mechanisms to prevent attackers from predicting future outputs even if some bits of internal states are known.
 
 #### CSRNG Applications
 
 * **Cryptography**: Generating keys, salts, nonces, initialization vectors, and other cryptographic values that require high security.
 
-* **Secure Protocols**: Ensuring the unpredictability of random values in secure communication protocols.
+* **Secure Protocols**: Ensuring the unpredictability of random values (like [large primes](https://www.rfc-editor.org/rfc/rfc7919) or [elliptic curves](https://en.wikipedia.org/wiki/Elliptic-curve_cryptography)) in secure communication protocols.
 
 #### CSRNG Construction
 
@@ -356,7 +362,7 @@ Although it is possible to use a stream cipher, a block cipher or a cryptographi
 
 #### NURNG Characteristics
 
-* **Distribution-Specific**: NURNGs generate random numbers according to specific probability distributions (e.g., Gaussian, exponential, Poisson) rather than uniformly across an interval.
+* **Distribution-Specific**: NURNGs generate random numbers according to specific probability distributions (e.g., Gaussian, Exponential, Poisson) rather than uniformly across an interval.
 
 * **Transformative**: They typically transform uniformly distributed random numbers (generated by a PRNG) into the desired non-uniform distribution using techniques like the inverse transform method or rejection sampling.
 
@@ -372,17 +378,17 @@ Although it is possible to use a stream cipher, a block cipher or a cryptographi
 
 ### Cascade Construction RNG
 
-Most hardware RNG, especially those found in CPUs utilize a cascade of on-chip thermal entropy and a CSRNG (for example Intel is utilizing the AES-block cipher in counter mode and CBC-MAC), re-seeded again and again to present you a HRNG. This leads to high-throughput hard-to-predict random numbers.
+Most hardware RNG, especially those found in CPUs utilize a cascade of on-chip thermal entropy and a CSRNG (for example Intel is utilizing the [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)-block cipher in counter [mode](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation) and [CBC-MAC](https://en.wikipedia.org/wiki/CBC-MAC)), re-seeded again and again to present you a HRNG. This leads to high-throughput hard-to-predict random numbers.
 
 ## Benchmarking RNGs
 
-Benchmarking random number generators involves evaluating their performance and quality to determine their suitability for various applications. This process covers several key aspects, which we will now dive into.
+This involves evaluating their performance and quality to determine their suitability for various applications. This process covers several key aspects, which we will now dive into.
 
 ### Categories
 
 #### Speed
 
-Speed is a crucial metric for RNGs, especially in applications requiring a high throughput of random numbers, such as simulations and gaming. The generation rate is typically measured in terms of the number of random numbers generated per second or the average time taken to generate a single random number.
+That's a crucial metric for RNGs, especially in applications requiring a high throughput of random numbers, such as simulations and gaming. The generation rate is typically measured in terms of the number of random numbers generated per second or the average time taken to generate a single random number.
 
 ##### Methods for determining generation speed
 
@@ -392,7 +398,7 @@ Speed is a crucial metric for RNGs, especially in applications requiring a high 
 
 #### Memory
 
-Memory usage is another critical factor, especially for applications with limited resources. Benchmarking memory usage involves evaluating the amount of memory required by the RNG to maintain its state and generate random numbers.
+RAM usage is another critical factor, especially for applications with limited resources. Benchmarking memory usage involves evaluating the amount of memory required by the RNG to maintain its state and generate random numbers.
 
 ##### Methods for resource usage analysis
 
@@ -462,7 +468,7 @@ This is a comprehensive software library developed by Pierre L'Ecuyer for testin
 
 [^3]: [NIST-STS](https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-22r1a.pdf)
 
-The NIST Statistical Test Suite is a set of tests developed by the National Institute of Standards and Technology to evaluate the quality of random numbers, particularly for cryptographic applications. This suite assesses the randomness of binary sequences.
+This is a set of tests developed by the National Institute of Standards and Technology to evaluate the quality of random numbers, particularly for cryptographic applications. This suite assesses the randomness of binary sequences.
 
 ##### Key Features of NIST
 
@@ -476,11 +482,14 @@ The NIST Statistical Test Suite is a set of tests developed by the National Inst
 
 Displaying the output of RNGs helps to intuitively understand their behavior and assess their quality. By using graphical representations, we can observe patterns, uniformity, and potential flaws in the generated sequences.
 
-#### Histogramm
+#### Histogram
 
 This is a graphical representation that displays the distribution of random numbers generated by the RNG. It divides the range of possible values into intervals (bins) and counts how many numbers fall into each bin. A well-behaved non-NURNG should produce a histogram where all bins have approximately the same count, indicating a uniform distribution.
 
 * **Bins:** The number of bins chosen for the histogram can influence the interpretation. Too few bins may obscure variations, while too many bins might exaggerate noise in the distribution. Typically, the number of bins is chosen based on the sample size and the range of the random numbers.
+
+> [!WARNING]
+> A short-period RNG may still produce a good looking histogram.
 
 #### Randogramm [^4]
 
@@ -509,7 +518,7 @@ For smaller-scale analysis, especially when working with simpler or reduced vers
 
 * **"Random-looking"**: A high-quality RNG should produce randograms, whether 16x16 or 256x256, that appear as a uniform field of noise, without discernible patterns or regular structures. Such a visualization suggests that the RNG’s output is sufficiently random for practical use.
 
-* **Patterns and Structures**: If a randogram exhibits clear patterns, such as diagonal lines, clusters, or grids, it indicates that the RNG might have structural flaws or that its output is not truly random. These patterns suggest that certain pairs of output values are more likely to occur together, which could compromise the statistical quality of the RNG.
+* **Patterns and Structures**: If a randogram exhibits clear patterns, such as diagonal lines, clusters, or grids, it indicates that the RNG might have structural flaws or that its output is not sufficiently random. These patterns suggest that certain pairs of output values are more likely to occur together, which could compromise the statistical quality of the RNG.
 
 ## PRNG Algorithms
 
@@ -524,7 +533,7 @@ interface IRandomNumberGenerator {
 }
 ```
 
-If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the finite fields $`\mathbb{F}_{2^{32}}`$ or $`\mathbb{F}_{2^{64}}`$.
+If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the [galois fields](https://en.wikipedia.org/wiki/Finite_field) $`\mathbb{F}_{2^{32}}`$ or $`\mathbb{F}_{2^{64}}`$.
 
 ### Middle Square (MS) [^5]
 
@@ -601,6 +610,9 @@ class MiddleSquareWeylSequence : IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports a parametrized weyl constant.
+
 ### Multiplicative Linear Congruential Generator (MLCG) [^7]
 
 [^7]: [MLCG](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
@@ -628,6 +640,9 @@ class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
 
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized multiplier and modulo.
 
 ### Wichmann-Hill (WH) [^8]
 
@@ -716,6 +731,9 @@ class LinearCongruentialGenerator : IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized multiplier, increment and modulo.
+
 ### Combined Linear Congruential Generator (CLCG) [^10]
 
 [^10]: [CLCG](https://en.wikipedia.org/wiki/Combined_linear_congruential_generator)
@@ -768,6 +786,9 @@ class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
     
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports more than two LCGs and more combinatorial operators than just addition.
 
 ### Inversive Congruential Generator (ICG) [^11]
 
@@ -876,6 +897,9 @@ class MultiplyWithCarry : IRandomNumberGenerator {
   }
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports a parametrized multiplier and modulo.
 
 ### XorShift (XS) [^13]
 
@@ -1113,7 +1137,7 @@ class Xoroshiro128PlusPlus : IRandomNumberGenerator {
 }
 ```
 
-### Keep it simple stupid(KISS) [^20]
+### Keep it simple stupid (KISS) [^20]
 
 [^20]: [KISS](https://eprint.iacr.org/2011/007.pdf)
 
@@ -1145,6 +1169,9 @@ class KeepItSimpleStupid:IRandomNumberGenerator {
 
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports more than two IRandomNumberGenerators and more combinatorial operators than just addition.
 
 ### Complementary Multiply with Carry (CMWC) [^21]
 
@@ -1266,6 +1293,9 @@ class LaggedFibonacciGenerator : IRandomNumberGenerator {
 
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized lags and more combinatorial operators than just addition.
 
 ### Subtract with Borrow (SWB) [^23]
 
@@ -1395,6 +1425,9 @@ class LinearFeedbackShiftRegister : IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports a parametrized polynom.
+
 ### Feedback with Carry Shift Register (FCSR) [^25]
 
 [^25]:[FCSR](https://www.researchgate.net/publication/220738954_A_Survey_of_Feedback_with_Carry_Shift_Registers)
@@ -1482,6 +1515,9 @@ class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports a parametrized polynom.
+
 ### Additive Congruential Random Number Generator (ACORN) [^26]
 
 [^26]: [ACORN](https://acorn.wikramaratna.org/concept.html)
@@ -1522,6 +1558,9 @@ class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator {
 
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized order and modulo.
 
 ### Permuted Congruential Generator (PCG) [^27]
 
@@ -1856,6 +1895,9 @@ class BlumMicali(ulong p, ulong g) :IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized p and q.
+
 ### Self-shrinking Generator (SSG) [^32]
 
 [^32]: [SSG](https://link.springer.com/book/10.1007/BFb0053418)
@@ -1910,6 +1952,9 @@ class SelfShrinkingGenerator : IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports a parametrized polynom.
+
 ### Blum Blum Shub (BBS) [^33] [^34]
 
 [^33]: [BBS](https://www.cs.miami.edu/home/burt/learning/Csc609.062/docs/bbs.pdf)
@@ -1960,6 +2005,9 @@ class BlumBlumShub : IRandomNumberGenerator {
   }
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized p, q and bitcount per iteration.
 
 ### ChaCha20 (CC20) [^35]
 
@@ -2083,6 +2131,9 @@ class ChaCha20 : IRandomNumberGenerator {
   }
 }
 ```
+
+> [!TIP]
+> The NuGet library may contain an implementation that supports parametrized constants and round count.
 
 ### Yarrow (YAR) [^36]
 
