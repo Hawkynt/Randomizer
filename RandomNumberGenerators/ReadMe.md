@@ -18,7 +18,7 @@ The project is organized into the following directories:
 - **Composites**: Contains classes that combine multiple RNGs to create more complex or resilient generators.
 - **Cryptographic**: Includes RNGs designed for cryptographic applications, focusing on security and unpredictability.
 - **Deterministic**: Contains deterministic RNGs, which generate reproducible sequences of numbers given the same initial seed.
-- **Interfaces**: Defines interfaces that all RNGs in this library implement, ensuring consistency and interoperability.
+- **Interfaces**: Defines enums and interfaces that the RNGs in this library implement, ensuring consistency and interoperability.
 - **NonUniform**: Includes RNGs that produce non-uniform distributions, such as Gaussian or Poisson distributions.
 
 ## Getting Started

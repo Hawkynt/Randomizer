@@ -567,6 +567,9 @@ class MiddleSquare : IRandomNumberGenerator {
 }
 ```
 
+> [!TIP]
+> The NuGet library may contain an implementation that supports a parametrized **modulo**.
+
 ### Middle Square Weyl Sequence (MSWS) [^6]
 
 [^6]: [MSWS](https://arxiv.org/pdf/1704.00358)
@@ -611,7 +614,7 @@ class MiddleSquareWeylSequence : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports a parametrized weyl constant.
+> The NuGet library may contain an implementation that supports parametrized **weyl constant** and **modulo**.
 
 ### Multiplicative Linear Congruential Generator (MLCG) [^7]
 
@@ -642,7 +645,7 @@ class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized multiplier and modulo.
+> The NuGet library may contain an implementation that supports parametrized **multiplier** and **modulo**.
 
 ### Wichmann-Hill (WH) [^8]
 
@@ -732,7 +735,7 @@ class LinearCongruentialGenerator : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized multiplier, increment and modulo.
+> The NuGet library may contain an implementation that supports parametrized **multiplier**, **increment** and **modulo**.
 
 ### Combined Linear Congruential Generator (CLCG) [^10]
 
@@ -899,7 +902,7 @@ class MultiplyWithCarry : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports a parametrized multiplier and modulo.
+> The NuGet library may contain an implementation that supports a parametrized **multiplier** and **modulo**.
 
 ### XorShift (XS) [^13]
 
@@ -1295,7 +1298,7 @@ class LaggedFibonacciGenerator : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized lags and more combinatorial operators than just addition.
+> The NuGet library may contain an implementation that supports parametrized **lags** and more combinatorial operators than just addition.
 
 ### Subtract with Borrow (SWB) [^23]
 
@@ -1426,7 +1429,7 @@ class LinearFeedbackShiftRegister : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports a parametrized polynom.
+> The NuGet library may contain an implementation that supports a parametrized **polynom**.
 
 ### Feedback with Carry Shift Register (FCSR) [^25]
 
@@ -1516,7 +1519,7 @@ class FeedbackWithCarryShiftRegister : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports a parametrized polynom.
+> The NuGet library may contain an implementation that supports a parametrized **polynom**.
 
 ### Additive Congruential Random Number Generator (ACORN) [^26]
 
@@ -1560,7 +1563,7 @@ class AdditiveCongruentialRandomNumberGenerator : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized order and modulo.
+> The NuGet library may contain an implementation that supports parametrized **order** and **modulo**.
 
 ### Permuted Congruential Generator (PCG) [^27]
 
@@ -1896,7 +1899,7 @@ class BlumMicali(ulong p, ulong g) :IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized p and q.
+> The NuGet library may contain an implementation that supports parametrized **p** and **q**.
 
 ### Self-shrinking Generator (SSG) [^32]
 
@@ -1953,7 +1956,7 @@ class SelfShrinkingGenerator : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports a parametrized polynom.
+> The NuGet library may contain an implementation that supports a parametrized **polynom**.
 
 ### Blum Blum Shub (BBS) [^33] [^34]
 
@@ -2007,7 +2010,7 @@ class BlumBlumShub : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized p, q and bitcount per iteration.
+> The NuGet library may contain an implementation that supports parametrized **p**, **q** and **bitcount per iteration**.
 
 ### ChaCha20 (CC20) [^35]
 
@@ -2133,7 +2136,7 @@ class ChaCha20 : IRandomNumberGenerator {
 ```
 
 > [!TIP]
-> The NuGet library may contain an implementation that supports parametrized constants and round count.
+> The NuGet library may contain an implementation that supports parametrized **constants** and **round count**.
 
 ### Yarrow (YAR) [^36]
 
@@ -2246,7 +2249,7 @@ Fortuna was designed with several key security principles in mind:
 
 [^39]: [ANSI](https://www.researchgate.net/publication/267297736_EFFICIENT_COMBINATION_OF_SEVERAL_TECHNIQUES_IN_THE_DESIGN_AND_IMPLEMENTATION_OF_A_NETWORKS_SECURITY_SYSTEM)
 
-This standard specifies a method for generating cryptographically secure random numbers, particularly for the purpose of key generation. It leverages the Data Encryption Standard (DES), which was the prevailing symmetric key encryption algorithm at the time of writing in 1985. The RNG process involves a combination of a seed value, a date/time component, and a secret key, all of which are processed using DES to produce a CSRN.
+This standard specifies a method for generating cryptographically secure random numbers, particularly for the purpose of key generation. It leverages the [Data Encryption Standard (DES)](https://en.wikipedia.org/wiki/Data_Encryption_Standard), which was the prevailing symmetric key encryption algorithm at the time of writing in 1985. The RNG process involves a combination of a seed value, a date/time component, and a secret key, all of which are processed using DES to produce a CSRN.
 
 **Process:**
 
@@ -3436,9 +3439,9 @@ Here’s how it works:
    Start by generating a random number, $U$, uniformly distributed between 0 and 1 using a simple RNG. This $U$ will be the foundation of your transformation.
 
 2. **Compute the Inverse CDF**:
-   The next step is to compute the inverse of the cumulative distribution function (CDF) of your target distribution. The CDF, denoted as $F(x)$, represents the probability that a random variable $X$ takes a value less than or equal to $x$. The inverse CDF, $F^{-1}(u)$, will give you the value $x$ such that the probability of $X$ being less than or equal to $x$ is exactly $u$. Mathematically, this can be written as:
+   The next step is to compute the inverse of the cumulative distribution function (CDF) of your target distribution. The CDF, denoted as $f(x)$, represents the probability that a random variable $X$ takes a value less than or equal to $x$. The inverse CDF, $f^{-1}(u)$, will give you the value $x$ such that the probability of $X$ being less than or equal to $x$ is exactly $u$. Mathematically, this can be written as:
 
-   $$X = F^{-1}(U)$$
+   $$X = f^{-1}(U)$$
 
    Here, $x$ is the random sample drawn from the desired distribution.
 
@@ -3447,11 +3450,11 @@ Here’s how it works:
 
 Let’s consider an example where you need to sample from an exponential distribution, which is commonly used in survival analysis, queueing theory, and many other fields. The exponential distribution with rate $\lambda$ has the CDF:
 
-$$F(x) = 1 - e^{-\lambda x}$$
+$$u = f(x) = 1 - e^{-\lambda x}$$
 
 To apply inverse transform sampling, you first solve for $x$ in terms of $u$:
 
-$$x = -\frac{1}{\lambda} \ln(1 - u)$$
+$$x = -\frac{\ln(1 - u)}{\lambda}$$
 
 This equation allows you to convert a uniform random number $u$ into a sample $x$ from the exponential distribution.
 
@@ -3503,7 +3506,7 @@ The BM operates in two main steps:
 
 [^42]: [MP](https://www.jstor.org/stable/2027592)
 
-This is a widely used algorithm for generating pairs of Gaussian variables from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the Box-Muller transform.
+This is a widely used algorithm for generating pairs of Gaussian variables from a uniform RNG. This method is particularly efficient because it generates two normally distributed values simultaneously, making it faster than some other methods like the [BM](#box-muller-method-bm) transform.
 
 The MP relies on the fact that a pair of independent, uniformly distributed variables can be transformed into a pair of independent, normally distributed variables. The method involves the following steps:
 
