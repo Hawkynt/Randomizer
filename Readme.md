@@ -436,7 +436,22 @@ The period length of an RNG is the number of values it produces before the seque
 
 * **Empirical Testing:** Generating random numbers and detecting repetitions to estimate the actual period length.
 
+#### Features
+
+In addition to the above, it could be desirable for a RNG to have certain abilities to support distinct use-cases and scenarios.
+
+* **Jump-Ahead:** The ability to advance an arbitrary number of items in the sequence without calculating intermediate values. This is often used to parallelize the generation of numbers across multiple threads.
+* **Jump-Back:** The ability to go back a certain number of values in the sequence for debugging or unrolling in a simulation.
+* **Multiple Streams:** The ability to produce independent sequences of numbers from the same seed that don't affect each other.
+* **Periodicity Control:** It may be desirable to tweak the number of generated items before repitition occurs for certain simulations.
+* **Seeding Flexibility:** Depending on the used environment it may be important to seed with more than a single value (e.g. an array retrieved from a remote source or a TRNG).
+* **Cryptographic Strength:** Some PRNGs may show cryptographic strength under certain condition yet still not be as slow as a real CRNG.
+* **Equidistribution:** The ability to ensure that k-dimensional tuples of numbers are evenly distributed across the k-dimensional unit cube. This feature is essential for simulations requiring multi-dimensional random inputs (e.g. matrices, vectors, tuples), such as Monte Carlo methods, ensuring uniformity across different dimensions.
+* **Party Tricks:** Certain RNGs can be fine-tuned to produce a specific sequence of values at a desired point in the sequence, either from the start or after generating several numbers. While often viewed as a novelty, this can be invaluable in controlled simulations, educational demonstrations, or even testing/debugging by generating known outputs for comparison purposes. For example, an RNG could be set to generate a specific pattern, a ZIP-file, an image, [Shakespeare](https://en.wikipedia.org/wiki/Infinite_monkey_theorem) or anything else that may improve your job decision as a fortune teller on tea-parties ;)
+
 ### Test-Suites
+
+[Proving](https://www.unitychain.io/blog/how-to-test-rngs-for-true-randomness/) the quality of an RNG is essential for determining its suitability for different applications. While no RNG can be perfectly random, especially in the case of PRNGs, rigorous testing ensures that its output is statistically close enough to randomness for its intended use. Well-established test suites are used to evaluate various aspects like randomness, uniformity, and independence. Inadequate randomness can lead to predictable patterns, security vulnerabilities, or faulty simulations. By testing RNGs, developers can assess how well the RNG meets the specific randomness requirements of their application.
 
 #### Diehard [^1]
 
@@ -527,6 +542,14 @@ For smaller-scale analysis, especially when working with simpler or reduced vers
 * **"Random-looking"**: A high-quality RNG should produce randograms, whether 16x16 or 256x256, that appear as a uniform field of noise, without discernible patterns or regular structures. Such a visualization suggests that the RNG’s output is sufficiently random for practical use.
 
 * **Patterns and Structures**: If a randogram exhibits clear patterns, such as diagonal lines, clusters, or grids, it indicates that the RNG might have structural flaws or that its output is not sufficiently random. These patterns suggest that certain pairs of output values are more likely to occur together, which could compromise the statistical quality of the RNG.
+
+#### Random walks
+
+tbd!
+
+#### Non-overlapping Template Matching
+
+tbd!
 
 ## PRNG Algorithms
 
@@ -3667,6 +3690,7 @@ tbd: histogramm of 1-bit counts (64 buckets)
 tbd: histogramm of spacing between consecutive values
 tbd: repetition test for n iterations
 tbd: randogram 8x8x8, 4x256x256
+tbd: longest run of ones and zeroes in a histogramm 1-64
 
 ## The NuGet package
 
