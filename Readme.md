@@ -495,7 +495,15 @@ This is a graphical representation that displays the distribution of random numb
 
 [^4]: [Randogram](https://www.pcg-random.org/posts/visualizing-the-heart-of-some-prngs.html)
 
-Those are powerful visualization tools used to detect patterns or flaws in the output of RNGs. They provide a 2D representation of the state space, offering an intuitive way to assess the randomness of an RNG's output. By visualizing the output in this manner, we can quickly identify regularities or anomalies that might not be apparent through numerical analysis alone.
+Those are powerful visualization tools used to detect patterns or flaws in the output of RNGs. They provide a 2D representation of the state space, offering an intuitive way to assess the randomness of an RNG's output. By visualizing the output in this manner, we can quickly identify regularities or anomalies that might not be apparent through numerical analysis alone. Randograms extract distinct bits from different parts of the output value and convert them into (x, y) coordinates, using pixel intensity to represent occurrence frequency.
+
+We can select bits using:
+
+* Groups of adjacent bits
+* Groups of bits from opposite halves of the output
+* Groups of bits from the start and their reverse from the end
+* Interleaved groups of bits
+* Bits from two consecutive outputs of the RNG
 
 ##### Visualizing 64-Bit Output with 256x256 Randograms
 
@@ -629,12 +637,12 @@ $$X_i = (a \cdot X_{i-1}) \mod m$$
 * $a$ is the multiplier, $1 < a < m$.
 * $X_0$ is the seed or start value, $1 \leq X_0 < m$.
 
-In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This choice of parameters ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_i$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
+In 1988, Stephen K. Park and Keith W. Miller proposed a widely adopted variant of the MLCG with specific parameters: $a = 16807$ and $m=2^{31}-1$ (which is a prime number known as the Mersenne prime). This [choice of parameters](https://www.ams.org/journals/mcom/1999-68-225/S0025-5718-99-00996-5/S0025-5718-99-00996-5.pdf) ensures a long period of $2^{31}-2$, good statistical properties, and efficient computation. However if $X_i$ ever happens to be zero, the generator will continue to produce zeros indefinitely.
 
 ```cs
 class MultiplicativeLinearCongruentialGenerator : IRandomNumberGenerator {
   
-  private const ulong _MULTIPLIER = 6364136223846793005;
+  private const ulong _MULTIPLIER = 2227057010910366687;
   private ulong _state;
 
   public void Seed(ulong seed) => this._state = seed == 0 ? 1 : seed;
@@ -3656,9 +3664,9 @@ bar [10941568,3076239,1673562,3708,668359]
 
 tbd: histogramm of 64 1-bits above line and 64 0-bits below line (64 buckets * 2)
 tbd: histogramm of 1-bit counts (64 buckets)
-tbd: histogramm of spacing
+tbd: histogramm of spacing between consecutive values
 tbd: repetition test for n iterations
-tbd: randogram
+tbd: randogram 8x8x8, 4x256x256
 
 ## The NuGet package
 
