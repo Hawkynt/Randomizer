@@ -5,19 +5,27 @@ using System.Linq;
 using System.Security.Cryptography;
 using Hawkynt.RandomNumberGenerators.Composites;
 using Hawkynt.RandomNumberGenerators.Cryptographic;
-using Hawkynt.RandomNumberGenerators.Deterministic;
-using Hawkynt.RandomNumberGenerators.Interfaces;
 using Hawkynt.RandomNumberGenerators.NonUniform;
 using Randomizer;
 
-//BenchmarkDotNet.Running.BenchmarkRunner.Run<Benchy>();
-//return;
+const ulong seedNumber = 131;
+
+var statsTracker = new RandomSources().FactorySource().Select(r => (r.name, r.factory, tracker:new StatsTracker())).ToArray();
+for (var i = 0; i < 10000; ++i) {
+  foreach(var tracker in statsTracker)
+    tracker.tracker.Feed(tracker.factory());
+}
+
+foreach (var tracker in statsTracker) {
+  Console.WriteLine($"Stats for {tracker.name}:");
+  tracker.tracker.Print();
+}
+
 var benchy = new Benchy();
 benchy.MeasureThroughput();
 return;
 
 var generator = new ArbitraryNumberGenerator(new BlumMicali());
-const ulong seedNumber = 131;
 generator.Seed(seedNumber);
 
 var bytes = generator.ConcatGenerator(1<<10);

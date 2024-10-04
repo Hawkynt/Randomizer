@@ -1,21 +1,28 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Randomizer.Statistics;
 
 namespace Randomizer;
 
 // this class should tracks stats of random number generators:
-// tbd: histogramm of 64 1-bits above line and 64 0-bits below line (64 buckets * 2)
-// tbd: histogramm of 1-bit counts (64 buckets)
-// tbd: histogramm of spacing between consecutive values
 // tbd: repetition test for n iterations
 // tbd: randogram 8x8x8, 4x256x256
-internal class StatsTracker {
+internal class StatsTracker:IValueTracker {
 
-  public void Feed(ulong value) {
-    
-  }
+  private readonly IValueTracker[] _trackers = [
+    new BitIndexHistogram(),
+    new BitCountHistogram(),
+    new SpacingHistogram()
+  ];
   
+  public void Feed(ulong value) {
+    foreach(var tracker in this._trackers)
+      tracker.Feed(value);
+  }
+
+  public void Print() {
+    foreach (var tracker in this._trackers) {
+      tracker.Print();
+      Console.WriteLine();
+    }
+  }
 }
