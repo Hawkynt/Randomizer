@@ -10,7 +10,7 @@ internal class BitIndexHistogram:IValueTracker {
   #region Implementation of IValueTracker
 
   public void Feed(ulong value) {
-    for (var i = 0; i < 64; i++)
+    for (var i = 0; i < 64; ++i)
       ++((value & (1UL << i)) == 0 ? this._zeros : this._ones)[i];
   }
 

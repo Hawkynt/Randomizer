@@ -11,10 +11,10 @@ using Randomizer;
 const ulong seedNumber = 131;
 
 var statsTracker = new RandomSources().FactorySource().Select(r => (r.name, r.factory, tracker:new StatsTracker())).ToArray();
-for (var i = 0; i < 10000; ++i) {
-  foreach(var tracker in statsTracker)
+statsTracker.ParallelForEach(tracker => {
+  for (var i = 0; i < 100000; ++i)
     tracker.tracker.Feed(tracker.factory());
-}
+});
 
 foreach (var tracker in statsTracker) {
   Console.WriteLine($"Stats for {tracker.name}:");

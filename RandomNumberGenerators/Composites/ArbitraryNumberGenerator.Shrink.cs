@@ -183,7 +183,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 32UL, nameof(mask));
 
-    return (uint)_ParallelBitExtract(rng.Next(), mask);
+    return (uint)rng.Next().ParallelBitExtract(mask);
   }
 
   /// <summary>
@@ -207,7 +207,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 16UL, nameof(mask));
 
-    return (ushort)_ParallelBitExtract(rng.Next(), mask);
+    return (ushort)rng.Next().ParallelBitExtract(mask);
   }
 
   /// <summary>
@@ -231,7 +231,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 8UL, nameof(mask));
 
-    return (byte)_ParallelBitExtract(rng.Next(), mask);
+    return (byte)rng.Next().ParallelBitExtract(mask);
   }
 
   /// <summary>
@@ -255,7 +255,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 1UL, nameof(mask));
 
-    return _ParallelBitExtract(rng.Next(), mask) != 0;
+    return (rng.Next() & mask) != 0;
   }
 
   /// <summary>
@@ -279,7 +279,7 @@ partial class ArbitraryNumberGenerator {
     ArgumentOutOfRangeException.ThrowIfZero(mask);
     ArgumentOutOfRangeException.ThrowIfGreaterThan(ulong.PopCount(mask), 63UL, nameof(mask));
 
-    return _ParallelBitExtract(rng.Next(), mask);
+    return rng.Next().ParallelBitExtract(mask);
   }
 
   /// <summary>
@@ -394,19 +394,7 @@ partial class ArbitraryNumberGenerator {
   /// </code>
   /// </example>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public bool Sponge1() {
-    var result = rng.Next();
-    if (Popcnt.X64.IsSupported)
-      return (Popcnt.X64.PopCount(result) & 1) != 0;
-
-    result ^= result >> 32;
-    result ^= result >> 16;
-    result ^= result >> 8;
-    result ^= result >> 4;
-    result ^= result >> 2;
-    result ^= result >> 1;
-    return result != 0;
-  }
+  public bool Sponge1() => rng.Next().CountSetBits() > 0;
 
   /// <summary>
   ///   Constructs a random unsigned integer by repeatedly applying a mask to random 64-bit unsigned integers.
@@ -440,7 +428,7 @@ partial class ArbitraryNumberGenerator {
     var result = 0UL;
     do {
       var random = rng.Next();
-      var roundBits = _ParallelBitExtract(random, mask);
+      var roundBits = random.ParallelBitExtract(mask);
       result <<= bitsPerRound;
       result |= roundBits;
       bitsTotal -= bitsPerRound;
@@ -532,7 +520,7 @@ partial class ArbitraryNumberGenerator {
   /// </example>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public ulong Modulo(ulong mod) {
-    ArgumentOutOfRangeException.ThrowIfZero(mod);
+    ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(mod, 1UL);
 
     return rng.Next() % mod;
   }
@@ -575,7 +563,7 @@ partial class ArbitraryNumberGenerator {
   /// </code>
   /// </example>
   public ulong ModuloRejectionSampling(ulong mod) {
-    ArgumentOutOfRangeException.ThrowIfZero(mod);
+    ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(mod, 1UL);
 
     // Check if mod is a power of 2
     if ((mod & (mod - 1)) == 0)

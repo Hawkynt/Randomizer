@@ -12,17 +12,17 @@ internal class Benchy {
 
     var sources = new RandomSources();
     
-    var allCalls = new (string, Func<ulong>)[]{
+    var allCalls = new (string name, Func<ulong> factory)[]{
       ("Measuring Overhead", () => 131),
     }.Concat(sources.FactorySource()).ToArray();
 
     WarmUp();
-    var overhead = Measure(allCalls[0].Item1, allCalls[0].Item2);
+    var overhead = Measure(allCalls[0].name, allCalls[0].factory);
     Console.WriteLine("Benchmarking...");
 
-    var referenceIterations = Measure(allCalls[1].Item1, allCalls[1].Item2, emptyIterationsPerSecond: overhead);
+    var referenceIterations = Measure(allCalls[1].name, allCalls[1].factory, emptyIterationsPerSecond: overhead);
     for (var i = 2; i < allCalls.Length; ++i)
-      Measure(allCalls[i].Item1, allCalls[i].Item2, referenceIterations, overhead);
+      Measure(allCalls[i].name, allCalls[i].factory, referenceIterations, overhead);
 
     return;
 

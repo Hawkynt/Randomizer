@@ -8,7 +8,7 @@ internal class BitCountHistogram : IValueTracker {
 
   #region Implementation of IValueTracker
 
-  public void Feed(ulong value) => ++this._ones[ulong.PopCount(value)];
+  public void Feed(ulong value) => ++this._ones[value.CountSetBits()];
 
   public void Print() {
     const int height = 10;
