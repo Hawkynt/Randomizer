@@ -3669,6 +3669,8 @@ There nearly infinite methods to compare algorithms against each other so I have
 
 **Speed:**
 
+To evaluate the speed of the random number generator, we simply measure how many random numbers are generated in a given timeframe and then normalize that to obtain an iterations per second metric. This metric helps compare the performance of different PRNGs and identify which ones are more efficient. A higher iterations per second value indicates a faster generator, which can be crucial in applications where large amounts of random data are needed quickly.
+
 ```mermaid
 xychart-beta
 title "Iterations (PRNG)"
@@ -3685,12 +3687,59 @@ y-axis "n per second" 0 --> 11000000
 bar [10941568,3076239,1673562,3708,668359]
 ```
 
-tbd: histogramm of 64 1-bits above line and 64 0-bits below line (64 buckets * 2)
-tbd: histogramm of 1-bit counts (64 buckets)
-tbd: histogramm of spacing between consecutive values
-tbd: repetition test for n iterations
-tbd: randogram 8x8x8, 4x256x256
-tbd: longest run of ones and zeroes in a histogramm 1-64
+**Histogram of 64 1-Bits:**
+
+We create a histogram to analyze how often each bit position in a 64-bit sequence is set to 1 or 0. The goal is to visualize how often each of the 64 bit positions contains a set bit (1) versus an unset bit (0) across many generated random numbers.
+
+For each bit position (0 to 63), count how often it is set to 1 and how often it is set to 0 across the entire sample. Plot these counts on a histogram where the counts of 1s are displayed above a central horizontal line, and the counts of 0s are displayed below. This creates a visual resembling a horizon with skyscrapers above and their reflections in water below. This visualization helps reveal any potential bias by showing if certain bit positions are set more frequently than others.
+
+tbd:insert results
+
+**Histogram of 1-Bit Counts:**
+
+The histogram of 1-bit counts helps determine the distribution of the number of 1-bits across multiple generated numbers. For each 64-bit random number, count the number of bits set to 1. Accumulate these counts in 65 buckets, where each bucket represents a possible count of 1-bits from 0 to 64.
+
+The goal is to observe how uniformly the 1-bits are distributed among the generated numbers. A balanced random generator should yield a roughly bell-shaped distribution centered around 32 (assuming 50% of bits are expected to be 1s). Significant deviations from this pattern may indicate non-uniformity or bias in the generator.
+
+tbd:insert results
+
+**Longest Run of Ones and Zeroes in a Histogram:**
+
+The longest run test measures the maximum consecutive sequence of 1s or 0s in the generated random numbers. This test helps identify whether the PRNG produces unusually long sequences of identical bits, which may indicate a lack of randomness.
+
+To implement this test, generate a series of random numbers and analyze each bit sequence to determine the longest contiguous run of 1s and 0s. Track the maximum length found for both 1s and 0s across the entire sample, and plot these values on a histogram. For a truly random sequence, the longest run should fall within expected limits based on the sample size.
+
+tbd:insert results
+
+**Histogram of Spacing Between Consecutive Values:**
+
+To further evaluate randomness quality, we create a histogram of the spacing between consecutive values in the generated sequence. For each random number, calculate the difference between it and the previous value. Divide the possible range of the difference (i.e., the ulong range) into n evenly spaced buckets, and increment the corresponding bucket counter based on the observed spacing.
+
+By accumulating these differences into a histogram, we can visualize the distribution of gaps between values.
+
+tbd:insert results
+
+**Repetition Histogram:**
+
+The repetition histogram helps determine how often numbers from all buckets are generated.
+
+To conduct this test, we divide the output range into n buckets and generate n random numbers, recording how many times each bucket is hit. We expect a uniform distribution, where each bucket is hit roughly the same number of times. If the distribution is uneven, it may indicate bias or flaws in the random number generation process.
+
+tbd:insert results
+
+**Repeat Streak Histogram:**
+
+The repeat streak histogram tracks how often runs of length 1 to k occur in an n-number sliding window to detect patterns that suggest non-randomness. This helps identify potential patterns that could indicate a lack of randomness.
+
+To perform this test, use k buckets to track runs of length 1 to k. For each sliding window of size n, determine all runs of length 1 to k and count how often they occur, accumulating these counts in the corresponding buckets. Ideally, shorter runs should appear more frequently, while longer runs should be rare. If longer runs are observed too often, it may indicate a bias or flaw in the PRNG, reducing unpredictability.
+
+tbd:insert results
+
+**Randograms:**
+
+To construct these randograms, generate random values and assign them to points in the corresponding 3D or 2D space. The goal is to observe whether the points are uniformly distributed or if there are patterns, clusters, or gaps. Ideally, a good random generator should produce a uniform scatter without discernible patterns.
+
+tbd: insert results 8x8x8, 4x256x256
 
 ## The NuGet package
 
