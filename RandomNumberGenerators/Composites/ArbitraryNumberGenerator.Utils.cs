@@ -20,8 +20,8 @@ partial class ArbitraryNumberGenerator {
   /// </code>
   /// </example>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static byte _PopCount(UInt128 mask) => (byte)(ulong.PopCount((ulong)mask) + ulong.PopCount((ulong)(mask >> 64)));
-
+  private static byte _PopCount(UInt128 mask) => (byte)(((ulong)mask).CountSetBits() + ((ulong)(mask >> 64)).CountSetBits());
+  
   /// <summary>
   ///   Calculates the population count (the number of 1-bits) in a 256-bit vector.
   /// </summary>
@@ -37,10 +37,10 @@ partial class ArbitraryNumberGenerator {
   /// </example>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private static ushort _PopCount(Vector256<ulong> mask) {
-    var pc0 = ulong.PopCount(mask.GetElement(0));
-    var pc1 = ulong.PopCount(mask.GetElement(1));
-    var pc2 = ulong.PopCount(mask.GetElement(2));
-    var pc3 = ulong.PopCount(mask.GetElement(3));
+    var pc0 = mask.GetElement(0).CountSetBits();
+    var pc1 = mask.GetElement(1).CountSetBits();
+    var pc2 = mask.GetElement(2).CountSetBits();
+    var pc3 = mask.GetElement(3).CountSetBits();
 
     var pc01 = pc0 + pc1;
     var pc23 = pc2 + pc3;
