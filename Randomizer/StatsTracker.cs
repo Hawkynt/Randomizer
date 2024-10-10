@@ -12,7 +12,8 @@ internal class StatsTracker:IValueTracker {
     new BitIndexHistogram(),
     new BitCountHistogram(),
     new SpacingHistogram(),
-    new RepetitionHistogram()
+    new RepetitionHistogram(),
+    new LongestRunHistogram()
   ];
   
   public void Feed(ulong value) {
