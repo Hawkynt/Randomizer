@@ -9,7 +9,7 @@
     <PackageReadmeFile>..\Readme.md</PackageReadmeFile>
 
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>
@@ -18,15 +18,13 @@
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Hawkynt/Randomizer/tree/master/Randomizer</RepositoryUrl>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Benchy.cs~RFe66c2527.TMP" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.*" />
+    <PackageReference Include="FrameworkExtensions.System.Drawing" Version="1.0.0.35" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
   </ItemGroup>
 
   <ItemGroup>
