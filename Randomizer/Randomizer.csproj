@@ -25,6 +25,10 @@
     <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.*" />
     <PackageReference Include="FrameworkExtensions.System.Drawing" Version="1.0.0.35" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+    <PackageReference Include="ILRepack.FullAuto" Version="1.6.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
