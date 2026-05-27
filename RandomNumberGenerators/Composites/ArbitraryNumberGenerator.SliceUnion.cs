@@ -31,6 +31,5 @@ partial class ArbitraryNumberGenerator {
     [FieldOffset(5)] public readonly byte R8_5;
     [FieldOffset(6)] public readonly byte R8_6;
     [FieldOffset(7)] public readonly byte R8_7;
-    [FieldOffset(8)] public readonly byte R8_8;
   }
 }

@@ -394,7 +394,7 @@ partial class ArbitraryNumberGenerator {
   /// </code>
   /// </example>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public bool Sponge1() => rng.Next().CountSetBits() > 0;
+  public bool Sponge1() => (rng.Next().CountSetBits() & 1) == 1;
 
   /// <summary>
   ///   Constructs a random unsigned integer by repeatedly applying a mask to random 64-bit unsigned integers.

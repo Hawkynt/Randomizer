@@ -22,7 +22,7 @@ public class LinearCongruentialGenerator : IRandomNumberGenerator {
 
   public ulong Next() => this._generator();
 
-  private ulong _NextImplicitModulo() => this._state * this._multiplier + this._increment;
+  private ulong _NextImplicitModulo() => this._state = this._state * this._multiplier + this._increment;
 
   private ulong _NextWithModulo() {
     UInt128 state = this._state;
