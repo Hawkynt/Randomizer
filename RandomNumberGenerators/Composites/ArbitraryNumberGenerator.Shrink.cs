@@ -632,4 +632,46 @@ partial class ArbitraryNumberGenerator {
     var doubleBits = (1023UL << 52) | mantissa;
     return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
   }
+
+  /// <summary>
+  ///   Generates a uniform random unsigned integer in the half-open interval [<paramref name="min"/>, <paramref name="max"/>).
+  /// </summary>
+  /// <param name="min">Inclusive lower bound.</param>
+  /// <param name="max">Exclusive upper bound. Must be strictly greater than <paramref name="min"/>.</param>
+  public ulong NextRange(ulong min, ulong max) {
+    ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(min, max);
+    return min + this.ModuloRejectionSampling(max - min);
+  }
+
+  /// <summary>
+  ///   Generates a weighted boolean returning <see langword="true"/> with the given probability.
+  /// </summary>
+  /// <param name="probability">A value in [0, 1] giving the probability of returning <see langword="true"/>.</param>
+  public bool NextBoolean(double probability) {
+    ArgumentOutOfRangeException.ThrowIfNegative(probability);
+    ArgumentOutOfRangeException.ThrowIfGreaterThan(probability, 1.0);
+
+    return probability switch {
+      0.0 => false,
+      1.0 => true,
+      _ => this.NextDouble() < probability,
+    };
+  }
+
+  /// <summary>
+  ///   Returns either +1 or -1 with equal probability.
+  /// </summary>
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  public int NextSign() => (int)(rng.Next() >> 63) * 2 - 1;
+
+  /// <summary>
+  ///   Returns a random 64-bit unsigned integer that is guaranteed to be non-zero.
+  /// </summary>
+  public ulong NextNonZero() {
+    ulong result;
+    do
+      result = rng.Next();
+    while (result == 0);
+    return result;
+  }
 }
