@@ -1,0 +1,33 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Examples/">
+    <File Path="Examples/BCryptGenRandom.cpp" />
+    <File Path="Examples/RDRAND.c" />
+    <File Path="Examples/RDSEED.rs" />
+    <File Path="Examples/Reseeding.pas" />
+    <File Path="Examples/RNDR.asm" />
+    <File Path="Examples/SecRandomCopyBytes.py" />
+    <File Path="Examples/TimerBasedSeeding.vb" />
+    <File Path="Examples/urandom.pl" />
+  </Folder>
+  <Folder Name="/GitHub/">
+    <File Path=".gitattributes" />
+    <File Path=".github/FUNDING.yml" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE" />
+    <File Path="Readme.md" />
+  </Folder>
+  <Folder Name="/GitHub/Workflows/">
+    <File Path=".github/workflows/Build.yml" />
+    <File Path=".github/workflows/UpdateVersions.pl" />
+  </Folder>
+  <Project Path="Randomizer/Randomizer.csproj">
+    <BuildDependency Project="RandomNumberGenerators/RandomNumberGenerators.csproj" />
+  </Project>
+  <Project Path="RandomNumberGenerators.Tests/RandomNumberGenerators.Tests.csproj" />
+  <Project Path="RandomNumberGenerators/RandomNumberGenerators.csproj" />
+</Solution>
