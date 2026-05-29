@@ -19,7 +19,7 @@ begin
   // Re-Seed the random number generator again with the current time
   Randomize;
   RandomNumber := Generate64BitRandomNumber;
-  WriteLn('Second 64-bit random number: ', RandomNumber2);
+  WriteLn('Second 64-bit random number: ', RandomNumber);
 
   ReadLn;
 end.

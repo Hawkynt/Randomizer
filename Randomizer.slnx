@@ -6,13 +6,37 @@
   </Configurations>
   <Folder Name="/Examples/">
     <File Path="Examples/BCryptGenRandom.cpp" />
+    <File Path="Examples/CryptoRand.go" />
+    <File Path="Examples/Get-Random.ps1" />
+    <File Path="Examples/LatencySource.html" />
+    <File Path="Examples/LatencySource.js" />
+    <File Path="Examples/MathRandom.lua" />
+    <File Path="Examples/NodeCrypto.js" />
+    <File Path="Examples/Rand.jl" />
+    <File Path="Examples/Rand.m" />
+    <File Path="Examples/Random.zig" />
+    <File Path="Examples/RandomBytes.php" />
+    <File Path="Examples/RandomNumber.f90" />
+    <File Path="Examples/RandomNumberGenerator.cs" />
+    <File Path="Examples/RandomNumberGenerator.fsx" />
+    <File Path="Examples/RandomSecure.dart" />
     <File Path="Examples/RDRAND.c" />
     <File Path="Examples/RDSEED.rs" />
     <File Path="Examples/Reseeding.pas" />
     <File Path="Examples/RNDR.asm" />
+    <File Path="Examples/runif.R" />
     <File Path="Examples/SecRandomCopyBytes.py" />
+    <File Path="Examples/SecureRandom.java" />
+    <File Path="Examples/SecureRandom.kt" />
+    <File Path="Examples/SecureRandom.rb" />
+    <File Path="Examples/SidNoise.asm" />
+    <File Path="Examples/SidNoise.bas" />
+    <File Path="Examples/StrongRand.exs" />
+    <File Path="Examples/SystemRandom.hs" />
+    <File Path="Examples/SystemRandom.swift" />
     <File Path="Examples/TimerBasedSeeding.vb" />
     <File Path="Examples/urandom.pl" />
+    <File Path="Examples/Urandom.sh" />
   </Folder>
   <Folder Name="/GitHub/">
     <File Path=".gitattributes" />
