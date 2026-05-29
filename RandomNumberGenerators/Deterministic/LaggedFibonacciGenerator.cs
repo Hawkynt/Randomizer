@@ -35,6 +35,7 @@ public class LaggedFibonacciGenerator : IRandomNumberGenerator {
   public void Seed(ulong seed) {
     for (var i = 0; i < this._state.Length; ++i)
       this._state[i] = SplitMix64.Next(ref seed);
+    this._index = 0;
   }
 
   public ulong Next() {
@@ -57,7 +58,7 @@ public class LaggedFibonacciGenerator : IRandomNumberGenerator {
     state[index++] = result;
 
     if (index >= length)
-      index -= index;
+      index -= length;
 
     this._index = index;
     return result;
