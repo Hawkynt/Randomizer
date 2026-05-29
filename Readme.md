@@ -1,9 +1,7 @@
 <!-- omit from toc -->
 # Demystifying Randomness
 
-A Deep Dive into Random Number Generators and their Implementations.
-
-> 📦 **Looking for the NuGet package quick-start?** See [`RandomNumberGenerators/ReadMe.md`](RandomNumberGenerators/ReadMe.md) for installation, namespaces and minimal usage examples. The article below is the long-form theory and algorithm catalogue behind the package.
+> A Deep Dive into Random Number Generators and their Implementations.
 
 # Introduction
 
@@ -568,6 +566,29 @@ The test is sensitive to generators that systematically over- or under-produce s
 > [!NOTE]
 > Within this section the algorithms appear roughly in the order they were added to the project rather than strictly by family. Older classical PRNGs (LCG, XorShift, MT, …) come first; modern counter-based and combined generators (Philox, Threefry, Squares, JSF, RomuTrio, Lehmer128, LXM, sfc64, MRG32k3a) appear toward the end of the PRNG block; the cryptographic algorithms (BBS, Blum-Micali, Self-Shrinking Generator, ChaCha20, ISAAC, Trivium) live in [CSRNG Algorithms](#csrng-algorithms). Cross-references between sections use anchor links.
 
+> [!IMPORTANT]
+> **Notation used throughout the formulas below.** All algorithm sections in this document follow the same conventions for mathematical symbols, so the same letter means the same thing whether you are reading about an LCG, a Mersenne Twister, or a chi-squared sampler:
+>
+> | Symbol | Meaning |
+> | --- | --- |
+> | $X_i$ | output value at step $i$ |
+> | $S_i$ | hidden internal state at step $i$ (when distinct from the output) |
+> | $X_0$, $S_0$ | initial value / seed |
+> | $a$ | multiplier |
+> | $c$ | additive constant (LCG-style increment) |
+> | $C_i$ | carry at step $i$ (used by MWC / CMWC / SWB to disambiguate from $c$) |
+> | $m$ | modulus |
+> | $s$, $l$ | short-lag and long-lag indices (LFG, SWB) |
+> | $P(x)$ | feedback polynomial (LFSR, FCSR) |
+> | $X_i^{(j)}$ or $Q_i^{(j)}$ | component $j$ of a multi-stream generator (CLCG, WH, ACORN) |
+> | $\oplus$ | bitwise XOR |
+> | $\ll k$, $\gg k$ | logical left / right shift by $k$ bits |
+> | $\lll k$, $\ggg k$ | rotate left / right by $k$ bits |
+> | $\lfloor \cdot \rfloor$ | floor / integer truncation |
+> | $\mathbb{Z}/m\mathbb{Z}$ | the residue ring of integers modulo $m$ |
+>
+> Where an algorithm uses a different letter in its primary literature (e.g. Wichmann-Hill's $Q_i^j$, Mixmax's matrix $A$), the original convention is preserved but mapped back to these symbols in prose.
+
 The upcoming algorithms may contain sample implementation in [C#](https://en.wikipedia.org/wiki/C_Sharp_(programming_language)). For them we are gonna use a common interface to generate 64-Bit random integer numbers:
 
 ```c#
@@ -851,7 +872,7 @@ class CombinedLinearCongruentialGenerator : IRandomNumberGenerator {
 
 These are a type of nonlinear congruential pseudorandom number generator that use the modular multiplicative inverse to generate the next number in a sequence. These generators offer excellent uniformity properties and longer periods compared to LCGs.
 
-The standard formula for an ICG, modulo a prime number $q$, is:
+The standard formula for an ICG, modulo a prime number $m$, is:
 
 $$
 X_i =
@@ -867,7 +888,7 @@ Where:
 * $a$ is the multiplier.
 * $c$ is the increment.
 * $m$ is the modulus.
-* $X_{i-1}^{-1}$ is the modular multiplicative inverse of $X_{i-1}$ modulo $M$.
+* $X_{i-1}^{-1}$ is the modular multiplicative inverse of $X_{i-1}$ modulo $m$.
 
 The maximum period for an ICG is $m$, provided $a$ and $c$ are chosen appropriately, such that the polynomial $f(x) = x^2 - cx - a$ is primitive over the finite field $\mathbb{F}_m$.
 
@@ -964,9 +985,21 @@ This method was introduced by George Marsaglia in 2003, and is a class of extrem
 
 The algorithm uses a binary vector space model where each step involves applying a linear transformation over the binary vectors. The primary operations involve xor'ing a computer word with a shifted (=multiplied) version of itself, either left or right. For instance, the operations
 
-$y \leftarrow y \oplus ( y << a )$ shifts $y$ left by $a$ bits and xor's the result with $y$ whereas
+$S_i \leftarrow S_i \oplus ( S_i \ll a )$ shifts $S_i$ left by $a$ bits and xor's the result with $S_i$ whereas
 
-$y \leftarrow y \oplus ( y >> b )$ shifts $y$ right by $b$ bits and xor's the result with $y$.
+$S_i \leftarrow S_i \oplus ( S_i \gg b )$ shifts $S_i$ right by $b$ bits and xor's the result with $S_i$.
+
+The full XorShift step combining one left- and one right-shift is therefore:
+
+$$
+\begin{aligned}
+S_i &\leftarrow S_{i-1} \oplus (S_{i-1} \ll a) \\
+S_i &\leftarrow S_i \oplus (S_i \gg b) \\
+X_i &= S_i
+\end{aligned}
+$$
+
+with $a = 7$ and $b = 9$ in this 64-bit implementation. Many shift-pair combinations exist that give full-period $2^{64}-1$; Marsaglia tabulated them in his original 2003 paper.
 
 ```cs
 class XorShift : IRandomNumberGenerator {
@@ -993,6 +1026,21 @@ This method, introduced by Sebastiano Vigna, is an extension of XS generators. I
 $\mathbb{Z}/2^{32}\mathbb{Z}$. The XS+ generators have been adopted in various JavaScript engines, including those in Chrome, Firefox, Safari, and Microsoft Edge. They are faster and have better statistical properties than some earlier RNGs, passing rigorous tests like BigCrush from the TestU01 suite.
 
 It is also designed to avoid weaknesses in lower bits that were observed in some other RNGs, ensuring a uniform distribution of random numbers.
+
+The state is two 64-bit words $(S^x, S^y)$. Each step:
+
+$$
+\begin{aligned}
+t &= S^x \\
+u &= S^y \\
+t &\leftarrow t \oplus (t \ll 23) \\
+S^x &\leftarrow u \\
+S^y &\leftarrow t \oplus u \oplus (t \gg 17) \oplus (u \gg 26) \\
+X_i &= S^y + u
+\end{aligned}
+$$
+
+The shift triple $(23, 17, 26)$ is the parameter set from Vigna's 2014 paper, chosen by exhaustive search to maximise statistical quality.
 
 ```cs
 class XorShiftPlus : IRandomNumberGenerator {
@@ -1023,6 +1071,19 @@ class XorShiftPlus : IRandomNumberGenerator {
 [^15]: [XS*](https://rosettacode.org/wiki/Pseudo-random_numbers/Xorshift_star)
 
 These generators are an enhancement over the basic [XS](#xorshift-xs) generators, incorporating an invertible multiplication (modulo the word size) as a non-linear transformation to the output. This technique was suggested by Marsaglia to address linear artifacts inherent in pure XS generators. The multiplication step ensures that the output sequence is equidistributed in the maximum possible dimension, which means it spans all possible values in its range more uniformly than the basic XS. These generators are designed to produce high-quality pseudorandom numbers and are widely used due to their simplicity and efficiency.
+
+State update (shift triple $(a, b, c) = (12, 25, 27)$ in this implementation) then a final multiplication by $M$ to scramble the output:
+
+$$
+\begin{aligned}
+S_i &\leftarrow S_{i-1} \oplus (S_{i-1} \gg a) \\
+S_i &\leftarrow S_i \oplus (S_i \ll b) \\
+S_i &\leftarrow S_i \oplus (S_i \gg c) \\
+X_i &= S_i \cdot M \pmod{2^{64}}
+\end{aligned}
+$$
+
+with $M = \mathtt{0x2545F4914F6CDD1D}$, chosen to maximise the avalanche of the bottom bits.
 
 ```cs
 class XorShiftStar : IRandomNumberGenerator {
@@ -1104,6 +1165,19 @@ class XorWow : IRandomNumberGenerator {
 
 This generator was introduced by Guy Steele, Doug Lea, and Christine Flood in their 2014 OOPSLA paper *Fast Splittable Pseudorandom Number Generators*. The 64-bit variant (SplitMix64) was later popularized by Sebastiano Vigna as the recommended seeding helper for the Xoshiro/Xoroshiro family. It combines adding the golden gamma constant ($2^{64}/\phi$ where $\phi = \frac{1 + \sqrt{5}}{2}$) with David Stafford's Mix13 variant of the [MurmurHash](https://en.wikipedia.org/wiki/MurmurHash)3 finalizer. It is primarily used to initialize the states of other more complex generators because of its excellent statistical properties and simplicity.
 
+State update is an additive Weyl sequence; the output is Stafford's Mix13 finaliser applied to the new state:
+
+$$
+\begin{aligned}
+S_i &\leftarrow S_{i-1} + \gamma \quad (\bmod \; 2^{64}) \\
+z &\leftarrow (S_i \oplus (S_i \gg 30)) \cdot \mathtt{0xBF58476D1CE4E5B9} \\
+z &\leftarrow (z \oplus (z \gg 27)) \cdot \mathtt{0x94D049BB133111EB} \\
+X_i &= z \oplus (z \gg 31)
+\end{aligned}
+$$
+
+with $\gamma = \mathtt{0x9E3779B97F4A7C15}$.
+
 ```cs
 class SplitMix64 : IRandomNumberGenerator {
 
@@ -1130,6 +1204,24 @@ class SplitMix64 : IRandomNumberGenerator {
 [^18]: [XSR](https://prng.di.unimi.it/)
 
 This algorithm is designed for high performance and quality. It uses a combination of XOR operations, bitwise shifts, and bitwise rotations to generate random numbers. XSR256** is used in various software implementations, including the GNU Fortran compiler, Lua 5.4, and the .NET framework from version 6.0 onwards.
+
+The state is four 64-bit words $S = (S_0, S_1, S_2, S_3)$. The state-evolution step is shared by every member of the Xoshiro256 family ($\ast\ast$, $++$, $+$); only the output scrambler differs.
+
+State evolution:
+
+$$
+\begin{aligned}
+t &= S_1 \ll 17 \\
+S_2 &\leftarrow S_2 \oplus S_0,\quad S_3 \leftarrow S_3 \oplus S_1 \\
+S_1 &\leftarrow S_1 \oplus S_2,\quad S_0 \leftarrow S_0 \oplus S_3 \\
+S_2 &\leftarrow S_2 \oplus t \\
+S_3 &\leftarrow S_3 \lll 45
+\end{aligned}
+$$
+
+Output scrambler for the $\ast\ast$ variant (this section):
+
+$$X_i = (S_1 \cdot 5) \lll 7 \cdot 9$$
 
 ```cs
 class Xoshiro256SS : IRandomNumberGenerator {
@@ -1165,7 +1257,21 @@ class Xoshiro256SS : IRandomNumberGenerator {
 
 [^19]: [XRSR](https://vigna.di.unimi.it/ftp/papers/ScrambledLinear.pdf)
 
-The name stands for XOR/rotate/shift/rotate, which describes the core operations used in these generators. These generators are designed to provide high performance utilizing less memory while maintaining excellent statistical properties
+The name stands for XOR/rotate/shift/rotate, which describes the core operations used in these generators. These generators are designed to provide high performance utilizing less memory while maintaining excellent statistical properties.
+
+The state is two 64-bit words $S = (S_0, S_1)$, half the size of the Xoshiro256 family. State evolution is shared between the $++$ and $+$ variants:
+
+$$
+\begin{aligned}
+S_1 &\leftarrow S_1 \oplus S_0 \\
+S_0 &\leftarrow (S_0 \lll 24) \oplus S_1 \oplus (S_1 \ll 16) \\
+S_1 &\leftarrow S_1 \lll 37
+\end{aligned}
+$$
+
+Output scrambler for the $++$ variant (this section):
+
+$$X_i = (S_0 + S_1) \lll 17 \;+\; S_0$$
 
 ```cs
 class Xoroshiro128PlusPlus : IRandomNumberGenerator {
@@ -1239,15 +1345,15 @@ The CMWC generator is defined by the following parameters:
 * $a$: Multiplier
 * $m$: Modulus (typically a power of 2 for computational efficiency)
 * $r$: The size of the state array
-* $c$: Carry value
-* $Q$: State array of size $r$
+* $C$: Carry value (one scalar, updated after every step)
+* $Q$: State array of size $r$ (the indexed Lagged-Fibonacci-style memory)
 
 The generator produces the next random number using the following steps:
 
 1. Select an index $j$ from the state array.
 2. Calculate the new value of the state $Q_j$ using the formula:
 
-   $$t = a \cdot Q_j + c$$
+   $$t = a \cdot Q_j + C$$
 
 3. The new state value is given by the lower bits of $t$:
 
@@ -1255,7 +1361,7 @@ The generator produces the next random number using the following steps:
 
 4. The carry value is updated using the upper bits of $t$:
 
-   $$c = \left\lfloor \frac{t}{m} \right\rfloor$$
+   $$C = \left\lfloor \frac{t}{m} \right\rfloor$$
 
 5. The new random number is the complement of the new state value:
 
@@ -1363,7 +1469,7 @@ The SWC generator is defined by the following parameters:
 * $r$: The size of the state array
 * $s$: Short lag
 * $l$: Long lag
-* $c$: Carry value
+* $C$: Borrow value (single scalar — capitalised here to distinguish from the LCG-style additive constant $c$, matching the [Notation key](#prng-algorithms))
 * $m$: Modulus (typically a power of 2 for computational efficiency)
 * $Q$: State array of size $r$
 
@@ -1372,14 +1478,14 @@ The generator produces the next random number using the following steps:
 1. Select two indices, $i - s$ and $i - l$, from the state array.
 2. Calculate the new value using the formula:
 
-   $$X_i = (X_{i-s} - X_{i-l} - c) \mod m$$
+   $$X_i = (X_{i-s} - X_{i-l} - C) \bmod m$$
 
-3. Update the carry value $c$ based on the result:
+3. Update the borrow value $C$ based on the result:
 
-   $`c = \begin{cases}
-      1 & \text{if } X_{i-s} - X_{i-l} - c < 0 \\
+   $$C = \begin{cases}
+      1 & \text{if } X_{i-s} - X_{i-l} - C < 0 \\
       0 & \text{otherwise}
-      \end{cases}`$
+      \end{cases}$$
 
 4. Update the state array at index $i$ with the new value $X_i$.
 
@@ -1631,6 +1737,19 @@ The key features of PCG are:
 
 The permutation step typically involves a combination of bitwise rotations, shifts, and xors, ensuring that the generated numbers have good statistical properties.
 
+The shared core is a plain 128-bit LCG that advances the hidden state $S$ each step. Every PCG variant shares this state recurrence and differs only in the output permutation $P$:
+
+$$
+\begin{aligned}
+S_i &\leftarrow a \cdot S_{i-1} + c \quad (\bmod \; 2^{128}) \\
+X_i &= P(S_i)
+\end{aligned}
+$$
+
+with $a = \mathtt{110282366920938463463374607431768211483}$ and $c = \mathtt{1442695040888963407}$ in this implementation.
+
+The RXS-M-XS output permutation used in this base variant takes the top $5 + \lfloor S/2^{122} \rfloor$ bits of $S$ as a rotation count and applies an XOR-shift, multiply, XOR-shift sequence to return a 64-bit value.
+
 The PCG family includes several different output transformations, each with specific characteristics:
 
 * **XSH-RR**: An xorshift followed by a random rotation.
@@ -1758,6 +1877,28 @@ This was developed by Makoto Matsumoto and Takuji Nishimura in 1997. It is known
 
 The MT generates sequences of random numbers using a large state array and uses a tempering transformation to produce the final output.
 
+The state is an array $S$ of $n = 624$ 32-bit words. The **twist** step computes the next word from three older ones, using upper-/lower-bit masks $U$ and $L$ and the matrix-$A$ constant $a$:
+
+$$
+S_{i+n} = S_{i+m} \oplus \bigl((S_i \wedge U) \;\vert\; (S_{i+1} \wedge L)\bigr) \gg 1
+\;\oplus\; \begin{cases} a & \text{if } S_{i+1} \text{ odd} \\ 0 & \text{otherwise} \end{cases}
+$$
+
+with $m = 397$, $U = \mathtt{0x80000000}$, $L = \mathtt{0x7FFFFFFF}$, $a = \mathtt{0x9908B0DF}$. Each raw state word is then passed through a **tempering** transform that produces the output $X_i$:
+
+$$
+\begin{aligned}
+y &\leftarrow S_i \\
+y &\leftarrow y \oplus (y \gg 11) \\
+y &\leftarrow y \oplus ((y \ll 7) \wedge \mathtt{0x9D2C5680}) \\
+y &\leftarrow y \oplus ((y \ll 15) \wedge \mathtt{0xEFC60000}) \\
+y &\leftarrow y \oplus (y \gg 18) \\
+X_i &\leftarrow y
+\end{aligned}
+$$
+
+The shift counts $\{11, 7, 15, 18\}$ and the bit-masks come from an exhaustive search by Matsumoto and Nishimura — they are what make MT19937 1-dimensionally equidistributed across 32-bit words.
+
 ```cs
 class MersenneTwister : IRandomNumberGenerator {
   private const int N = 624;
@@ -1834,6 +1975,23 @@ Algorithm
 
 The WELL generators are based on linear recurrences modulo 2, specifically designed to improve the equidistribution and bit-mixing properties of the generated sequences. The state transition function uses a series of matrix transformations to update the state and produce the next random number.
 
+The state is an array $S$ of $r = 32$ 32-bit words and an index pointer $i$. Each step computes four intermediate words $z_0 \ldots z_3$ from rotated views of the state, then writes the new state and emits the output. Letting $T_k^+$ and $T_k^-$ denote the GF(2) transformations $T_k^+(v) = v \oplus (v \gg k)$ and $T_k^-(v) = v \oplus (v \ll \lvert k\rvert)$ (so for $k < 0$ the shift goes left), one WELL step is:
+
+$$
+\begin{aligned}
+z_0 &= S_{i + r - 1} \\
+z_1 &= S_i \;\oplus\; T_{T_1}^+(S_{i + m_1}) \\
+z_2 &= T_{T_2}^-(S_{i + m_2}) \;\oplus\; T_{T_3}^-(S_{i + m_3}) \\
+z_3 &= z_1 \oplus z_2 \\
+S_i &\leftarrow z_3 \\
+S_{i + r - 1} &\leftarrow T_{T_4}^-(z_0) \oplus T_{T_5}^-(z_1) \oplus T_{T_6}^-(z_2) \\
+i &\leftarrow (i + r - 1) \bmod r \\
+X &= S_i
+\end{aligned}
+$$
+
+with parameters $(m_1, m_2, m_3) = (3, 24, 10)$ and shift counts $(T_1, T_2, T_3, T_4, T_5, T_6) = (8, -19, -14, -11, -7, -13)$. These specific values were chosen to maximise the equidistribution of the resulting linear feedback over GF(2).
+
 ```cs
 class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
   private const int R = 32;
@@ -1897,6 +2055,19 @@ Characteristics
 * **256-bit State**: Three 64-bit state words plus a 64-bit counter.
 * **Very Fast**: Only shifts, adds, XORs, and one rotation per output.
 * **Not cryptographically secure**: state recovery is feasible given enough output, so do not use sfc64 for security-sensitive applications.
+
+State words $(S_a, S_b, S_c)$, monotonic counter $i$:
+
+$$
+\begin{aligned}
+X_i &= S_a + S_b + i \\
+S_a &\leftarrow S_b \oplus (S_b \gg 11) \\
+S_b &\leftarrow S_c + (S_c \ll 3) \\
+S_c &\leftarrow (S_c \lll 24) + X_i
+\end{aligned}
+$$
+
+with shift parameters $(11, 3, 24)$ tuned by Doty-Humphrey for the PractRand test suite.
 
 ```cs
 class Sfc64 : IRandomNumberGenerator {
@@ -2035,7 +2206,11 @@ class Trivium : IRandomNumberGenerator {
 
 [^78]: [XRSR+](https://prng.di.unimi.it/)
 
-This is the smaller cousin of [Xoshiro256+](#xoshiro256-xsr-58) by Blackman and Vigna. The state-evolution function is identical to [Xoroshiro128++](#xoroshiro-xrsr-19) but the output scrambler is the simple `s0 + s1` — no rotation. Like Xoshiro256+, the three low-order bits are LFSR-linear, so this variant is intended for generating IEEE-754 doubles where those bits never reach the mantissa.
+This is the smaller cousin of [Xoshiro256+](#xoshiro256-xsr-58) by Blackman and Vigna. The state-evolution function is identical to [Xoroshiro128++](#xoroshiro-xrsr-19) (see that section for the recurrence on $(S_0, S_1)$); only the output scrambler changes:
+
+$$X_i = S_0 + S_1$$
+
+— no rotation, no multiplication. Like Xoshiro256+, the three low-order bits are LFSR-linear, so this variant is intended for generating IEEE-754 doubles where those bits never reach the mantissa.
 
 ```cs
 class Xoroshiro128Plus : IRandomNumberGenerator {
@@ -2057,7 +2232,13 @@ class Xoroshiro128Plus : IRandomNumberGenerator {
 
 [^79]: [R30](https://www.wolframscience.com/nks/notes-7-9--rule-30-and-other-1d-cellular-automata/)
 
-Stephen Wolfram famously used **Rule 30**, an elementary 1-D cellular automaton, as the random-number generator in early versions of *Mathematica*. The "rule" specifies a local 3-bit lookup table: each new cell value equals `left XOR (center OR right)`. Despite the deterministic, fully local update, the centre column of the evolving pattern looks random and passes many classical statistical tests.
+Stephen Wolfram famously used **Rule 30**, an elementary 1-D cellular automaton, as the random-number generator in early versions of *Mathematica*. Letting $S_{i,t}$ denote the value of cell $i$ at step $t$, the local update is
+
+$$
+S_{i,\,t+1} = S_{i-1,\,t} \;\oplus\; \bigl(S_{i,\,t} \;\vee\; S_{i+1,\,t}\bigr)
+$$
+
+— a 3-bit lookup table whose 8 output bits, read as a binary number, equal 30 (hence the name). Despite the deterministic, fully local update, the centre column of the evolving pattern looks random and passes many classical statistical tests; in this implementation the output bit $X_i$ is exactly the centre cell of the current row.
 
 ```mermaid
 flowchart LR
@@ -2093,7 +2274,15 @@ class Rule30 : IRandomNumberGenerator {
 
 [^80]: [PCG-XSH-RR](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
 
-The third PCG variant in the project, completing the family alongside [RXS-M-XS](#permuted-congruential-generator-pcg-27) and [XSL-RR](#permuted-congruential-xsl-rr-pcg-xsl-59). All three share the same 128-bit LCG core; only the output transform differs. XSH-RR ("XOR-Shift-High, Random-Rotation") XORs a high-shifted copy of the state into itself to mix high bits down, takes the upper 64 bits of the result, and rotates by a count drawn from the top six bits of the state.
+The third PCG variant in the project, completing the family alongside [RXS-M-XS](#permuted-congruential-generator-pcg-27) and [XSL-RR](#permuted-congruential-xsl-rr-pcg-xsl-59). All three share the same 128-bit LCG core (see the [PCG](#permuted-congruential-generator-pcg-27) section for the state recurrence on $S$); only the output transform differs.
+
+For PCG XSH-RR, letting $r = \lfloor S / 2^{122} \rfloor$ be the top six bits used as a rotation count:
+
+$$
+X_i = \bigl((S \gg 64) \oplus (S \gg 35)\bigr)_{\text{lo 64}} \;\ggg\; r
+$$
+
+— a high-bit XOR-shift mixes the high half of the state into the low half, then the result is rotated right by $r$.
 
 ```cs
 class PermutedCongruentialXshRr : IRandomNumberGenerator {
@@ -2122,7 +2311,17 @@ Characteristics
 
 Algorithm
 
-Each step increments the state by a constant, then mixes the state with a secret constant using the WyMix function (128-bit multiply, XOR upper and lower halves).
+Each step increments the state $S$ by a Weyl constant $\gamma$, then mixes the new state with a secret constant $K$ using the WyMix function (a 64×64→128 multiplication folded back to 64 bits by XOR):
+
+$$
+\begin{aligned}
+S_i &\leftarrow S_{i-1} + \gamma \quad (\bmod \; 2^{64}) \\
+P &\leftarrow S_i \cdot (S_i \oplus K) \\
+X_i &= (P \gg 64) \oplus P_{\text{lo 64}}
+\end{aligned}
+$$
+
+with $\gamma = \mathtt{0xA0761D6478BD642F}$ and $K = \mathtt{0xE7037ED1A0B428DB}$ — the wyhash constants by Wang Yi.
 
 ```cs
 class WyRand : IRandomNumberGenerator {
@@ -2190,7 +2389,18 @@ Characteristics
 
 Algorithm
 
-Philox2x64-10 operates on a pair of 64-bit values using a Feistel structure. Each round multiplies one half by a constant, taking the upper 64 bits of the 128-bit product as the new value and XORing with the key. The key is bumped by a Weyl sequence constant each round.
+Philox2x64-10 operates on a pair of 64-bit values $(L, R)$ — initially $L = i$ (the counter) and $R = 0$ — using a Feistel-network round function with widening multiplications. Let $K_r$ denote the round-$r$ key, $a$ the round multiplier, and $\gamma$ the Weyl key-bump:
+
+$$
+\begin{aligned}
+P_r &= L \cdot a \quad \text{(128-bit product)} \\
+L &\leftarrow (P_r \gg 64) \oplus K_r \oplus R \\
+R &\leftarrow (P_r)_{\text{lo 64}} \\
+K_{r+1} &\leftarrow K_r + \gamma
+\end{aligned}
+$$
+
+with $a = \mathtt{0xD2B74407B1CE6E93}$, $\gamma = \mathtt{0x9E3779B97F4A7C15}$ (the golden-ratio Weyl constant). After 10 rounds the pair $(L, R)$ is the output (this implementation returns $L$ first and $R$ on the next call).
 
 ```cs
 class Philox : IRandomNumberGenerator {
@@ -2249,7 +2459,20 @@ Characteristics
 
 Algorithm
 
-Threefry2x64-20 operates on two 64-bit values, applying 20 rounds of rotation and XOR mixing with key injection every 4 rounds. The key schedule extends the 2-word key to 3 words using the Skein parity constant. The eight rotation amounts `[16, 42, 12, 31, 16, 32, 24, 21]` are reused cyclically and come from the Threefish-256 round schedule — chosen by the Skein/Threefish designers via exhaustive search to maximise diffusion per round.
+Threefry2x64-20 operates on two 64-bit values $(L, R)$ with 20 rounds of rotation and XOR mixing, plus a key injection every 4 rounds. Let $\theta_r$ be the rotation amount at round $r$ — drawn cyclically from $(16, 42, 12, 31, 16, 32, 24, 21)$. One Threefry round is:
+
+$$
+\begin{aligned}
+L &\leftarrow L + R \\
+R &\leftarrow (R \lll \theta_r) \oplus L
+\end{aligned}
+$$
+
+Every 4 rounds, two subkeys $(k_r^L, k_r^R)$ derived from the key schedule are added back in:
+
+$$L \leftarrow L + k_r^L, \quad R \leftarrow R + k_r^R + r/4$$
+
+The key schedule extends the 2-word key $(K_0, K_1)$ to 3 words using the Skein parity constant $K_2 = K_0 \oplus K_1 \oplus \mathtt{0x1BD11BDAA9FC1A22}$. The rotation amounts come from the Threefish-256 round schedule, chosen via exhaustive search to maximise diffusion per round.
 
 ```cs
 class Threefry : IRandomNumberGenerator {
@@ -2306,7 +2529,21 @@ Characteristics
 
 Algorithm
 
-Each call increments a counter, multiplies it by the key, then performs four "squarings with rotation" plus a fifth squaring. Following Widynski's 4+1 formulation, the 64-bit output is the XOR of `t` (the round-4 value *before* its 32-bit rotation) with the upper 32 bits of the round-5 product `x*x + y`.
+Let $i$ be the counter (incremented per call) and $K$ be the Weyl key (fixed per-stream). Define $y = i \cdot K$, $z = y + K$, and let $\rho(v) = (v \gg 32) \;\vert\; (v \ll 32)$ denote a 32-bit halfword swap. Then one Squares step is:
+
+$$
+\begin{aligned}
+x &= y \\
+x &\leftarrow \rho(x^2 + y) \quad \text{(round 1)} \\
+x &\leftarrow \rho(x^2 + z) \quad \text{(round 2)} \\
+x &\leftarrow \rho(x^2 + y) \quad \text{(round 3)} \\
+t &= x^2 + z \\
+x &\leftarrow \rho(t)         \quad \text{(round 4)} \\
+X_i &= t \oplus \bigl((x^2 + y) \gg 32\bigr) \quad \text{(round 5)}
+\end{aligned}
+$$
+
+Following Widynski's "4 + 1" formulation, the 64-bit output is the XOR of $t$ (the round-4 value *before* its 32-bit rotation) with the upper 32 bits of the round-5 product $x^2 + y$.
 
 ```cs
 class Squares : IRandomNumberGenerator {
@@ -2347,7 +2584,20 @@ Characteristics
 
 Algorithm
 
-JSF64 maintains four state variables (a, b, c, d). Each step computes a new value from subtracting a rotated value, then cascades XOR and rotation through the remaining variables. The output is the new value of d.
+JSF64 maintains four 64-bit state variables $(S_a, S_b, S_c, S_d)$. Each step computes a new value from subtracting a rotated value, then cascades XOR and rotation through the remaining variables. The output is the new value of $S_d$:
+
+$$
+\begin{aligned}
+e &= S_a - (S_b \lll 7) \\
+S_a &\leftarrow S_b \oplus (S_c \lll 13) \\
+S_b &\leftarrow S_c + (S_d \lll 37) \\
+S_c &\leftarrow S_d + e \\
+S_d &\leftarrow e + S_a \\
+X_i &= S_d
+\end{aligned}
+$$
+
+The rotation triple $(7, 13, 37)$ is the recommended JSF64 set from Jenkins's original page.
 
 ```cs
 class JenkinsSmallFast : IRandomNumberGenerator {
@@ -2385,7 +2635,18 @@ Characteristics
 
 Algorithm
 
-RomuTrio updates three state variables: the first is set to a constant times the third, the second and third are updated by subtracting adjacent states and rotating. The output is the old value of the first state variable.
+RomuTrio maintains three 64-bit state variables $(S_x, S_y, S_z)$. With multiplier $a = \mathtt{15241094284759029579}$ and snapshotted previous values $x' = S_x$, $y' = S_y$, $z' = S_z$:
+
+$$
+\begin{aligned}
+X_i &= x' \\
+S_x &\leftarrow a \cdot z' \\
+S_y &\leftarrow (y' - x') \lll 12 \\
+S_z &\leftarrow (z' - y') \lll 44
+\end{aligned}
+$$
+
+The all-three-snapshotted form is essential — it ensures each new state value depends on the *old* values of the others (as in Overton's specification).
 
 ```cs
 class RomuTrio : IRandomNumberGenerator {
@@ -2428,7 +2689,16 @@ Characteristics
 
 Algorithm
 
-The state is a 128-bit unsigned integer, multiplied by a carefully chosen 64-bit constant each step. The upper 64 bits of the state are returned as output.
+The state $S$ is a 128-bit unsigned integer; each step multiplies it by the 64-bit constant $a = \mathtt{0xDA942042E4DD58B5}$ and emits the high 64 bits as output:
+
+$$
+\begin{aligned}
+S_i &\leftarrow a \cdot S_{i-1} \quad (\bmod \; 2^{128}) \\
+X_i &= S_i \gg 64
+\end{aligned}
+$$
+
+— a pure multiplicative congruential generator at 128-bit precision.
 
 ```cs
 class Lehmer128 : IRandomNumberGenerator {
@@ -2462,7 +2732,24 @@ Characteristics
 
 Algorithm
 
-Each step advances the LCG ($s = s \cdot M + a$) and the Xoroshiro128 subgenerator independently. The outputs are added and passed through the Lea64 mixing function (two rounds of multiply-XOR-shift).
+The hidden state has three parts: an LCG state $S^L$, a per-stream LCG addend $c$ (the "splittable" element), and a 128-bit Xoroshiro substate $(S_0, S_1)$. Let $M = \mathtt{0xD1342543DE82EF95}$ be the LCG multiplier and let $\mu(z)$ denote the Lea64 finaliser. One LXM step is:
+
+$$
+\begin{aligned}
+\text{old} &\leftarrow (S^L, S_0) \\
+S^L &\leftarrow S^L \cdot M + c \quad (\bmod \; 2^{64}) \\
+(S_0, S_1) &\leftarrow \text{xoroshiro128}(S_0, S_1) \quad \text{(state evolution from the X-subgenerator)} \\
+X_i &= \mu(\text{old}.S^L + \text{old}.S_0)
+\end{aligned}
+$$
+
+The Lea64 finaliser (named after Doug Lea, who proposed it for JEP 356) is two rounds of multiply-XOR-shift:
+
+$$
+\mu(z) = \bigl( ((z \oplus (z \gg 32)) \cdot \mathtt{0xDABA0B6EB09322E3}) \oplus (\cdots \gg 32) \bigr) \cdot \mathtt{0xDABA0B6EB09322E3} \oplus (\cdots \gg 32)
+$$
+
+The same multiplier constant appears in both rounds — unusual but specified by JEP 356.
 
 ```cs
 class Lxm : IRandomNumberGenerator {
@@ -2503,7 +2790,11 @@ class Lxm : IRandomNumberGenerator {
 
 [^58]: [XSR+](https://prng.di.unimi.it/)
 
-This is a sibling of [Xoshiro256**](#xoshiro-xsr-18) (sometimes spelled "Xoshiro256SS" in this codebase) by David Blackman and Sebastiano Vigna. The state-evolution function is identical, but the output scrambler is the simpler $s_0 + s_3$ — no multiplication. Because of that simplification the *lowest three bits* of the output are LFSR-linear (just XORs of state bits), which would fail strict integer-bit tests; the design specifically targets generating IEEE-754 doubles, where the bottom three bits never make it into the mantissa.
+This is a sibling of [Xoshiro256**](#xoshiro-xsr-18) by David Blackman and Sebastiano Vigna. The state-evolution function is identical (see the [Xoshiro256**](#xoshiro-xsr-18) section for the full state recurrence) — only the output scrambler changes:
+
+$$X_i = S_0 + S_3$$
+
+Because of that simplification the *lowest three bits* of the output are LFSR-linear (just XORs of state bits), which would fail strict integer-bit tests; the design specifically targets generating IEEE-754 doubles, where the bottom three bits never make it into the mantissa.
 
 Xoshiro256+ is the default generator in `System.Random` from .NET 6 onwards.
 
@@ -2526,7 +2817,15 @@ class Xoshiro256Plus : IRandomNumberGenerator {
 
 [^59]: [PCG-XSL-RR](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
 
-This is the canonical 128-bit → 64-bit output variant of Melissa O'Neill's PCG family, complementing the [RXS-M-XS](#permuted-congruential-generator-pcg-27) variant already in the project. Both share the same 128-bit LCG core; only the output permutation differs. XSL-RR ("XOR-Shift-Low, Random-Rotation") folds the high 64 bits of the state into the low 64 via XOR, then rotates the result by a count taken from the top six bits of the state.
+This is the canonical 128-bit → 64-bit output variant of Melissa O'Neill's PCG family, complementing the [RXS-M-XS](#permuted-congruential-generator-pcg-27) variant already in the project. Both share the same 128-bit LCG core (see the [PCG](#permuted-congruential-generator-pcg-27) section for the state recurrence on $S$); only the output permutation differs.
+
+For PCG XSL-RR, letting $r = \lfloor S / 2^{122} \rfloor$ (top six bits):
+
+$$
+X_i = \bigl((S \gg 64) \oplus S\bigr)_{\text{lo 64}} \;\ggg\; r
+$$
+
+— fold the high 64 bits of the state into the low 64 via XOR, then rotate the result by $r$.
 
 ```cs
 class PermutedCongruentialXslRr : IRandomNumberGenerator {
@@ -2747,7 +3046,18 @@ Here’s how you can implement ChaCha20 as an RNG:
 
 3. **Output**: The output of the ChaCha20 block function is a series of 16 × 32-bit words (a 512-bit block), which can be used as random numbers. The implementation in this repository takes only the first two 32-bit words per block, concatenated into one 64-bit result. That trades efficiency (the other 14 words are recomputed on the next call) for simplicity and resistance to side-channel state leakage; a production CSPRNG would buffer the full block instead.
 
-The core operation is the **quarter-round** — four 32-bit words `a, b, c, d` are mixed via the ARX (Add-Rotate-XOR) pattern below. Each round of the cipher applies this to four columns, then four diagonals; ChaCha20 does 10 such double-rounds.
+The core operation is the **quarter-round** — four 32-bit words $(a, b, c, d)$ are mixed via the ARX (Add-Rotate-XOR) pattern:
+
+$$
+\begin{aligned}
+a &\leftarrow a + b, &\quad d &\leftarrow d \oplus a, &\quad d &\leftarrow d \lll 16 \\
+c &\leftarrow c + d, &\quad b &\leftarrow b \oplus c, &\quad b &\leftarrow b \lll 12 \\
+a &\leftarrow a + b, &\quad d &\leftarrow d \oplus a, &\quad d &\leftarrow d \lll 8 \\
+c &\leftarrow c + d, &\quad b &\leftarrow b \oplus c, &\quad b &\leftarrow b \lll 7
+\end{aligned}
+$$
+
+Each round of the cipher applies this to four columns, then four diagonals; ChaCha20 does 10 such double-rounds. The diagram below shows the dataflow of one quarter-round.
 
 ```mermaid
 flowchart LR
@@ -2872,7 +3182,18 @@ class ChaCha20 : IRandomNumberGenerator {
 
 [^81]: [SAL20](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)
 
-The direct predecessor of [ChaCha20](#chacha20-cc20-35), also by Daniel J. Bernstein. Both ciphers operate on a 512-bit state (sixteen 32-bit words) and produce keystream blocks via repeated *quarter-round* mixing of four words, but the wiring differs: Salsa20 alternates four **column rounds** and four **row rounds**, while ChaCha20 uses **column + diagonal** rounds. The quarter-round itself is also slightly different — Salsa20 mixes via additions in a 4-cycle pattern (`b ^= rotl(a+d, 7); c ^= rotl(b+a, 9); d ^= rotl(c+b, 13); a ^= rotl(d+c, 18)`), whereas ChaCha20 uses pair-of-pairs additions.
+The direct predecessor of [ChaCha20](#chacha20-cc20-35), also by Daniel J. Bernstein. Both ciphers operate on a 512-bit state (sixteen 32-bit words) and produce keystream blocks via repeated *quarter-round* mixing of four words, but the wiring differs: Salsa20 alternates four **column rounds** and four **row rounds**, while ChaCha20 uses **column + diagonal** rounds. The quarter-round itself differs as well — Salsa20 mixes via additions in a 4-cycle pattern:
+
+$$
+\begin{aligned}
+b &\leftarrow b \oplus \bigl((a + d) \lll 7\bigr) \\
+c &\leftarrow c \oplus \bigl((b + a) \lll 9\bigr) \\
+d &\leftarrow d \oplus \bigl((c + b) \lll 13\bigr) \\
+a &\leftarrow a \oplus \bigl((d + c) \lll 18\bigr)
+\end{aligned}
+$$
+
+whereas ChaCha20 uses pair-of-pairs additions.
 
 ChaCha20 won out for new deployments because its diagonal-round wiring gives slightly better diffusion per round; Salsa20 remains relevant because it underlies the widely-deployed XSalsa20 / NaCl variants.
 
@@ -4412,7 +4733,13 @@ They implement the same `IRandomNumberGenerator` interface here for convenience,
 
 [^56]: [Halton](https://link.springer.com/article/10.1007/BF01386213)
 
-This sequence was introduced by John H. Halton in 1960. The 1-dimensional base-$b$ Halton sequence is the [van der Corput sequence](https://en.wikipedia.org/wiki/Van_der_Corput_sequence) in base $b$ — the $n$-th element is obtained by writing $n$ in base $b$, reversing the digits and placing them after the decimal point. The base-2 variant therefore reduces to a single `BitReverse` of the counter, which is what the implementation in this repository uses by default.
+This sequence was introduced by John H. Halton in 1960. The 1-dimensional base-$b$ Halton sequence is the [van der Corput sequence](https://en.wikipedia.org/wiki/Van_der_Corput_sequence) in base $b$. If $i$ has the base-$b$ digit expansion $i = \sum_{k=0}^{K} d_k b^k$, then the $i$-th Halton point is
+
+$$
+\varphi_b(i) = \sum_{k=0}^{K} d_k \, b^{-(k+1)} \in [0, 1)
+$$
+
+— writing $i$ in base $b$, reversing the digits and placing them after the radix point. For base 2 this reduces to bit-reversal of the counter, so the implementation in this repository emits $X_i = \mathrm{BitReverse}(i)$ as a 64-bit integer.
 
 ```cs
 class Halton : IRandomNumberGenerator {
@@ -4429,7 +4756,17 @@ class Halton : IRandomNumberGenerator {
 
 [^57]: [Sobol'](https://www.sciencedirect.com/science/article/pii/0041555367901449)
 
-Introduced by Ilya M. Sobol' in 1967, Sobol' sequences improve on Halton's even coverage in higher dimensions and are the most widely-used quasi-random sequence in finance and computational physics. The construction uses precomputed *direction numbers* and the Gray-code trick: the $i$-th and $(i+1)$-th points differ in exactly one bit, identified by the trailing-zero count of $i+1$, so the next point can be produced by a single XOR.
+Introduced by Ilya M. Sobol' in 1967, Sobol' sequences improve on Halton's even coverage in higher dimensions and are the most widely-used quasi-random sequence in finance and computational physics. The construction uses precomputed *direction numbers* $V_0, V_1, \ldots, V_{w-1}$ (one per bit position) plus the Gray-code trick: the $i$-th and $(i+1)$-th points differ in exactly one bit, identified by the trailing-zero count of $i+1$. Letting $S$ be the running state and $\mathrm{ctz}(\cdot)$ the count-trailing-zeroes operation:
+
+$$
+\begin{aligned}
+c &= \mathrm{ctz}(i + 1) \\
+S &\leftarrow S \oplus V_c \\
+X_i &= S
+\end{aligned}
+$$
+
+A single XOR per call — the next point is produced from the previous one with no multiplication or modular arithmetic. In one dimension the direction numbers are simply the powers of two ($V_k = 2^{w-1-k}$ for a $w$-bit output), which is equivalent to the base-2 Halton sequence enumerated in Gray-code order.
 
 ```cs
 class Sobol : IRandomNumberGenerator {
@@ -4462,24 +4799,24 @@ The previous sections covered *uniform* random numbers — every output equally 
 
 **Distribution catalog at a glance:**
 
-| Distribution | Type | Domain | Parameters | Generator method |
-|---|---|---|---|---|
-| [Exponential](#inverse-transform-sampling-its-40) | Continuous | $[0, \infty)$ | rate $\lambda$ | Inverse-CDF |
-| [Standard Normal](#box-muller-method-bm-41) | Continuous | $(-\infty, \infty)$ | μ=0, σ=1 | Box-Muller polar transform |
-| [Standard Normal](#marsaglia-polar-method-mp-42) | Continuous | $(-\infty, \infty)$ | μ=0, σ=1 | Marsaglia rejection |
-| [Standard Normal](#ziggurat-zig-43) | Continuous | $(-\infty, \infty)$ | μ=0, σ=1 | Ziggurat layered rejection |
-| [Poisson](#poisson-psn-61) | Discrete | $\{0, 1, 2, \ldots\}$ | rate $\lambda$ | Knuth / Atkinson PA |
-| [Gamma](#gamma-gam-62) | Continuous | $[0, \infty)$ | shape $k$, scale $\theta$ | Marsaglia-Tsang squeeze |
-| [Beta](#beta-bet-63) | Continuous | $(0, 1)$ | shape $\alpha$, $\beta$ | Ratio of two Gammas |
-| [Bernoulli](#bernoulli-brn-64) | Discrete | $\{0, 1\}$ | probability $p$ | Direct |
-| [Binomial](#binomial-bin-65) | Discrete | $\{0, 1, \ldots, n\}$ | trials $n$, prob $p$ | Sum of Bernoullis |
-| [Geometric](#geometric-geo-66) | Discrete | $\{0, 1, 2, \ldots\}$ | probability $p$ | Inverse-CDF |
-| [Chi-Squared](#chi-squared-chi-67) | Continuous | $[0, \infty)$ | df $k$ | Gamma($k/2$, 2) |
-| [Cauchy](#cauchy-ccy-68) | Continuous | $(-\infty, \infty)$ | location, scale | Inverse-CDF (tan) |
-| [Log-normal](#log-normal-lnm-69) | Continuous | $(0, \infty)$ | μ, σ | exp of normal |
-| [Weibull](#weibull-wbl-70) | Continuous | $[0, \infty)$ | shape $k$, scale $\lambda$ | Inverse-CDF |
-| [Triangular](#triangular-tri-71) | Continuous | $[\text{min}, \text{max}]$ | min, mode, max | Inverse-CDF (two branches) |
-| [Pareto](#pareto-par-72) | Continuous | $[\text{scale}, \infty)$ | shape, scale | Inverse-CDF (power) |
+| Distribution                                      | Type       | Domain                     | Parameters                 | Generator method           |
+| ------------------------------------------------- | ---------- | -------------------------- | -------------------------- | -------------------------- |
+| [Exponential](#inverse-transform-sampling-its-40) | Continuous | $[0, \infty)$              | rate $\lambda$             | Inverse-CDF                |
+| [Standard Normal](#box-muller-method-bm-41)       | Continuous | $(-\infty, \infty)$        | μ=0, σ=1                   | Box-Muller polar transform |
+| [Standard Normal](#marsaglia-polar-method-mp-42)  | Continuous | $(-\infty, \infty)$        | μ=0, σ=1                   | Marsaglia rejection        |
+| [Standard Normal](#ziggurat-zig-43)               | Continuous | $(-\infty, \infty)$        | μ=0, σ=1                   | Ziggurat layered rejection |
+| [Poisson](#poisson-psn-61)                        | Discrete   | $\{0, 1, 2, \ldots\}$      | rate $\lambda$             | Knuth / Atkinson PA        |
+| [Gamma](#gamma-gam-62)                            | Continuous | $[0, \infty)$              | shape $k$, scale $\theta$  | Marsaglia-Tsang squeeze    |
+| [Beta](#beta-bet-63)                              | Continuous | $(0, 1)$                   | shape $\alpha$, $\beta$    | Ratio of two Gammas        |
+| [Bernoulli](#bernoulli-brn-64)                    | Discrete   | $\{0, 1\}$                 | probability $p$            | Direct                     |
+| [Binomial](#binomial-bin-65)                      | Discrete   | $\{0, 1, \ldots, n\}$      | trials $n$, prob $p$       | Sum of Bernoullis          |
+| [Geometric](#geometric-geo-66)                    | Discrete   | $\{0, 1, 2, \ldots\}$      | probability $p$            | Inverse-CDF                |
+| [Chi-Squared](#chi-squared-chi-67)                | Continuous | $[0, \infty)$              | df $k$                     | Gamma($k/2$, 2)            |
+| [Cauchy](#cauchy-ccy-68)                          | Continuous | $(-\infty, \infty)$        | location, scale            | Inverse-CDF (tan)          |
+| [Log-normal](#log-normal-lnm-69)                  | Continuous | $(0, \infty)$              | μ, σ                       | exp of normal              |
+| [Weibull](#weibull-wbl-70)                        | Continuous | $[0, \infty)$              | shape $k$, scale $\lambda$ | Inverse-CDF                |
+| [Triangular](#triangular-tri-71)                  | Continuous | $[\text{min}, \text{max}]$ | min, mode, max             | Inverse-CDF (two branches) |
+| [Pareto](#pareto-par-72)                          | Continuous | $[\text{scale}, \infty)$   | shape, scale               | Inverse-CDF (power)        |
 
 For the upcoming algorithms we'll utilize a different interface than above to generate floating-point 64-bit values with specific distribution properties:
 
@@ -4960,9 +5297,9 @@ class Weibull {
 
 The three shapes side-by-side show the failure-mode interpretation:
 
-| shape=0.5 (infant mortality) | shape=1 (exponential / constant rate) | shape=2.5 (wear-out) |
-| --- | --- | --- |
-| ![Weibull shape=0.5: bars decay rapidly from a peak at zero — most failures happen immediately, survivors stick around](Images/dist_weibull_0_5.png) | ![Weibull shape=1: clean exponential decay — identical to an exponential distribution](Images/dist_weibull_1.png) | ![Weibull shape=2.5: bell-like shape peaking around x=1 — items become more likely to fail with age](Images/dist_weibull_2_5.png) |
+| shape=0.5 (infant mortality)                                                                                                                                                | shape=1 (exponential / constant rate)                                                                                                         | shape=2.5 (wear-out)                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Weibull shape=0.5: bars decay rapidly from a peak at zero — most failures happen immediately, survivors stick around](Images/dist_weibull_0_5.png)                        | ![Weibull shape=1: clean exponential decay — identical to an exponential distribution](Images/dist_weibull_1.png)                             | ![Weibull shape=2.5: bell-like shape peaking around x=1 — items become more likely to fail with age](Images/dist_weibull_2_5.png)         |
 | *Failure rate decreases over time. Look for the very tall bar at small x, then sparse populated bars to the right — items that survive the burn-in tend to keep surviving.* | *Failure rate is constant. Look for the strict exponential decay — this is the memoryless regime, identical to the exponential distribution.* | *Failure rate increases over time. Look for the bell-like shape with a definite peak — items become **more** likely to fail as they age.* |
 
 ### Triangular (TRI) [^71]
@@ -5114,24 +5451,24 @@ The grid below shows the 256×256 randogram (each pixel encodes the (low-8-bits,
 
 Reading left-to-right, top-to-bottom gives a guided tour of the field: from broken historical designs (Middle Square, basic LCG), through classical good PRNGs (Mersenne Twister, Xoshiro), modern counter-based and Romu-style fast generators, cryptographic constructions, and finally the quasi-random and cellular-automaton paradigms.
 
-| Family | Generator | Randogram | What to look for |
-| --- | --- | --- | --- |
-| **Historical broken** | Middle Square | ![](Images/MiddleSquare_randogram.png) | Nearly blank with a single dot near (0, 0) — the generator collapsed to zero, so every consecutive pair is (0, 0) |
-| **Basic LCG** | Linear Congruential Generator | ![](Images/LinearCongruentialGenerator_randogram.png) | **Marsaglia lattice** — the famous regular dot grid that classical LCGs produce when consecutive outputs are plotted as (x, y). This is exactly the failure mode that O'Neill's PCG paper highlights. |
-| **LCG (weak low bits)** | Multiplicative LCG | ![](Images/MultiplicativeLCG_randogram.png) | Even sparser lattice — MLCG with default parameters concentrates consecutive pairs onto a tiny subset of cells |
-| **Mersenne Twister** | MT19937 | ![](Images/MersenneTwister_randogram.png) | Uniform speckle — the classical baseline of "looks random" |
-| **XorShift / Xoshiro** | Xoshiro256** | ![](Images/Xoshiro256SS_randogram.png) | Uniform speckle — modern small-state generator that matches MT |
-| **PCG** | PCG XSL-RR | ![](Images/PermutedCongruentialXslRr_randogram.png) | Uniform speckle — the output permutation hides the LCG core's lattice, the whole point of the PCG design |
-| **Counter-based** | Philox 2x64-10 | ![](Images/Philox_randogram.png) | Uniform speckle — parallel-friendly bijective design |
-| **Romu family** | RomuTrio | ![](Images/RomuTrio_randogram.png) | Uniform speckle — rotation+multiply with a non-linear cycle structure |
-| **128-bit MCG** | Lehmer128 | ![](Images/Lehmer128_randogram.png) | Uniform speckle — pure multiplication on 128-bit state |
-| **Hash-based** | WyRand | ![](Images/WyRand_randogram.png) | Uniform speckle — single-multiply mixing from the wyhash family |
-| **SIMD-first** | SHISHUA | ![](Images/SHISHUA_randogram.png) | Uniform speckle — AVX2 256-bit lanes interleaved |
-| **Stream cipher CSPRNG** | ChaCha20 | ![](Images/ChaCha20_randogram.png) | Uniform speckle — cryptographic-strength diffusion |
-| **NIST DRBG** | AES-CTR DRBG | ![](Images/AesCtrDrbg_randogram.png) | Uniform speckle — AES-CTR output, cryptographic |
-| **Older CSPRNG** | ISAAC-64 | ![](Images/Isaac_randogram.png) | Uniform speckle — known to have minor biases (Aumasson 2006) but visually indistinguishable |
-| **Quasi-random** | Halton (base 2) | ![](Images/Halton_randogram.png) | Looks blank: base-2 Halton bit-reverses the counter, so for the first ~2⁴⁸ samples the low 16 bits of every output are *structurally* zero, and every consecutive pair plots at (0, 0). The sequence is correct — it covers the *high* bits uniformly — but this particular visualisation can't show it. The bit-index histogram (`Images/Halton_bit_index.png`) is the right tool for inspecting Halton. |
-| **Cellular automaton** | Rule 30 | ![](Images/Rule30_randogram.png) | Uniform speckle — Stephen Wolfram's classic CA generator. Passes the statistical tests in this repository; known to fail BigCrush at extreme sample volumes due to subtle serial correlations. |
+| Family                   | Generator                     | Randogram                                             | What to look for                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------ | ----------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Historical broken**    | Middle Square                 | ![](Images/MiddleSquare_randogram.png)                | Nearly blank with a single dot near (0, 0) — the generator collapsed to zero, so every consecutive pair is (0, 0)                                                                                                                                                                                                                                                                                         |
+| **Basic LCG**            | Linear Congruential Generator | ![](Images/LinearCongruentialGenerator_randogram.png) | **Marsaglia lattice** — the famous regular dot grid that classical LCGs produce when consecutive outputs are plotted as (x, y). This is exactly the failure mode that O'Neill's PCG paper highlights.                                                                                                                                                                                                     |
+| **LCG (weak low bits)**  | Multiplicative LCG            | ![](Images/MultiplicativeLCG_randogram.png)           | Even sparser lattice — MLCG with default parameters concentrates consecutive pairs onto a tiny subset of cells                                                                                                                                                                                                                                                                                            |
+| **Mersenne Twister**     | MT19937                       | ![](Images/MersenneTwister_randogram.png)             | Uniform speckle — the classical baseline of "looks random"                                                                                                                                                                                                                                                                                                                                                |
+| **XorShift / Xoshiro**   | Xoshiro256**                  | ![](Images/Xoshiro256SS_randogram.png)                | Uniform speckle — modern small-state generator that matches MT                                                                                                                                                                                                                                                                                                                                            |
+| **PCG**                  | PCG XSL-RR                    | ![](Images/PermutedCongruentialXslRr_randogram.png)   | Uniform speckle — the output permutation hides the LCG core's lattice, the whole point of the PCG design                                                                                                                                                                                                                                                                                                  |
+| **Counter-based**        | Philox 2x64-10                | ![](Images/Philox_randogram.png)                      | Uniform speckle — parallel-friendly bijective design                                                                                                                                                                                                                                                                                                                                                      |
+| **Romu family**          | RomuTrio                      | ![](Images/RomuTrio_randogram.png)                    | Uniform speckle — rotation+multiply with a non-linear cycle structure                                                                                                                                                                                                                                                                                                                                     |
+| **128-bit MCG**          | Lehmer128                     | ![](Images/Lehmer128_randogram.png)                   | Uniform speckle — pure multiplication on 128-bit state                                                                                                                                                                                                                                                                                                                                                    |
+| **Hash-based**           | WyRand                        | ![](Images/WyRand_randogram.png)                      | Uniform speckle — single-multiply mixing from the wyhash family                                                                                                                                                                                                                                                                                                                                           |
+| **SIMD-first**           | SHISHUA                       | ![](Images/SHISHUA_randogram.png)                     | Uniform speckle — AVX2 256-bit lanes interleaved                                                                                                                                                                                                                                                                                                                                                          |
+| **Stream cipher CSPRNG** | ChaCha20                      | ![](Images/ChaCha20_randogram.png)                    | Uniform speckle — cryptographic-strength diffusion                                                                                                                                                                                                                                                                                                                                                        |
+| **NIST DRBG**            | AES-CTR DRBG                  | ![](Images/AesCtrDrbg_randogram.png)                  | Uniform speckle — AES-CTR output, cryptographic                                                                                                                                                                                                                                                                                                                                                           |
+| **Older CSPRNG**         | ISAAC-64                      | ![](Images/Isaac_randogram.png)                       | Uniform speckle — known to have minor biases (Aumasson 2006) but visually indistinguishable                                                                                                                                                                                                                                                                                                               |
+| **Quasi-random**         | Halton (base 2)               | ![](Images/Halton_randogram.png)                      | Looks blank: base-2 Halton bit-reverses the counter, so for the first ~2⁴⁸ samples the low 16 bits of every output are *structurally* zero, and every consecutive pair plots at (0, 0). The sequence is correct — it covers the *high* bits uniformly — but this particular visualisation can't show it. The bit-index histogram (`Images/Halton_bit_index.png`) is the right tool for inspecting Halton. |
+| **Cellular automaton**   | Rule 30                       | ![](Images/Rule30_randogram.png)                      | Uniform speckle — Stephen Wolfram's classic CA generator. Passes the statistical tests in this repository; known to fail BigCrush at extreme sample volumes due to subtle serial correlations.                                                                                                                                                                                                            |
 
 The visual pattern crystallises what the chi-squared and serial-correlation numbers measure: every family with "★★★" or better quality produces speckle indistinguishable from cryptographic-strength noise, while broken or biased generators show *immediately* visible structure (bands, lines, single-point collapses). A useful diagnostic when evaluating a generator: if its randogram doesn't look like uniform TV-static, neither will any application that depends on it.
 
@@ -5139,24 +5476,24 @@ The visual pattern crystallises what the chi-squared and serial-correlation numb
 
 A single randogram only shows one *projection* of the joint distribution of bits in the RNG's output. The "Consecutive" projection (above) reveals serial correlation, but other projections expose different defects:
 
-| Method | What goes on (x, y) | What it detects |
-| --- | --- | --- |
-| **Consecutive** | low 8 bits of output_n, low 8 bits of output_{n+1} | Serial correlation between successive outputs — the Marsaglia plane test |
-| **Adjacent** | bits 0–7 vs bits 8–15 of the *same* output | Dependence between adjacent bit positions inside one output |
-| **OppositeHalves** | bits 0–7 vs bits 32–39 of the same output | Long-range dependence between low and middle 32-bit halves |
+| Method              | What goes on (x, y)                                 | What it detects                                                                                             |
+| ------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Consecutive**     | low 8 bits of output_n, low 8 bits of output_{n+1}  | Serial correlation between successive outputs — the Marsaglia plane test                                    |
+| **Adjacent**        | bits 0–7 vs bits 8–15 of the *same* output          | Dependence between adjacent bit positions inside one output                                                 |
+| **OppositeHalves**  | bits 0–7 vs bits 32–39 of the same output           | Long-range dependence between low and middle 32-bit halves                                                  |
 | **StartAndReverse** | bits 0–7 of value vs bits 0–7 of bit-reversed value | High-bit vs low-bit symmetry — e.g. a generator whose high bits are good but low bits aren't, or vice versa |
 
 The grid below shows the same seven generators under all four methods. Notice how each generator fails (or passes) in a different way depending on which bits we project:
 
-| RNG | Consecutive | Adjacent | OppositeHalves | StartAndReverse |
-| --- | --- | --- | --- | --- |
+| RNG                     | Consecutive                                           | Adjacent                                                       | OppositeHalves                                                       | StartAndReverse                                                       |
+| ----------------------- | ----------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | **Linear Congruential** | ![](Images/LinearCongruentialGenerator_randogram.png) | ![](Images/LinearCongruentialGenerator_randogram_adjacent.png) | ![](Images/LinearCongruentialGenerator_randogram_oppositehalves.png) | ![](Images/LinearCongruentialGenerator_randogram_startandreverse.png) |
-| **Multiplicative LCG** | ![](Images/MultiplicativeLCG_randogram.png) | ![](Images/MultiplicativeLCG_randogram_adjacent.png) | ![](Images/MultiplicativeLCG_randogram_oppositehalves.png) | ![](Images/MultiplicativeLCG_randogram_startandreverse.png) |
-| **Middle Square** | ![](Images/MiddleSquare_randogram.png) | ![](Images/MiddleSquare_randogram_adjacent.png) | ![](Images/MiddleSquare_randogram_oppositehalves.png) | ![](Images/MiddleSquare_randogram_startandreverse.png) |
-| **Mersenne Twister** | ![](Images/MersenneTwister_randogram.png) | ![](Images/MersenneTwister_randogram_adjacent.png) | ![](Images/MersenneTwister_randogram_oppositehalves.png) | ![](Images/MersenneTwister_randogram_startandreverse.png) |
-| **Xoshiro256\*\*** | ![](Images/Xoshiro256SS_randogram.png) | ![](Images/Xoshiro256SS_randogram_adjacent.png) | ![](Images/Xoshiro256SS_randogram_oppositehalves.png) | ![](Images/Xoshiro256SS_randogram_startandreverse.png) |
-| **PCG XSL-RR** | ![](Images/PermutedCongruentialXslRr_randogram.png) | ![](Images/PermutedCongruentialXslRr_randogram_adjacent.png) | ![](Images/PermutedCongruentialXslRr_randogram_oppositehalves.png) | ![](Images/PermutedCongruentialXslRr_randogram_startandreverse.png) |
-| **ChaCha20** | ![](Images/ChaCha20_randogram.png) | ![](Images/ChaCha20_randogram_adjacent.png) | ![](Images/ChaCha20_randogram_oppositehalves.png) | ![](Images/ChaCha20_randogram_startandreverse.png) |
+| **Multiplicative LCG**  | ![](Images/MultiplicativeLCG_randogram.png)           | ![](Images/MultiplicativeLCG_randogram_adjacent.png)           | ![](Images/MultiplicativeLCG_randogram_oppositehalves.png)           | ![](Images/MultiplicativeLCG_randogram_startandreverse.png)           |
+| **Middle Square**       | ![](Images/MiddleSquare_randogram.png)                | ![](Images/MiddleSquare_randogram_adjacent.png)                | ![](Images/MiddleSquare_randogram_oppositehalves.png)                | ![](Images/MiddleSquare_randogram_startandreverse.png)                |
+| **Mersenne Twister**    | ![](Images/MersenneTwister_randogram.png)             | ![](Images/MersenneTwister_randogram_adjacent.png)             | ![](Images/MersenneTwister_randogram_oppositehalves.png)             | ![](Images/MersenneTwister_randogram_startandreverse.png)             |
+| **Xoshiro256\*\***      | ![](Images/Xoshiro256SS_randogram.png)                | ![](Images/Xoshiro256SS_randogram_adjacent.png)                | ![](Images/Xoshiro256SS_randogram_oppositehalves.png)                | ![](Images/Xoshiro256SS_randogram_startandreverse.png)                |
+| **PCG XSL-RR**          | ![](Images/PermutedCongruentialXslRr_randogram.png)   | ![](Images/PermutedCongruentialXslRr_randogram_adjacent.png)   | ![](Images/PermutedCongruentialXslRr_randogram_oppositehalves.png)   | ![](Images/PermutedCongruentialXslRr_randogram_startandreverse.png)   |
+| **ChaCha20**            | ![](Images/ChaCha20_randogram.png)                    | ![](Images/ChaCha20_randogram_adjacent.png)                    | ![](Images/ChaCha20_randogram_oppositehalves.png)                    | ![](Images/ChaCha20_randogram_startandreverse.png)                    |
 
 Some of the most striking observations:
 
@@ -5174,62 +5511,62 @@ The takeaway: **always test multiple projections** when evaluating a new generat
 
 The table below summarises the practical trade-offs for the algorithms in this repository. Period is given as $\log_2$; "Speed" is a qualitative class (★ slow / ★★ medium / ★★★ fast / ★★★★ very fast); "Quality" reflects published test-suite results (BigCrush in particular) and known weaknesses. Use this table to narrow down a candidate, then read the algorithm's section for details.
 
-| Algorithm | Year | State | log₂(period) | Speed | Quality | Best for |
-|---|---:|---:|---:|:---:|:---:|---|
-| **General-purpose PRNGs** | | | | | | |
-| Linear Congruential | 1949 | 64 | 64 | ★★★★ | ★ | Toy / non-statistical use only |
-| Mersenne Twister | 1997 | 19937 | 19937 | ★★ | ★★ | When you genuinely need huge period |
-| WELL | 2006 | 1024 | 1024 | ★★ | ★★ | Drop-in MT replacement |
-| Xoshiro256** | 2018 | 256 | 256 | ★★★★ | ★★★ | **General-purpose default** |
-| Xoshiro256+ | 2018 | 256 | 256 | ★★★★ | ★★★ | Floating-point output (.NET 6+ default) |
-| Xoroshiro128++ | 2018 | 128 | 128 | ★★★★ | ★★★ | When 256 bits of state is too much |
-| Lehmer128 | 2019 | 128 | 126 | ★★★★ | ★★★ | Fastest general-purpose (BMI2 platforms) |
-| RomuTrio | 2020 | 192 | ~64 | ★★★★ | ★★★ | Speed-critical, short runs |
-| LXM (L64X128Mix) | 2021 | 192 | 64 × 2¹²⁸ | ★★★ | ★★★ | Splittable streams (Java compat) |
-| WyRand | 2020 | 64 | 64 | ★★★★ | ★★ | Hash-table speeds, casual use |
-| JSF64 | 2007 | 256 | ~64 | ★★★★ | ★★★ | Tiny state, easy to embed |
-| PCG (RXS-M-XS) | 2014 | 128 | 128 | ★★★ | ★★★ | Statistically strong, jumpable |
-| PCG (XSL-RR) | 2014 | 128 | 128 | ★★★ | ★★★ | Same core, canonical 128→64 variant |
-| PCG (XSH-RR) | 2014 | 128 | 128 | ★★★ | ★★★ | Same core, third PCG output transform |
-| Xoroshiro128+ | 2018 | 128 | 128 | ★★★★ | ★★★ | Floating-point output; small state |
-| Xoshiro128** / ++ / + | 2018 | 128 | 128 | ★★★★ | ★★★ | 32-bit-output variants (embedded, GPU) |
-| Xoshiro512** / ++ / + | 2018 | 512 | 512 | ★★★ | ★★★ | Larger-state variants for massive parallelism |
-| RomuQuad | 2020 | 256 | ~64 | ★★★★ | ★★★ | Largest-capacity Romu variant |
-| RomuDuo / RomuDuoJr | 2020 | 128 | ~64 | ★★★★ | ★★★ | Smallest/fastest Romu variants |
-| TinyMT | 2011 | 127 | 2¹²⁷-1 | ★★★ | ★★ | Memory-constrained MT (~17× smaller state) |
-| SHISHUA | 2020 | 1024 | ≥ 2⁵¹² | ★★★★★ | ★★★ | SIMD-first; "fastest PRNG" claim, passes BigCrush |
-| SplitMix64 | 2014 | 64 | 64 | ★★★★ | ★★ | **Seeding** other generators |
-| **Counter-based (parallel-friendly)** | | | | | | |
-| Philox-2x64-10 | 2011 | 128 | 128 | ★★★ | ★★★ | GPU / massively-parallel work |
-| Threefry-2x64-20 | 2011 | 256 | 256 | ★★ | ★★★ | Same as Philox; ARX-only (no multiply) |
-| Squares (4+1) | 2022 | 128 | 64 | ★★★★ | ★★★ | Tiny counter-based |
-| sfc64 | 2019 | 256 | ≥ 64 | ★★★★ | ★★★ | NumPy default alternative |
-| MRG32k3a | 1999 | 192 | ~191 | ★★ | ★★★ | Scientific / MATLAB / R compat |
-| **Cryptographic** | | | | | | |
-| ChaCha20 | 2008 | 512 | ≥ 256 | ★★ | ★★★★ | **Default CSPRNG choice** |
-| ChaCha12 | 2008 | 512 | ≥ 256 | ★★★ | ★★★★ | Rust's default CSPRNG; ~1.7× faster than ChaCha20 |
-| ChaCha8 | 2008 | 512 | ≥ 256 | ★★★★ | ★★★ | Go 1.22+ default PRNG; ~2.5× faster, narrower margin |
-| Salsa20 | 2005 | 512 | ≥ 256 | ★★ | ★★★★ | Predecessor of ChaCha20; underlies NaCl/XSalsa |
-| Salsa20/12 | 2008 | 512 | ≥ 256 | ★★★ | ★★★★ | eSTREAM speed-security middle ground |
-| Salsa20/8 | 2008 | 512 | ≥ 256 | ★★★★ | ★★★ | Fastest Salsa; non-crypto use only |
-| Ascon-PRF | 2024 | 320 | high | ★★★ | ★★★★ | NIST lightweight crypto winner; sponge-based |
-| AES-CTR DRBG | 2007 | 384 | 2¹²⁸ | ★★★ | ★★★★ | When AES-NI is available |
-| HMAC-SHA256 DRBG | 2007 | 512 | high | ★ | ★★★★ | Hash-only platforms |
-| Hash DRBG (SHA-256) | 2007 | 880 | high | ★★ | ★★★★ | Hash-only; third NIST DRBG variant |
-| ISAAC-64 | 1996 | ~16k | ≥ 2⁵⁰ | ★★★ | ★★ | Historical; known biases (Aumasson 2006) |
-| Trivium | 2008 | 288 | ≥ 2⁸⁰ | ★ | ★★★ | Hardware/embedded |
-| Yarrow | 1999 | 256 | high | ★★ | ★★★ | Pre-Fortuna design; two-pool reseeding |
-| Fortuna | 2003 | 256 + 32 pools | high | ★★ | ★★★★ | 32-pool design with geometric reseeding |
-| ANSI X9.31 | 1985 | 256 | ≥ 2⁶⁴ | ★★ | ★★★ | Modernised X9.17 with AES instead of DES |
-| Blum-Blum-Shub | 1986 | small | factor-of-pq | ★ | ★★★★ | Theoretical / educational |
-| **Quasi-random (NOT random — for QMC integration)** | | | | | | |
-| Halton (base 2) | 1960 | 64 | n/a | ★★★★ | n/a | Monte Carlo integration |
-| Sobol (1D) | 1967 | 64 + table | n/a | ★★★★ | n/a | Same, with finer convergence |
-| **Historical / educational** | | | | | | |
-| Middle Square | 1946 | 64 | very short | ★★★★ | ✗ | Don't use; teaching what not to do |
-| Wichmann-Hill | 1982 | 96 (3×32 orig.) | ~2⁴² (orig.) | ★★ | ★★ | Historical interest |
-| XorShift (basic) | 2003 | 64 | 2⁶⁴-1 | ★★★★ | ★ | Educational; fails BigCrush |
-| Rule 30 (CA) | 1986 | 256 | long | ★ | ✗ | Educational; fails statistical tests |
+| Algorithm                                           | Year |           State | log₂(period) | Speed | Quality | Best for                                             |
+| --------------------------------------------------- | ---: | --------------: | -----------: | :---: | :-----: | ---------------------------------------------------- |
+| **General-purpose PRNGs**                           |      |                 |              |       |         |                                                      |
+| Linear Congruential                                 | 1949 |              64 |           64 | ★★★★  |    ★    | Toy / non-statistical use only                       |
+| Mersenne Twister                                    | 1997 |           19937 |        19937 |  ★★   |   ★★    | When you genuinely need huge period                  |
+| WELL                                                | 2006 |            1024 |         1024 |  ★★   |   ★★    | Drop-in MT replacement                               |
+| Xoshiro256**                                        | 2018 |             256 |          256 | ★★★★  |   ★★★   | **General-purpose default**                          |
+| Xoshiro256+                                         | 2018 |             256 |          256 | ★★★★  |   ★★★   | Floating-point output (.NET 6+ default)              |
+| Xoroshiro128++                                      | 2018 |             128 |          128 | ★★★★  |   ★★★   | When 256 bits of state is too much                   |
+| Lehmer128                                           | 2019 |             128 |          126 | ★★★★  |   ★★★   | Fastest general-purpose (BMI2 platforms)             |
+| RomuTrio                                            | 2020 |             192 |          ~64 | ★★★★  |   ★★★   | Speed-critical, short runs                           |
+| LXM (L64X128Mix)                                    | 2021 |             192 |    64 × 2¹²⁸ |  ★★★  |   ★★★   | Splittable streams (Java compat)                     |
+| WyRand                                              | 2020 |              64 |           64 | ★★★★  |   ★★    | Hash-table speeds, casual use                        |
+| JSF64                                               | 2007 |             256 |          ~64 | ★★★★  |   ★★★   | Tiny state, easy to embed                            |
+| PCG (RXS-M-XS)                                      | 2014 |             128 |          128 |  ★★★  |   ★★★   | Statistically strong, jumpable                       |
+| PCG (XSL-RR)                                        | 2014 |             128 |          128 |  ★★★  |   ★★★   | Same core, canonical 128→64 variant                  |
+| PCG (XSH-RR)                                        | 2014 |             128 |          128 |  ★★★  |   ★★★   | Same core, third PCG output transform                |
+| Xoroshiro128+                                       | 2018 |             128 |          128 | ★★★★  |   ★★★   | Floating-point output; small state                   |
+| Xoshiro128** / ++ / +                               | 2018 |             128 |          128 | ★★★★  |   ★★★   | 32-bit-output variants (embedded, GPU)               |
+| Xoshiro512** / ++ / +                               | 2018 |             512 |          512 |  ★★★  |   ★★★   | Larger-state variants for massive parallelism        |
+| RomuQuad                                            | 2020 |             256 |          ~64 | ★★★★  |   ★★★   | Largest-capacity Romu variant                        |
+| RomuDuo / RomuDuoJr                                 | 2020 |             128 |          ~64 | ★★★★  |   ★★★   | Smallest/fastest Romu variants                       |
+| TinyMT                                              | 2011 |             127 |       2¹²⁷-1 |  ★★★  |   ★★    | Memory-constrained MT (~17× smaller state)           |
+| SHISHUA                                             | 2020 |            1024 |       ≥ 2⁵¹² | ★★★★★ |   ★★★   | SIMD-first; "fastest PRNG" claim, passes BigCrush    |
+| SplitMix64                                          | 2014 |              64 |           64 | ★★★★  |   ★★    | **Seeding** other generators                         |
+| **Counter-based (parallel-friendly)**               |      |                 |              |       |         |                                                      |
+| Philox-2x64-10                                      | 2011 |             128 |          128 |  ★★★  |   ★★★   | GPU / massively-parallel work                        |
+| Threefry-2x64-20                                    | 2011 |             256 |          256 |  ★★   |   ★★★   | Same as Philox; ARX-only (no multiply)               |
+| Squares (4+1)                                       | 2022 |             128 |           64 | ★★★★  |   ★★★   | Tiny counter-based                                   |
+| sfc64                                               | 2019 |             256 |         ≥ 64 | ★★★★  |   ★★★   | NumPy default alternative                            |
+| MRG32k3a                                            | 1999 |             192 |         ~191 |  ★★   |   ★★★   | Scientific / MATLAB / R compat                       |
+| **Cryptographic**                                   |      |                 |              |       |         |                                                      |
+| ChaCha20                                            | 2008 |             512 |        ≥ 256 |  ★★   |  ★★★★   | **Default CSPRNG choice**                            |
+| ChaCha12                                            | 2008 |             512 |        ≥ 256 |  ★★★  |  ★★★★   | Rust's default CSPRNG; ~1.7× faster than ChaCha20    |
+| ChaCha8                                             | 2008 |             512 |        ≥ 256 | ★★★★  |   ★★★   | Go 1.22+ default PRNG; ~2.5× faster, narrower margin |
+| Salsa20                                             | 2005 |             512 |        ≥ 256 |  ★★   |  ★★★★   | Predecessor of ChaCha20; underlies NaCl/XSalsa       |
+| Salsa20/12                                          | 2008 |             512 |        ≥ 256 |  ★★★  |  ★★★★   | eSTREAM speed-security middle ground                 |
+| Salsa20/8                                           | 2008 |             512 |        ≥ 256 | ★★★★  |   ★★★   | Fastest Salsa; non-crypto use only                   |
+| Ascon-PRF                                           | 2024 |             320 |         high |  ★★★  |  ★★★★   | NIST lightweight crypto winner; sponge-based         |
+| AES-CTR DRBG                                        | 2007 |             384 |         2¹²⁸ |  ★★★  |  ★★★★   | When AES-NI is available                             |
+| HMAC-SHA256 DRBG                                    | 2007 |             512 |         high |   ★   |  ★★★★   | Hash-only platforms                                  |
+| Hash DRBG (SHA-256)                                 | 2007 |             880 |         high |  ★★   |  ★★★★   | Hash-only; third NIST DRBG variant                   |
+| ISAAC-64                                            | 1996 |            ~16k |        ≥ 2⁵⁰ |  ★★★  |   ★★    | Historical; known biases (Aumasson 2006)             |
+| Trivium                                             | 2008 |             288 |        ≥ 2⁸⁰ |   ★   |   ★★★   | Hardware/embedded                                    |
+| Yarrow                                              | 1999 |             256 |         high |  ★★   |   ★★★   | Pre-Fortuna design; two-pool reseeding               |
+| Fortuna                                             | 2003 |  256 + 32 pools |         high |  ★★   |  ★★★★   | 32-pool design with geometric reseeding              |
+| ANSI X9.31                                          | 1985 |             256 |        ≥ 2⁶⁴ |  ★★   |   ★★★   | Modernised X9.17 with AES instead of DES             |
+| Blum-Blum-Shub                                      | 1986 |           small | factor-of-pq |   ★   |  ★★★★   | Theoretical / educational                            |
+| **Quasi-random (NOT random — for QMC integration)** |      |                 |              |       |         |                                                      |
+| Halton (base 2)                                     | 1960 |              64 |          n/a | ★★★★  |   n/a   | Monte Carlo integration                              |
+| Sobol (1D)                                          | 1967 |      64 + table |          n/a | ★★★★  |   n/a   | Same, with finer convergence                         |
+| **Historical / educational**                        |      |                 |              |       |         |                                                      |
+| Middle Square                                       | 1946 |              64 |   very short | ★★★★  |    ✗    | Don't use; teaching what not to do                   |
+| Wichmann-Hill                                       | 1982 | 96 (3×32 orig.) | ~2⁴² (orig.) |  ★★   |   ★★    | Historical interest                                  |
+| XorShift (basic)                                    | 2003 |              64 |        2⁶⁴-1 | ★★★★  |    ★    | Educational; fails BigCrush                          |
+| Rule 30 (CA)                                        | 1986 |             256 |         long |   ★   |    ✗    | Educational; fails statistical tests                 |
 
 > Speed and quality columns are qualitative summaries based on published evaluations (PractRand, TestU01) and the design intent of each algorithm; for the exact numbers on your hardware, regenerate the speed benchmark via `dotnet run --configuration Release` and inspect this repository's chi-squared/correlation outputs.
 
@@ -5310,8 +5647,8 @@ For each bit position (0 to 63), count how often it is set to 1 and how often it
 A well-behaved RNG (Xoshiro256SS) shows perfectly balanced bars — each bit is roughly 50% ones and 50% zeros. The Middle Square generator with the seed used here collapses very quickly to zero — every middle-of-the-square iteration with a value whose square has too few significant digits truncates to 0, and once it hits 0 it stays there. This is the classic failure mode von Neumann documented in 1946; *which* seeds collapse and how fast depends on the modulus and starting value.
 
 | Xoshiro256SS — bars uniform height above and below the centre line: every bit is ~50% ones | Middle Square — no bars at all above the line: the generator has stopped emitting ones |
-| --- | --- |
-| ![Xoshiro256SS bit index](Images/Xoshiro256SS_bit_index.png) | ![MiddleSquare bit index](Images/MiddleSquare_bit_index.png) |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| ![Xoshiro256SS bit index](Images/Xoshiro256SS_bit_index.png)                               | ![MiddleSquare bit index](Images/MiddleSquare_bit_index.png)                           |
 
 The Multiplicative LCG with default parameters shows the classic weakness of multiplicative generators — *look at the leftmost few bars*: bit 0 is missing entirely (stuck at zero), and the next few bit positions show progressively shrinking heights compared to the upper bits.
 
@@ -5324,8 +5661,8 @@ The histogram of 1-bit counts helps determine the distribution of the number of 
 The goal is to observe how uniformly the 1-bits are distributed among the generated numbers. A balanced random generator should yield a roughly bell-shaped distribution centered around 32 (assuming 50% of bits are expected to be 1s). Significant deviations from this pattern may indicate non-uniformity or bias in the generator.
 
 | Xoshiro256SS — bell-shaped curve symmetric around popcount 32, fading to zero by ~20 and ~44 | Middle Square — single tall bar at popcount 0, all other positions empty |
-| --- | --- |
-| ![Xoshiro256SS bit count](Images/Xoshiro256SS_bit_count.png) | ![MiddleSquare bit count](Images/MiddleSquare_bit_count.png) |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| ![Xoshiro256SS bit count](Images/Xoshiro256SS_bit_count.png)                                 | ![MiddleSquare bit count](Images/MiddleSquare_bit_count.png)             |
 
 **Longest Run of Ones and Zeroes in a Histogram:**
 
@@ -5346,8 +5683,8 @@ By accumulating these differences into a histogram, we can visualize the distrib
 For a uniformly distributed RNG, the distribution of the *raw* signed difference $x_n - x_{n-1}$ (treated on a circle of $2^{64}$ values, i.e. allowing wrap-around) is uniform; the distribution of the *absolute* difference $|x_n - x_{n-1}|$ ignoring wrap-around — which is what the implementation here measures — follows a triangular shape, peaking at 0 and decreasing linearly toward the maximum possible difference.
 
 | Xoshiro256SS — bars tallest on the left and shrinking linearly to the right edge (classic triangular shape) | ChaCha20 — identical triangular profile, confirming the two unrelated algorithms agree on what "uniform" looks like |
-| --- | --- |
-| ![Xoshiro256SS spacing](Images/Xoshiro256SS_spacing.png) | ![ChaCha20 spacing](Images/ChaCha20_spacing.png) |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| ![Xoshiro256SS spacing](Images/Xoshiro256SS_spacing.png)                                                    | ![ChaCha20 spacing](Images/ChaCha20_spacing.png)                                                                    |
 
 **Repetition Histogram:**
 
@@ -5358,8 +5695,8 @@ To conduct this test, we divide the output range into n buckets and generate n r
 A good RNG produces a flat histogram — each bin receives approximately n/k hits with statistical noise. The Middle Square repetition histogram concentrates all values in the very first bin because the generator is producing only zero.
 
 | Xoshiro256SS — all 64 bars at roughly the same height, with only small statistical noise between bins | Middle Square — only the leftmost bin has any height; the remaining 63 bins are empty |
-| --- | --- |
-| ![Xoshiro256SS repetition](Images/Xoshiro256SS_repetition.png) | ![MiddleSquare repetition](Images/MiddleSquare_repetition.png) |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| ![Xoshiro256SS repetition](Images/Xoshiro256SS_repetition.png)                                        | ![MiddleSquare repetition](Images/MiddleSquare_repetition.png)                        |
 
 **Repeat Streak Histogram:**
 
@@ -5370,8 +5707,8 @@ To perform this test, use k buckets to track runs of length 1 to k. For each sli
 A related visualization is the **Hamming-distance histogram** between consecutive outputs — i.e. how many bits change from one value to the next. A good RNG should peak at 32 (half the bits flip on average) with binomial spread. A weak generator will show shifted or narrowed distributions.
 
 | Xoshiro256SS — symmetric bell curve peaking exactly at 32 (half the bits flip between outputs) | Multiplicative LCG — peak visibly shifted away from 32 and the curve is narrower, meaning each step changes a non-random number of bits |
-| --- | --- |
-| ![Xoshiro256SS hamming](Images/Xoshiro256SS_hamming.png) | ![MultiplicativeLCG hamming](Images/MultiplicativeLCG_hamming.png) |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Xoshiro256SS hamming](Images/Xoshiro256SS_hamming.png)                                       | ![MultiplicativeLCG hamming](Images/MultiplicativeLCG_hamming.png)                                                                      |
 
 **Randograms:**
 
@@ -5379,12 +5716,12 @@ To construct these randograms, generate random values and assign them to points 
 
 The four 256×256 randograms below show how dramatic the differences can be. Each pixel's intensity reflects how often that (x, y) pair occurred over 100,000 samples; uniform speckle indicates uniformity, while visible patterns or single-pixel concentration reveal structural flaws.
 
-| | |
-| --- | --- |
-| **Xoshiro256SS** — uniform grey-and-white speckle covering the entire square, no lines, bands, or empty regions | **ChaCha20** — same uniform speckle pattern as Xoshiro: a cryptographic and a non-cryptographic generator agree on what "random" should look like |
-| ![Xoshiro256SS randogram](Images/Xoshiro256SS_randogram.png) | ![ChaCha20 randogram](Images/ChaCha20_randogram.png) |
+|                                                                                                                                             |                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Xoshiro256SS** — uniform grey-and-white speckle covering the entire square, no lines, bands, or empty regions                             | **ChaCha20** — same uniform speckle pattern as Xoshiro: a cryptographic and a non-cryptographic generator agree on what "random" should look like                     |
+| ![Xoshiro256SS randogram](Images/Xoshiro256SS_randogram.png)                                                                                | ![ChaCha20 randogram](Images/ChaCha20_randogram.png)                                                                                                                  |
 | **Multiplicative LCG** — visible horizontal striping/banding: certain y-values (built from low-order bits) recur far more often than others | **Middle Square** — almost entirely blank: every sample landed at the same (x, y) coordinate so a single dot (sometimes invisible at this zoom) contains all the data |
-| ![MultiplicativeLCG randogram](Images/MultiplicativeLCG_randogram.png) | ![MiddleSquare randogram](Images/MiddleSquare_randogram.png) |
+| ![MultiplicativeLCG randogram](Images/MultiplicativeLCG_randogram.png)                                                                      | ![MiddleSquare randogram](Images/MiddleSquare_randogram.png)                                                                                                          |
 
 ## The NuGet package
 
