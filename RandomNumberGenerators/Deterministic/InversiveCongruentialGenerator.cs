@@ -5,14 +5,20 @@ namespace Hawkynt.RandomNumberGenerators.Deterministic;
 
 public class InversiveCongruentialGenerator : IRandomNumberGenerator {
   private ulong _state;
-  private const ulong _A = 6364136223846793005;
-  private const ulong _C = 1442695040888963407;
-  private const ulong _Q = 18446744073709551557;
+  private readonly ulong _a;
+  private readonly ulong _c;
+  private readonly ulong _q;
 
-  public void Seed(ulong seed) => this._state = seed % _Q;
+  public InversiveCongruentialGenerator(ulong a = 6364136223846793005, ulong c = 1442695040888963407, ulong q = 18446744073709551557) {
+    this._a = a;
+    this._c = c;
+    this._q = q;
+  }
+
+  public void Seed(ulong seed) => this._state = seed % this._q;
 
   public ulong Next() {
-    return this._state = this._state == 0 ? _C : (_A * ModInverse(this._state, _Q) + _C) % _Q;
+    return this._state = this._state == 0 ? this._c : (this._a * ModInverse(this._state, this._q) + this._c) % this._q;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     ulong ModInverse(ulong value, ulong modulus) {
@@ -25,7 +31,7 @@ public class InversiveCongruentialGenerator : IRandomNumberGenerator {
         var rProduct = quotient * newR;
 
         (t, newT) = (newT, tProduct > t ? modulus + t - tProduct : t - tProduct);
-        (r, newR) = (newR, rProduct > t ? modulus + r - rProduct : r - rProduct);
+        (r, newR) = (newR, rProduct > r ? modulus + r - rProduct : r - rProduct);
       }
 
       return r > 1 ? 0 : t;
