@@ -1,70 +1,91 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography;
-using Hawkynt.RandomNumberGenerators.Composites;
-using Hawkynt.RandomNumberGenerators.Cryptographic;
-using Hawkynt.RandomNumberGenerators.NonUniform;
+using System.Threading;
 using Randomizer;
 
-const ulong seedNumber = 131;
+if (args.Length > 0 && args[0] == "--generate-images") {
+  Randomizer.GenerateReadmeImages.Run(args.Length > 1 ? args[1] : "Images");
+  return;
+}
 
-var statsTracker = new RandomSources().FactorySource().Select(r => (r.name, r.factory, tracker:new StatsTracker())).ToArray();
-statsTracker.ParallelForEach(tracker => {
-  for (var i = 0; i < 100000; ++i)
-    tracker.tracker.Feed(tracker.factory());
-});
+if (args.Length > 0 && args[0] == "--generate-distribution-images") {
+  Randomizer.GenerateDistributionImages.Run(args.Length > 1 ? args[1] : "Images");
+  return;
+}
+
+// ── Banner ────────────────────────────────────────────────────────────────
+var totalStopwatch = Stopwatch.StartNew();
+var sources = new RandomSources().FactorySource().ToArray();
+var sourceCount = sources.Length;
+
+Console.WriteLine("===================================================================");
+Console.WriteLine($"  Randomizer — statistical analysis & benchmarking of {sourceCount} RNGs");
+Console.WriteLine("===================================================================");
+Console.WriteLine();
+Console.WriteLine($"This run will execute two phases against {sourceCount} generators:");
+Console.WriteLine("  1. Statistical analysis (100k samples each, run in parallel)");
+Console.WriteLine($"  2. Throughput benchmark ({(int)Benchy.TIME_TO_MEASURE.TotalSeconds}s per generator, sequential)");
+Console.WriteLine();
+Console.WriteLine("Some cryptographic generators (Blum-Blum-Shub, BlumMicali, AES-CTR DRBG,");
+Console.WriteLine("HMAC DRBG, Hash DRBG) are intrinsically slow — expect the parallel stats");
+Console.WriteLine("phase to wait for them, and the benchmark phase to take ~30 min in total.");
+Console.WriteLine("Press Ctrl+C at any time to abort.");
+Console.WriteLine();
+
+// ── Phase 1: statistical analysis ─────────────────────────────────────────
+Console.WriteLine($"[Phase 1/2] Statistical analysis ({sourceCount} generators in parallel)...");
+var phaseStopwatch = Stopwatch.StartNew();
+
+var statsTracker = sources
+  .Select(r => (r.name, r.factory, tracker: new StatsTracker(r.name)))
+  .ToArray();
+
+var completed = 0;
+var inFlight = new ConcurrentDictionary<string, Stopwatch>();
+
+using (var ticker = new ProgressTicker(
+  readCount: () => Volatile.Read(ref completed),
+  readInFlight: () => inFlight.Select(kv => (kv.Key, kv.Value.Elapsed.TotalSeconds)).ToList(),
+  total: sourceCount,
+  stopwatch: phaseStopwatch)) {
+
+  statsTracker.ParallelForEach(t => {
+    var sw = Stopwatch.StartNew();
+    inFlight[t.name] = sw;
+
+    for (var i = 0; i < 100_000; ++i)
+      t.tracker.Feed(t.factory());
+
+    inFlight.TryRemove(t.name, out _);
+    Interlocked.Increment(ref completed);
+  });
+}
+
+Console.WriteLine($"  Phase 1 done in {phaseStopwatch.Elapsed.TotalSeconds:F1}s.");
+Console.WriteLine();
+
+// ── Stats output ─────────────────────────────────────────────────────────
+Console.WriteLine("===================================================================");
+Console.WriteLine("  Per-generator statistical results");
+Console.WriteLine("===================================================================");
+Console.WriteLine();
 
 foreach (var tracker in statsTracker) {
-  Console.WriteLine($"Stats for {tracker.name}:");
+  Console.WriteLine($"── Stats for {tracker.name} ────────────────────────────────");
   tracker.tracker.Print();
+  Console.WriteLine();
 }
 
-var benchy = new Benchy();
-benchy.MeasureThroughput();
-return;
+// ── Phase 2: benchmark ──────────────────────────────────────────────────
+Console.WriteLine("===================================================================");
+Console.WriteLine($"  [Phase 2/2] Throughput benchmark");
+Console.WriteLine("===================================================================");
+Console.WriteLine();
 
-var generator = new ArbitraryNumberGenerator(new BlumMicali());
-generator.Seed(seedNumber);
+new Benchy().MeasureThroughput();
 
-var bytes = generator.ConcatGenerator(1<<10);
-var concatHex = bytes.ToHex();
-var concatBin = bytes.ToBin();
-var aes = generator.CipherGenerator(Aes.Create()).Take(8192).ToArray().ToHex();
-
-var z = new InverseTransformSampling(generator);
-var histogram = new ulong[256];
-for (var i = 0; i < 1000000; ++i) {
-  double random;
-  do {
-    random = z.Next() / 3.72;
-  } while (random is < -1 or > 1);
-  random=++random*0.5;
-
-  var limited=(int)(random * 256);
-  ++histogram[limited];
-}
-
-var values = Enumerable.Range(0, 16).Select(_ => generator.Mask16(0b11100011100111111001111)).ToArray();
-
-var alreadySeen = new HashSet<ulong>();
-var counter = 0;
-ulong number;
-var timer = new Stopwatch();
-var lastStats = Stopwatch.StartNew();
-do {
-  timer.Start();
-  number = generator.Next();
-  timer.Stop();
-
-  if (lastStats.Elapsed.TotalSeconds > 0.25) {
-    Console.WriteLine($"#{counter}: {number} which took {timer.ElapsedMilliseconds}ms ({counter / timer.Elapsed.TotalSeconds:#,###.0} per second).");
-    lastStats.Restart();
-  } 
-  
-  ++counter;
-} while (alreadySeen.Add(number));
-timer.Stop();
-
-Console.WriteLine($"We seeded with {seedNumber} and have repeated ourselves after {counter} steps with {number} which took {timer.ElapsedMilliseconds}ms ({counter / timer.Elapsed.TotalSeconds} per second).");
+// ── Total ────────────────────────────────────────────────────────────────
+Console.WriteLine();
+Console.WriteLine($"All phases complete. Total elapsed: {totalStopwatch.Elapsed.TotalMinutes:F1} min.");
