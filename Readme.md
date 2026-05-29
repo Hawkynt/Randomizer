@@ -3,6 +3,8 @@
 
 A Deep Dive into Random Number Generators and their Implementations.
 
+> 📦 **Looking for the NuGet package quick-start?** See [`RandomNumberGenerators/ReadMe.md`](RandomNumberGenerators/ReadMe.md) for installation, namespaces and minimal usage examples. The article below is the long-form theory and algorithm catalogue behind the package.
+
 # Introduction
 
 In the world of computing, randomness is more than a theoretical concept—it's a cornerstone of numerous applications that drive modern technology. From securing sensitive information to simulating complex systems, random numbers play a pivotal role in ensuring efficiency, security, and fairness.
@@ -378,7 +380,7 @@ Although it is possible to use a stream cipher, a block cipher or a cryptographi
 
 ### Cascade Construction RNG
 
-Most hardware RNG, especially those found in CPUs utilize a cascade of on-chip thermal entropy and a CSRNG (for example Intel is utilizing the [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)-block cipher in counter [mode](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation) and [CBC-MAC](https://en.wikipedia.org/wiki/CBC-MAC)), re-seeded again and again to present you a HRNG. This leads to high-throughput hard-to-predict random numbers.
+Most hardware RNGs, especially those found in CPUs, use a cascade: an on-chip thermal entropy source feeds a *conditioner* that distils raw biased bits into uniform ones, which in turn seeds a fast CSRNG. Intel's `RDRAND`/`RDSEED` pipeline, for example, runs raw thermal noise through an [AES](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard)-[CBC-MAC](https://en.wikipedia.org/wiki/CBC-MAC) conditioner, then drives an AES-CTR-based [NIST DRBG](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-90ar1.pdf) which is reseeded periodically. This two-stage construction produces high-throughput, hard-to-predict random numbers.
 
 ## Benchmarking RNGs
 
@@ -524,10 +526,7 @@ We can select bits using:
 
 For a comprehensive analysis of a 64-bit RNG, we can use four separate 256x256 randograms, each visualizing a 16-bit segment of the output. Each randogram will represent a different 16-bit slice, allowing us to scrutinize the entire 64-bit output in detail.
 
-* **Pixel Intensity Representation**: In a randogram, each pixel represents the frequency of occurrence of a specific 16-bit value pair (x, y). The intensity of the pixel is determined by how often that particular pair appears in the output:
-  * **White (100% intensity)** indicates that the pair does not appear at all.
-  * **50% grey** indicates the pair appears once.
-  * **Darker shades** represent multiple occurrences, with each additional occurrence halving the pixel's intensity.
+* **Pixel Intensity Representation**: In a randogram, each pixel represents the frequency of occurrence of a specific 16-bit value pair (x, y). The implementation in this repository uses the convention from Melissa O'Neill's [PCG analysis](https://www.pcg-random.org/posts/visualizing-the-heart-of-some-prngs.html): unvisited pairs are *white* (255), each visit *halves* the intensity (1 visit → 50% grey, 2 visits → 25% grey, …), saturating to black by ≈ 8 visits. With 65,536 samples on a 256×256 grid the expected count per cell is exactly 1, so a good RNG produces a uniform random-looking speckle (mix of white, light-grey and medium-grey pixels), while a structured generator concentrates many visits into a small set of cells (those cells go very dark very quickly) leaving the rest white.
 
 This method allows us to identify potential patterns or repetitions that could indicate flaws in the RNG.
 
@@ -545,13 +544,29 @@ For smaller-scale analysis, especially when working with simpler or reduced vers
 
 #### Random walks
 
-tbd!
+A random walk visualises the *trajectory* of an RNG rather than its individual outputs. Starting from a fixed point on a 2D grid, each pair of random bits (or single sign per axis) selects one of four moves: up, down, left, or right. Plotting the resulting path over a few thousand steps reveals correlations the eye can spot immediately:
+
+* A *good* generator produces a space-filling, self-crossing tangle that wanders without preferred direction.
+* A *biased* generator drifts diagonally or returns to the origin too often.
+* A *short-period* generator traces the same loop repeatedly, leaving visible cycles.
+
+The 1D variant — running sum of +1/-1 picked by each random bit — is also useful: under the null hypothesis the maximum deviation grows like √n, which provides a sharp NIST-style test statistic.
 
 #### Non-overlapping Template Matching
 
-tbd!
+The NIST test suite's template-matching test counts how often a fixed bit pattern (e.g., `B = 0b00001`) appears in disjoint windows of the bit stream. The procedure is:
+
+1. Pick a template `B` of length `m` bits (commonly 9, picking patterns expected to occur ~2 times per 1024-bit block).
+2. Split the bit stream into blocks of length `M`.
+3. In each block, slide a window of size `m`; on a match, count it and advance the window by `m` bits (*non-overlapping*); on a miss, advance by 1 bit.
+4. Compare the per-block match counts against the expected mean `μ = (M − m + 1) / 2^m` and variance — a chi-squared statistic across blocks gives the p-value.
+
+The test is sensitive to generators that systematically over- or under-produce specific bit patterns, which simpler tests like bit-frequency may miss.
 
 ## PRNG Algorithms
+
+> [!NOTE]
+> Within this section the algorithms appear roughly in the order they were added to the project rather than strictly by family. Older classical PRNGs (LCG, XorShift, MT, …) come first; modern counter-based and combined generators (Philox, Threefry, Squares, JSF, RomuTrio, Lehmer128, LXM, sfc64, MRG32k3a) appear toward the end of the PRNG block; the cryptographic algorithms (BBS, Blum-Micali, Self-Shrinking Generator, ChaCha20, ISAAC, Trivium) live in [CSRNG Algorithms](#csrng-algorithms). Cross-references between sections use anchor links.
 
 The upcoming algorithms may contain sample implementation in [C#](https://en.wikipedia.org/wiki/C_Sharp_(programming_language)). For them we are gonna use a common interface to generate 64-Bit random integer numbers:
 
@@ -564,13 +579,13 @@ interface IRandomNumberGenerator {
 }
 ```
 
-If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the [galois fields](https://en.wikipedia.org/wiki/Finite_field) $`\mathbb{F}_{2^{32}}`$ or $`\mathbb{F}_{2^{64}}`$.
+If a modulo is present in the calculations, it is implicitly set to $2^{32}$ or $2^{64}$ to cover the full range of `uint` or `ulong`. This means that all arithmetic operations automatically wrap around on [overflow and underflow](https://en.wikipedia.org/wiki/Integer_overflow). Mathematically, this results in all arithmetic being performed in the [residue ring](https://en.wikipedia.org/wiki/Modular_arithmetic) $`\mathbb{Z}/2^{32}\mathbb{Z}`$ or $`\mathbb{Z}/2^{64}\mathbb{Z}`$ (a ring, not a field, since powers of 2 are zero divisors).
 
 ### Middle Square (MS) [^5]
 
 [^5]: [MS](http://bit-player.org/2022/the-middle-of-the-square)
 
-This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is 8n. It is defined by this formula:
+This method was proposed by John von Neumann in 1946. It generates a sequence of n-digit pseudorandom numbers by squaring an n-digit starting value and extracting the middle n digits from the result. This process is repeated to generate additional numbers. The value of n must be even to ensure a well-defined middle portion of the digits. The maximum period length for an n-digit generator is bounded by $8^n$ (exponential in n), though most seeds collapse to a fixed point or short cycle long before approaching that bound. It is defined by this formula:
 
 $$Q_i = Q_{i-1}^2$$
 
@@ -702,7 +717,10 @@ The combined output $X_i$ of the Wichmann-Hill generator at step $i$ is given by
 
 $$X_i = Q^1_i + Q^2_i + Q^3_i$$
 
-This combination ensures that the resulting sequence has a very long period, specifically the least common multiple of the three moduli, which is approximately $2.8 \times 10^{12}$ however it can only produce numbers between $0$ and the sum of the three moduli: $90899$ in this case.
+This combination ensures a long period. For the original 1982 parameters the LCM of the three primes is their product ≈ $2.78 \times 10^{13}$, and the actual period of the combined generator is approximately $6.95 \times 10^{12}$ (because each MLCG has period $m-1$). The output is bounded above by the sum of the three moduli — $90899$ for the original parameters.
+
+> [!NOTE]
+> The implementation below uses 64-bit moduli rather than the 1982 primes shown above. This scales the same combined-MLCG construction up to a 64-bit output range; the period and bounds above describe Wichmann & Hill's original parameter set, not the 64-bit variant.
 
 ```cs
 class WichmannHill : IRandomNumberGenerator {
@@ -716,7 +734,10 @@ class WichmannHill : IRandomNumberGenerator {
   private UInt128 _stateX, _stateY, _stateZ;
   
   public void Seed(ulong seed) {
-    ulong (q, r) = Math.DivRem(seed, _MODULUS_X);
+    // Note: because the moduli are ~ulong.MaxValue, the first DivRem makes q ≈ 0 for almost any seed,
+    // so this minimal seeding scheme effectively only varies _stateX. Production code should expand
+    // the seed via SplitMix64 (or similar) into three independent state words.
+    var (q, r) = Math.DivRem(seed, _MODULUS_X);
     this._stateX = r == 0 ? ~r : r;
     (q, r) = Math.DivRem(q, _MODULUS_Y);
     this._stateY = r == 0 ? ~r : r;
@@ -873,7 +894,7 @@ class InversiveCongruentialGenerator : IRandomNumberGenerator {
         ulong rProduct = quotient * newR;
         
         (t, newT) = (newT, tProduct > t ? modulus + t - tProduct : t - tProduct);
-        (r, newR) = (newR, rProduct > t ? modulus + r - rProduct : r - rProduct);
+        (r, newR) = (newR, rProduct > r ? modulus + r - rProduct : r - rProduct);
       }
 
       return r > 1 ? 0 : t;
@@ -1027,7 +1048,7 @@ class XorShiftStar : IRandomNumberGenerator {
 
 [^16]: [XorWow](https://www.pcg-random.org/downloads/snippets/uncxorwow.c)
 
-This is another variant introduced by Marsaglia, that adds a simple additive counter (a Weyl sequence) to the output of a [XS](#xorshift-xs) generator. This method extends the period and enhances the randomness of the output. The XorWow generator is used as the default RNG in Nvidia's CUDA toolkit, demonstrating its effectiveness in high-performance computing environments.
+This is another variant introduced by Marsaglia, that adds a simple additive counter (a Weyl sequence) to the output of a [XS](#xorshift-xs) generator. This method extends the period and enhances the randomness of the output. The XorWow generator was historically the default RNG in Nvidia's cuRAND library (`CURAND_RNG_PSEUDO_DEFAULT`); modern cuRAND now offers Philox and MRG32k3a alongside it for many simulation workloads.
 
 ```cs
 class XorWow : IRandomNumberGenerator {
@@ -1081,7 +1102,7 @@ class XorWow : IRandomNumberGenerator {
 
 [^17]: [SM](https://gee.cs.oswego.edu/dl/papers/oopsla14.pdf)
 
-This generator is a simple and fast pseudo-random number generator designed by Sebastiano Vigna. It combines adding the golden gamma constant ($2^{64}/\phi$ where $\phi = \frac{1 + \sqrt{5}}{2}$) to David Stafford’s Mix13 variant of the [MurmurHash](https://en.wikipedia.org/wiki/MurmurHash)3 finalizer. It's primarily used for initializing the states of other more complex generators, such as Xoroshiro and Xoshiro. It is particularly well-suited for this purpose because of its excellent statistical properties and simplicity.
+This generator was introduced by Guy Steele, Doug Lea, and Christine Flood in their 2014 OOPSLA paper *Fast Splittable Pseudorandom Number Generators*. The 64-bit variant (SplitMix64) was later popularized by Sebastiano Vigna as the recommended seeding helper for the Xoshiro/Xoroshiro family. It combines adding the golden gamma constant ($2^{64}/\phi$ where $\phi = \frac{1 + \sqrt{5}}{2}$) with David Stafford's Mix13 variant of the [MurmurHash](https://en.wikipedia.org/wiki/MurmurHash)3 finalizer. It is primarily used to initialize the states of other more complex generators because of its excellent statistical properties and simplicity.
 
 ```cs
 class SplitMix64 : IRandomNumberGenerator {
@@ -1401,7 +1422,7 @@ class SubtractWithBorrow : IRandomNumberGenerator {
 
 [^24]: [LFSR](https://www.analog.com/en/resources/design-notes/random-number-generation-using-lfsr.html)
 
-This is basically a shift register whose input bit is a linear function of its previous state. The most commonly used linear function of single bits is XOR. LFSRs are commonly used in applications such as cryptography, error detection and correction, and pseudorandom number generation due to their ability to produce sequences of bits with good statistical properties.
+This is basically a shift register whose input bit is a linear function of its previous state. The most commonly used linear function of single bits is XOR. LFSRs are widely used in error detection and correction codes (CRC, BCH), spread-spectrum communications, and as *components* of stream ciphers — but on their own they are emphatically **not** cryptographically secure: the Berlekamp-Massey algorithm recovers the entire state from just $2n$ output bits in $O(n^2)$ time. Real-world stream ciphers (e.g. A5/1, E0, Trivium) combine multiple LFSRs with nonlinear filters or combiners to defeat this attack.
 
 An LFSR is defined by its feedback polynomial, which determines how the previous bits of the register affect the new bit shifted into the register. The polynomial is typically represented in the form:
 
@@ -1419,15 +1440,15 @@ Therefore:
 
 $$X_i = \langle X^1_{i-1} \cdots X^n_{i-1}, f_i \rangle$$
 
-Consider the polynomial $P(x) = x^{21} + x^{20} + x^{18} + x^{14} + x^{13} + x^{11} + x^9 + x^8 + x^6 + x^5 + x^2 + 1$. This polynomial can be represented as a binary number:
+Consider the tap mask $P(x) = x^{20} + x^{19} + x^{17} + x^{16} + x^{13} + x^{10} + x^7 + x^3 + x$. The taps are the bit positions whose coefficients are 1; XORing the state bits at those positions yields the feedback bit. As a binary literal:
 
-$$\text{POLYNOM} = 0b110100011010110110010$$
+$$\text{POLYNOM} = 0b110110010010001001010$$
 
-This polynomial will be used to compute the feedback bit for the LFSR.
+(Here the rightmost bit is position 0 — so the set bits sit at positions 1, 3, 7, 10, 13, 16, 17, 19, 20 — matching the 9-term polynomial above.)
 
 ```cs
 class LinearFeedbackShiftRegister : IRandomNumberGenerator {
-  private const ulong POLYNOM = 0b110100011010110110010;
+  private const ulong POLYNOM = 0b110110010010001001010;
   private ulong _state;
 
   public void Seed(ulong seed) => this._state = seed;
@@ -1466,7 +1487,7 @@ class LinearFeedbackShiftRegister : IRandomNumberGenerator {
 
 [^25]:[FCSR](https://www.researchgate.net/publication/220738954_A_Survey_of_Feedback_with_Carry_Shift_Registers)
 
-This is a type of pseudorandom number generator that extends the concept of [LFSR](#linear-feedback-shift-register-lfsr)s by incorporating a carry value. They are particularly useful in cryptographic applications due to their complexity and unpredictability.
+This is a type of pseudorandom number generator that extends the concept of [LFSR](#linear-feedback-shift-register-lfsr)s by incorporating a carry value. The carry introduces non-linearity over GF(2), which makes FCSRs better-suited as *components* of stream ciphers (e.g. F-FCSR) than pure LFSRs — though, like LFSRs, an FCSR alone is not cryptographically secure and is categorized here under Deterministic rather than Cryptographic.
 
 The FCSR generator operates by shifting bits through a register and using feedback to update the state of the register. The key difference between FCSR and LFSR is the addition of a carry value, which adds non-linearity to the generator and improves the randomness of the output sequence.
 
@@ -1864,6 +1885,665 @@ class WellEquidistributedLongperiodLinear : IRandomNumberGenerator {
 }
 ```
 
+### Small Fast Counting 64 (SFC64) [^53]
+
+[^53]: [SFC64](https://pracrand.sourceforge.net/RNG_engines.txt)
+
+This was designed by Chris Doty-Humphrey for the PractRand test suite, and adopted by NumPy as an alternative to [Philox](#philox-phx-44). It is a counter-augmented chaotic generator: three state words evolve under shifts and rotations while a separate counter guarantees no short cycles regardless of the chaotic part.
+
+Characteristics
+
+* **Counter Insurance**: An explicit counter mixed into the output ensures the period is at least 2^64, even if the chaotic part falls into a short cycle.
+* **256-bit State**: Three 64-bit state words plus a 64-bit counter.
+* **Very Fast**: Only shifts, adds, XORs, and one rotation per output.
+* **Not cryptographically secure**: state recovery is feasible given enough output, so do not use sfc64 for security-sensitive applications.
+
+```cs
+class Sfc64 : IRandomNumberGenerator {
+  private ulong _a, _b, _c, _counter;
+
+  public void Seed(ulong seed) {
+    this._a = this._b = this._c = seed;
+    this._counter = 1;
+    for (var i = 0; i < 12; ++i) this.Next();
+  }
+
+  public ulong Next() {
+    var output = this._a + this._b + this._counter++;
+    this._a = this._b ^ (this._b >> 11);
+    this._b = this._c + (this._c << 3);
+    this._c = BitOperations.RotateLeft(this._c, 24) + output;
+    return output;
+  }
+}
+```
+
+### MRG32k3a (MRG) [^54]
+
+[^54]: [MRG32k3a](https://www.iro.umontreal.ca/~lecuyer/myftp/papers/streams00.pdf)
+
+This was designed by Pierre L'Ecuyer (1999). A combined Multiple Recursive Generator using two third-order linear recurrences modulo two distinct primes near 2^32. The two streams are subtracted to produce the output. Used as the default in MATLAB, R, SAS, and L'Ecuyer's widely-cited streams library.
+
+Characteristics
+
+* **Two Independent Streams**: Combining two parallel recurrences provides excellent equidistribution and an effective period near 2^191.
+* **Modulus Near 2^32**: Each stream produces ~32-bit output; two consecutive outputs are concatenated for 64-bit results.
+* **Provably Good**: The chosen multipliers are the result of an exhaustive parameter search optimizing spectral test scores.
+
+The multipliers `(0, 1403580, -810728)` and `(527612, 0, -1370589)` are the result of an exhaustive parameter search by L'Ecuyer that maximises the spectral-test score across dimensions 2..6. The two prime moduli ($m_1 = 2^{32}-209$, $m_2 = 2^{32}-22853$) are coprime, so the periods of the two recurrences combine multiplicatively to roughly $m_1^3 \cdot m_2^3 / 2 \approx 2^{191}$.
+
+Maintain two state vectors `(x10, x11, x12)` and `(x20, x21, x22)`. Each step computes one new 32-bit output; two consecutive outputs are concatenated for a 64-bit result.
+
+```cs
+class Mrg32k3a : IRandomNumberGenerator {
+  private const long M1 = 4294967087;     // 2^32 - 209
+  private const long M2 = 4294944443;     // 2^32 - 22853
+  private long _x10, _x11, _x12, _x20, _x21, _x22;
+
+  public void Seed(ulong seed) {
+    this._x10 = (long)(SplitMix64.Next(ref seed) % (ulong)M1);
+    this._x11 = (long)(SplitMix64.Next(ref seed) % (ulong)M1);
+    this._x12 = (long)(SplitMix64.Next(ref seed) % (ulong)M1);
+    this._x20 = (long)(SplitMix64.Next(ref seed) % (ulong)M2);
+    this._x21 = (long)(SplitMix64.Next(ref seed) % (ulong)M2);
+    this._x22 = (long)(SplitMix64.Next(ref seed) % (ulong)M2);
+    // Avoid degenerate all-zero state for either recurrence.
+    if (this._x10 == 0 && this._x11 == 0 && this._x12 == 0) this._x10 = 1;
+    if (this._x20 == 0 && this._x21 == 0 && this._x22 == 0) this._x20 = 1;
+  }
+
+  public ulong Next() => ((ulong)NextInt32() << 32) | NextInt32();
+
+  private ulong NextInt32() {
+    var p1 = (1403580 * this._x11 - 810728 * this._x10) % M1;
+    if (p1 < 0) p1 += M1;
+    this._x10 = this._x11; this._x11 = this._x12; this._x12 = p1;
+
+    var p2 = (527612 * this._x22 - 1370589 * this._x20) % M2;
+    if (p2 < 0) p2 += M2;
+    this._x20 = this._x21; this._x21 = this._x22; this._x22 = p2;
+
+    var z = p1 - p2;
+    if (z <= 0) z += M1;
+    return (ulong)z;
+  }
+}
+```
+
+### Trivium (TRV) [^55]
+
+[^55]: [TRV](https://www.ecrypt.eu.org/stream/p3ciphers/trivium/trivium_p3.pdf)
+
+This is a hardware-oriented lightweight stream cipher (de Cannière & Preneel, 2005), part of the eSTREAM portfolio. Used as a CSPRNG by emitting one keystream bit per inner step and packing 64 bits per `Next()`.
+
+Characteristics
+
+* **288-bit State**: Three nonlinear feedback shift registers of lengths 93, 84, and 111 bits.
+* **Bit-Oriented**: Designed for compact hardware; outputs one bit per step.
+* **Cryptographic Strength**: An eSTREAM finalist with no known practical attacks below brute-force.
+
+Algorithm
+
+Initialize by loading an 80-bit key into the first 80 state bits (1-indexed positions 1..80, i.e. 0-indexed 0..79), an 80-bit IV into 1-indexed positions 94..173, setting state bits 286, 287, 288 to 1, then running $4 \cdot 288 = 1152$ warm-up cycles without output. Each step computes three feedback bits with AND-XOR mixing across the three registers, XORs them to produce the output bit, and shifts the registers.
+
+```cs
+class Trivium : IRandomNumberGenerator {
+  private const int STATE_SIZE = 288;
+  private readonly bool[] _state = new bool[STATE_SIZE];
+
+  public void Seed(ulong seed) {
+    Array.Clear(this._state);
+    // Derive 80-bit key and 80-bit IV from the 64-bit seed via SplitMix64.
+    var key = SplitMix64.Next(ref seed);
+    var keyHi = SplitMix64.Next(ref seed);
+    var iv = SplitMix64.Next(ref seed);
+    var ivHi = SplitMix64.Next(ref seed);
+    for (var i = 0; i < 64; ++i) this._state[i] = ((key >> i) & 1) != 0;
+    for (var i = 0; i < 16; ++i) this._state[64 + i] = ((keyHi >> i) & 1) != 0;
+    for (var i = 0; i < 64; ++i) this._state[93 + i] = ((iv >> i) & 1) != 0;
+    for (var i = 0; i < 16; ++i) this._state[93 + 64 + i] = ((ivHi >> i) & 1) != 0;
+    this._state[285] = this._state[286] = this._state[287] = true;
+    for (var i = 0; i < 4 * STATE_SIZE; ++i) StepBit();
+  }
+
+  public ulong Next() {
+    var result = 0UL;
+    for (var i = 0; i < 64; ++i)
+      if (StepBit()) result |= 1UL << i;
+    return result;
+  }
+
+  // Indices below are 0-indexed translations of the spec's 1-indexed positions.
+  private bool StepBit() {
+    var s = this._state;
+    var t1 = s[65] ^ s[92];
+    var t2 = s[161] ^ s[176];
+    var t3 = s[242] ^ s[287];
+    var output = t1 ^ t2 ^ t3;
+    t1 ^= (s[90] & s[91]) ^ s[170];
+    t2 ^= (s[174] & s[175]) ^ s[263];
+    t3 ^= (s[285] & s[286]) ^ s[68];
+    for (var i = 92; i > 0; --i) s[i] = s[i - 1]; s[0] = t3;
+    for (var i = 176; i > 93; --i) s[i] = s[i - 1]; s[93] = t1;
+    for (var i = 287; i > 177; --i) s[i] = s[i - 1]; s[177] = t2;
+    return output;
+  }
+}
+```
+
+### Xoroshiro128+ (XRSR+) [^78]
+
+[^78]: [XRSR+](https://prng.di.unimi.it/)
+
+This is the smaller cousin of [Xoshiro256+](#xoshiro256-xsr-58) by Blackman and Vigna. The state-evolution function is identical to [Xoroshiro128++](#xoroshiro-xrsr-19) but the output scrambler is the simple `s0 + s1` — no rotation. Like Xoshiro256+, the three low-order bits are LFSR-linear, so this variant is intended for generating IEEE-754 doubles where those bits never reach the mantissa.
+
+```cs
+class Xoroshiro128Plus : IRandomNumberGenerator {
+  private ulong _s0, _s1;
+
+  public ulong Next() {
+    var s0 = _s0;
+    var s1 = _s1;
+    var result = s0 + s1;          // only change vs Xoroshiro128++: + instead of rotl(s0+s1,17)+s0
+    s1 ^= s0;
+    _s0 = BitOperations.RotateLeft(s0, 24) ^ s1 ^ (s1 << 16);
+    _s1 = BitOperations.RotateLeft(s1, 37);
+    return result;
+  }
+}
+```
+
+### Rule 30 cellular automaton (R30) [^79]
+
+[^79]: [R30](https://www.wolframscience.com/nks/notes-7-9--rule-30-and-other-1d-cellular-automata/)
+
+Stephen Wolfram famously used **Rule 30**, an elementary 1-D cellular automaton, as the random-number generator in early versions of *Mathematica*. The "rule" specifies a local 3-bit lookup table: each new cell value equals `left XOR (center OR right)`. Despite the deterministic, fully local update, the centre column of the evolving pattern looks random and passes many classical statistical tests.
+
+```mermaid
+flowchart LR
+  L["Left cell"] --> X1((XOR))
+  C["Center cell"] --> O1((OR))
+  R["Right cell"] --> O1
+  O1 --> X1
+  X1 --> N["New center value"]
+```
+
+The implementation in this repository keeps a 256-bit cyclic cell array and runs 64 synchronous Rule-30 updates per `Next()` call, accumulating the centre cell's value into a 64-bit output. Note that Rule 30 by itself **fails modern statistical tests** (BigCrush exposes serial-correlation problems immediately), so it is included here as a historical curiosity and a paradigmatically different generator design rather than as a recommendation.
+
+```cs
+class Rule30 : IRandomNumberGenerator {
+  public ulong Next() {
+    var result = 0UL;
+    for (var step = 0; step < 64; ++step) {
+      for (var i = 0; i < WIDTH; ++i) {
+        var left   = _cells[(i + WIDTH - 1) % WIDTH];
+        var center = _cells[i];
+        var right  = _cells[(i + 1) % WIDTH];
+        _next[i] = left ^ (center | right);
+      }
+      if (_cells[WIDTH / 2]) result |= 1UL << step;
+      // Promote _next to _cells for the next step (implementation also clears _next).
+    }
+    return result;
+  }
+}
+```
+
+### PCG XSH-RR (PCG-XSH) [^80]
+
+[^80]: [PCG-XSH-RR](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
+
+The third PCG variant in the project, completing the family alongside [RXS-M-XS](#permuted-congruential-generator-pcg-27) and [XSL-RR](#permuted-congruential-xsl-rr-pcg-xsl-59). All three share the same 128-bit LCG core; only the output transform differs. XSH-RR ("XOR-Shift-High, Random-Rotation") XORs a high-shifted copy of the state into itself to mix high bits down, takes the upper 64 bits of the result, and rotates by a count drawn from the top six bits of the state.
+
+```cs
+class PermutedCongruentialXshRr : IRandomNumberGenerator {
+  public ulong Next() {
+    var state = _state * MULTIPLIER + INCREMENT;
+    _state = state;
+    var xored = (ulong)((state >> 64) ^ (state >> 35));   // XSH: mix high bits down
+    var rot = (int)(state >> 122);                         // top 6 bits choose rotation
+    return BitOperations.RotateRight(xored, rot);
+  }
+}
+```
+
+### WyRand (WY) [^52]
+
+[^52]: [WY](https://github.com/wangyi-fudan/wyhash)
+
+This is from the wyhash library by Wang Yi. It is an extremely fast counter-based generator that uses 128-bit multiply mixing. Despite its simplicity (just an increment, XOR, and one widening multiplication), it is widely used in hash tables (Zig, Go, Rust standard libraries) and general-purpose applications, and passes the standard NIST/Crush batteries; some users report PractRand failures at extremely large sample volumes, so wyrand is best treated as a fast general-purpose generator rather than one stress-tested to PB-scale.
+
+Characteristics
+
+* **Extremely Fast**: One addition and one widening multiply per output — among the fastest PRNGs that pass BigCrush.
+* **Counter-Based**: The internal counter has period exactly $2^{64}$. Like every 64-bit generator, the *output stream* is subject to birthday collisions at roughly $2^{32}$ samples.
+* **WyMix**: The core mixing function multiplies two 64-bit values into a 128-bit product, then XORs the halves — simple but highly effective diffusion.
+* **Minimal State**: Only 64 bits of state (the counter).
+
+Algorithm
+
+Each step increments the state by a constant, then mixes the state with a secret constant using the WyMix function (128-bit multiply, XOR upper and lower halves).
+
+```cs
+class WyRand : IRandomNumberGenerator {
+  private const ulong INCREMENT = 0xA0761D6478BD642F;
+  private const ulong SECRET = 0xE7037ED1A0B428DB;
+  private ulong _state;
+
+  public void Seed(ulong seed) => this._state = seed;
+
+  public ulong Next() {
+    this._state += INCREMENT;
+    return WyMix(this._state, this._state ^ SECRET);
+  }
+
+  static ulong WyMix(ulong a, ulong b) {
+    UInt128 full = (UInt128)a * b;
+    return (ulong)(full >> 64) ^ (ulong)full;
+  }
+}
+```
+
+#### Counter-based vs sequential generators
+
+Most PRNGs in this document — LCG, XorShift, Mersenne Twister, Romu, JSF, Lehmer128 and so on — are **sequential**: each output depends on the previous internal state, so generating output number $n$ requires walking through all $n-1$ predecessors (or jumping ahead via a custom function). The next several algorithms — Philox, Threefry, Squares, sfc64 — are **counter-based**: their output is a fixed bijection $f(\text{key}, i)$ of a key and an index $i$, so any output can be produced directly without computing the ones before it.
+
+```mermaid
+flowchart LR
+  subgraph "Sequential PRNG (e.g. XorShift)"
+    direction LR
+    S0["state_0"] -->|"Next()"| S1["state_1"] -->|"Next()"| S2["state_2"] -->|"Next()"| S3["…"]
+    S1 --> O1["out_1"]
+    S2 --> O2["out_2"]
+    S3 --> O3["out_3"]
+  end
+  subgraph "Counter-based PRNG (e.g. Philox)"
+    direction LR
+    K[key]
+    K --> F1["f(key, 1)"] --> P1["out_1"]
+    K --> F2["f(key, 2)"] --> P2["out_2"]
+    K --> F3["f(key, 3)"] --> P3["out_3"]
+    K --> Fn["f(key, n) -- computed directly"] --> Pn["out_n"]
+  end
+```
+
+The practical consequences:
+
+* **GPUs and parallel workers** can each compute their own slice $\{f(\text{key}, i_{\text{start}}), \ldots, f(\text{key}, i_{\text{end}})\}$ without synchronisation, since there is no shared mutable state. This is why Philox is the default RNG in NumPy, TensorFlow and JAX.
+* **Jump-ahead is free**: skipping $10^{12}$ outputs costs the same as generating one, by just setting the counter to $i + 10^{12}$. With sequential generators, jumping ahead requires algorithm-specific math (Mersenne Twister and Xoshiro/Xoroshiro both ship dedicated jump functions; many older generators have none).
+* **Reproducibility across machines** is trivial: $f$ is a pure function, so two implementations of the same algorithm produce byte-identical streams from the same key and counter.
+
+The trade-off is that the round function $f$ has to be strong enough on its own — there's no accumulated mixing across calls to hide weaknesses — so counter-based generators typically apply 5–20 rounds of multiplication, rotation and XOR to each counter value.
+
+### Philox (PHX) [^44]
+
+[^44]: [PHX](https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
+
+This is a counter-based RNG from the Random123 library (Salmon et al., 2011). Unlike traditional stateful PRNGs, counter-based generators compute output as a function of a counter and a key, making them trivially parallelizable. Philox is the default RNG in NumPy and is widely used in TensorFlow, JAX, and PyTorch for GPU-accelerated random number generation.
+
+Characteristics
+
+* **Counter-Based**: Output is a pure function of (counter, key) — no sequential state dependency, enabling massive parallelism.
+* **Bijective Rounds**: Uses a Feistel network with widening multiplications as the round function, providing excellent diffusion.
+* **Statistical Quality**: Passes BigCrush with as few as 7 rounds; 10 rounds is the standard conservative choice.
+* **Performance**: Extremely fast on GPUs due to the use of hardware multiply instructions and absence of data-dependent branches.
+
+Algorithm
+
+Philox2x64-10 operates on a pair of 64-bit values using a Feistel structure. Each round multiplies one half by a constant, taking the upper 64 bits of the 128-bit product as the new value and XORing with the key. The key is bumped by a Weyl sequence constant each round.
+
+```cs
+class Philox : IRandomNumberGenerator {
+  private const ulong MULTIPLIER = 0xD2B74407B1CE6E93;
+  private const ulong ROUND_KEY_BUMP = 0x9E3779B97F4A7C15;
+
+  private ulong _counter;
+  private ulong _key;
+  private ulong _buffered;
+  private bool _hasBuffered;
+
+  public void Seed(ulong seed) {
+    this._key = seed;
+    this._counter = 0;
+    this._hasBuffered = false;
+  }
+
+  public ulong Next() {
+    if (this._hasBuffered) {
+      this._hasBuffered = false;
+      return this._buffered;
+    }
+
+    var lo = this._counter++;
+    var hi = 0UL;
+    var roundKey = this._key;
+
+    for (var i = 0; i < 10; ++i) {
+      var product = Math.BigMul(lo, MULTIPLIER); // 128-bit multiply
+      var newLo = (ulong)(product >> 64) ^ roundKey ^ hi;
+      hi = (ulong)product;
+      lo = newLo;
+      roundKey += ROUND_KEY_BUMP;
+    }
+
+    // Each counter step produces a 128-bit (lo, hi) pair; buffer hi for the next call.
+    this._buffered = hi;
+    this._hasBuffered = true;
+    return lo;
+  }
+}
+```
+
+### Threefry (TF) [^45]
+
+[^45]: [TF](https://www.thesalmons.org/john/random123/papers/random123sc11.pdf)
+
+This is another counter-based RNG from the Random123 library, based on the Threefish block cipher from the Skein hash function. It uses only simple operations (addition, rotation, XOR) with no multiplications, making it especially suitable for platforms where multiplications are expensive.
+
+Characteristics
+
+* **ARX Design**: Uses only Addition, Rotation, and XOR — no multiplications needed.
+* **Threefish Heritage**: Derived from the Threefish block cipher with reduced rounds for RNG use.
+* **Key Injection**: Subkeys are injected every 4 rounds using the Skein key schedule.
+* **Statistical Quality**: Passes BigCrush with 13+ rounds; 20 rounds is the standard choice.
+
+Algorithm
+
+Threefry2x64-20 operates on two 64-bit values, applying 20 rounds of rotation and XOR mixing with key injection every 4 rounds. The key schedule extends the 2-word key to 3 words using the Skein parity constant. The eight rotation amounts `[16, 42, 12, 31, 16, 32, 24, 21]` are reused cyclically and come from the Threefish-256 round schedule — chosen by the Skein/Threefish designers via exhaustive search to maximise diffusion per round.
+
+```cs
+class Threefry : IRandomNumberGenerator {
+  private const ulong SKEIN_PARITY = 0x1BD11BDAA9FC1A22;
+  private static readonly int[] ROTATIONS = [16, 42, 12, 31, 16, 32, 24, 21];
+
+  private ulong _key0, _key1;
+  private ulong _counter;
+
+  public void Seed(ulong seed) {
+    this._key0 = seed;
+    this._key1 = SplitMix64.Next(ref seed);
+    this._counter = 0;
+  }
+
+  public ulong Next() {
+    var x0 = this._counter++;
+    var x1 = 0UL;
+    var ks0 = this._key0;
+    var ks1 = this._key1;
+    var ks2 = SKEIN_PARITY ^ ks0 ^ ks1;
+
+    x0 += ks0;
+    x1 += ks1;
+
+    for (var round = 0; round < 20; ++round) {
+      x0 += x1;
+      x1 = BitOperations.RotateLeft(x1, ROTATIONS[round % 8]) ^ x0;
+
+      if ((round + 1) % 4 == 0) { // key injection
+        var inject = (round + 1) / 4;
+        x0 += (inject % 3) switch { 0 => ks0, 1 => ks1, _ => ks2 };
+        x1 += ((inject % 3) switch { 0 => ks1, 1 => ks2, _ => ks0 }) + (ulong)inject;
+      }
+    }
+
+    return x0; // x1 available as second output
+  }
+}
+```
+
+### Squares (SQ) [^46]
+
+[^46]: [SQ](https://arxiv.org/abs/2004.06278)
+
+This was developed by Bernard Widynski (2022), the same author as [MSWS](#middle-square-weyl-sequence-msws-6). It is a modern counter-based generator that revisits the middle-square concept with a Weyl sequence key, achieving excellent statistical quality with minimal state. The 64-bit variant uses 5 rounds of squaring and word-swapping.
+
+Characteristics
+
+* **Counter-Based**: Like Philox and Threefry, output is a pure function of (counter, key).
+* **Middle-Square Heritage**: Each round squares the state and takes the "middle" via a 32-bit rotation, connecting it to von Neumann's original idea.
+* **Compact**: Only two 64-bit state variables (counter + key).
+* **Fast**: Uses only multiplication, addition, XOR, and rotation — no lookup tables or complex permutations.
+
+Algorithm
+
+Each call increments a counter, multiplies it by the key, then performs four "squarings with rotation" plus a fifth squaring. Following Widynski's 4+1 formulation, the 64-bit output is the XOR of `t` (the round-4 value *before* its 32-bit rotation) with the upper 32 bits of the round-5 product `x*x + y`.
+
+```cs
+class Squares : IRandomNumberGenerator {
+  private ulong _counter, _key;
+
+  public void Seed(ulong seed) {
+    this._key = SplitMix64.Next(ref seed) | 1;
+    this._counter = 0;
+  }
+
+  public ulong Next() {
+    var y = this._counter * this._key;
+    var x = y;
+    var z = y + this._key;
+    this._counter++;
+
+    x = x * x + y; x = (x >> 32) | (x << 32); // round 1
+    x = x * x + z; x = (x >> 32) | (x << 32); // round 2
+    x = x * x + y; x = (x >> 32) | (x << 32); // round 3
+    var t = x = x * x + z; x = (x >> 32) | (x << 32); // round 4
+    return t ^ ((x * x + y) >> 32);              // round 5 (64-bit output)
+  }
+}
+```
+
+### Jenkins Small Fast (JSF) [^47]
+
+[^47]: [JSF](https://burtleburtle.net/bob/rand/smallprng.html)
+
+This was designed by Bob Jenkins, known for his hash functions and the [ISAAC](#isaac-64-isaac-50) CSPRNG. JSF64 is a compact, fast, non-cryptographic PRNG with 256 bits of state and no bad seeds. It combines subtraction, addition, XOR, and rotation in a simple four-variable feedback loop.
+
+Characteristics
+
+* **Compact State**: Only 256 bits (4 × 64-bit words), yet provides excellent statistical quality.
+* **No Bad Seeds**: The warm-up loop during seeding ensures all initial states lead to good sequences.
+* **Simple Design**: Each step uses only subtraction, addition, XOR, and rotation — easy to implement and verify.
+* **Fast**: Competitive with XorShift variants while having much better statistical properties.
+
+Algorithm
+
+JSF64 maintains four state variables (a, b, c, d). Each step computes a new value from subtracting a rotated value, then cascades XOR and rotation through the remaining variables. The output is the new value of d.
+
+```cs
+class JenkinsSmallFast : IRandomNumberGenerator {
+  private ulong _a, _b, _c, _d;
+
+  public void Seed(ulong seed) {
+    this._a = 0xF1EA5EED;
+    this._b = this._c = this._d = seed;
+    for (var i = 0; i < 20; ++i) this.Next(); // warm-up
+  }
+
+  public ulong Next() {
+    var e = this._a - BitOperations.RotateLeft(this._b, 7);
+    this._a = this._b ^ BitOperations.RotateLeft(this._c, 13);
+    this._b = this._c + BitOperations.RotateLeft(this._d, 37);
+    this._c = this._d + e;
+    this._d = e + this._a;
+    return this._d;
+  }
+}
+```
+
+### RomuTrio (ROMU) [^48]
+
+[^48]: [ROMU](https://www.romu-random.org/)
+
+This was designed by Mark Overton (2020). Romu generators use rotation-based multiplicative mixing to achieve excellent speed and statistical quality. RomuTrio, the flagship variant, uses 192 bits of state and is among the fastest high-quality PRNGs available.
+
+Characteristics
+
+* **Rotation-Multiplicative**: Combines rotation and multiplication for strong non-linear mixing.
+* **Very Fast**: One of the fastest generators that still passes all standard test suites.
+* **192-bit State**: Three 64-bit words provide a large enough state space to avoid short cycles.
+* **Simple Update**: Each step requires only one multiplication and two rotations.
+
+Algorithm
+
+RomuTrio updates three state variables: the first is set to a constant times the third, the second and third are updated by subtracting adjacent states and rotating. The output is the old value of the first state variable.
+
+```cs
+class RomuTrio : IRandomNumberGenerator {
+  private const ulong MULTIPLIER = 15241094284759029579;
+  private ulong _x, _y, _z;
+
+  public void Seed(ulong seed) {
+    this._x = SplitMix64.Next(ref seed);
+    this._y = SplitMix64.Next(ref seed);
+    this._z = SplitMix64.Next(ref seed);
+  }
+
+  public ulong Next() {
+    // Snapshot all three state words BEFORE writing back, so that
+    // each new value depends on the OLD other values (per Overton's spec).
+    var xp = this._x;
+    var yp = this._y;
+    var zp = this._z;
+
+    this._x = MULTIPLIER * zp;
+    this._y = BitOperations.RotateLeft(yp - xp, 12);
+    this._z = BitOperations.RotateLeft(zp - yp, 44);
+    return xp;
+  }
+}
+```
+
+### Lehmer 128-bit (L128) [^49]
+
+[^49]: [L128](https://lemire.me/blog/2019/03/19/the-fastest-conventional-random-number-generator-that-can-pass-big-crush/)
+
+This is a 128-bit multiplicative congruential generator (MCG), a modern evolution of the classical [MLCG](#multiplicative-linear-congruential-generator-mlcg-7). By using a 128-bit state multiplied by a 64-bit constant and returning the upper 64 bits, it achieves excellent statistical quality while being extremely fast. Recommended by Steele and Vigna as a simple, high-quality baseline generator.
+
+Characteristics
+
+* **Compact State**: 128 bits — comparable to other modern BigCrush-passing generators (JSF, sfc64, RomuTrio all use roughly 128–256 bits).
+* **Extremely Fast**: A single 128-bit multiplication per output. On x86-64 with BMI2 (`mulx`) this compiles to roughly two machine instructions; on platforms without a 64×64→128 multiply it requires emulation and is correspondingly slower.
+* **Upper Bits Output**: Returning the upper 64 bits of the 128-bit state provides better statistical properties than lower bits.
+* **No Addition**: Pure multiplicative (no additive constant), yet the 128-bit state avoids the low-bit weaknesses of classical 64-bit MCGs.
+
+Algorithm
+
+The state is a 128-bit unsigned integer, multiplied by a carefully chosen 64-bit constant each step. The upper 64 bits of the state are returned as output.
+
+```cs
+class Lehmer128 : IRandomNumberGenerator {
+  private const ulong MULTIPLIER = 0xDA942042E4DD58B5;
+  private UInt128 _state;
+
+  public void Seed(ulong seed) {
+    this._state = ((UInt128)SplitMix64.Next(ref seed) << 64)
+                | SplitMix64.Next(ref seed) | 1;
+  }
+
+  public ulong Next() {
+    this._state *= MULTIPLIER;
+    return (ulong)(this._state >> 64);
+  }
+}
+```
+
+### LXM (LXM) [^50]
+
+[^50]: [LXM](https://openjdk.org/jeps/356)
+
+This is a family of generators introduced in Java 17 (JEP 356) that combine a Linear congruential generator, a Xor-based generator, and a Mixing function. The L64X128MixRandom variant combines a 64-bit LCG with a 128-bit Xoroshiro128 subgenerator (Vigna's plain "+" variant — see the [XoRoShiRo](#xoroshiro-xrsr-19) section; the ++/** scrambled output transforms used in Xoroshiro128++ are *not* part of LXM, which delegates output mixing to the Lea64 finalizer instead).
+
+Characteristics
+
+* **Hybrid Design**: Combines the long-period guarantee of an LCG with the bit-mixing quality of Xoroshiro.
+* **Splittable**: The LCG addend can be varied per stream, enabling safe parallel use without coordination.
+* **Lea64 Mixing**: The output mixer ensures that weaknesses in either subgenerator are masked.
+* **Java Standard**: The default `RandomGenerator` family in Java 17+, chosen after extensive evaluation.
+
+Algorithm
+
+Each step advances the LCG ($s = s \cdot M + a$) and the Xoroshiro128 subgenerator independently. The outputs are added and passed through the Lea64 mixing function (two rounds of multiply-XOR-shift).
+
+```cs
+class Lxm : IRandomNumberGenerator {
+  private const ulong LCG_MULTIPLIER = 0xD1342543DE82EF95;
+  private ulong _lcgState, _lcgAddend;
+  private ulong _x0, _x1;
+
+  public void Seed(ulong seed) {
+    this._lcgAddend = SplitMix64.Next(ref seed) | 1;
+    this._lcgState = SplitMix64.Next(ref seed);
+    this._x0 = SplitMix64.Next(ref seed);
+    this._x1 = SplitMix64.Next(ref seed);
+  }
+
+  public ulong Next() {
+    var s = this._lcgState;
+    var q0 = this._x0;
+    var q1 = this._x1;
+
+    this._lcgState = s * LCG_MULTIPLIER + this._lcgAddend;
+
+    q1 ^= q0;
+    this._x0 = BitOperations.RotateLeft(q0, 24) ^ q1 ^ (q1 << 16);
+    this._x1 = BitOperations.RotateLeft(q1, 37);
+
+    return MixLea64(s + q0);
+
+    static ulong MixLea64(ulong z) {
+      z = (z ^ (z >> 32)) * 0xDABA0B6EB09322E3;
+      z = (z ^ (z >> 32)) * 0xDABA0B6EB09322E3;
+      return z ^ (z >> 32);
+    }
+  }
+}
+```
+
+### Xoshiro256+ (XSR+) [^58]
+
+[^58]: [XSR+](https://prng.di.unimi.it/)
+
+This is a sibling of [Xoshiro256**](#xoshiro-xsr-18) (sometimes spelled "Xoshiro256SS" in this codebase) by David Blackman and Sebastiano Vigna. The state-evolution function is identical, but the output scrambler is the simpler $s_0 + s_3$ — no multiplication. Because of that simplification the *lowest three bits* of the output are LFSR-linear (just XORs of state bits), which would fail strict integer-bit tests; the design specifically targets generating IEEE-754 doubles, where the bottom three bits never make it into the mantissa.
+
+Xoshiro256+ is the default generator in `System.Random` from .NET 6 onwards.
+
+```cs
+class Xoshiro256Plus : IRandomNumberGenerator {
+  private ulong _w, _x, _y, _z;
+
+  public ulong Next() {
+    var result = this._w + this._z;  // only change vs Xoshiro256**: + instead of (x*5).rotl(7)*9
+    var x = this._x << 17;
+    this._y ^= this._w; this._z ^= this._x; this._x ^= this._y; this._w ^= this._z;
+    this._y ^= x;
+    this._z = BitOperations.RotateLeft(this._z, 45);
+    return result;
+  }
+}
+```
+
+### Permuted Congruential XSL-RR (PCG-XSL) [^59]
+
+[^59]: [PCG-XSL-RR](https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf)
+
+This is the canonical 128-bit → 64-bit output variant of Melissa O'Neill's PCG family, complementing the [RXS-M-XS](#permuted-congruential-generator-pcg-27) variant already in the project. Both share the same 128-bit LCG core; only the output permutation differs. XSL-RR ("XOR-Shift-Low, Random-Rotation") folds the high 64 bits of the state into the low 64 via XOR, then rotates the result by a count taken from the top six bits of the state.
+
+```cs
+class PermutedCongruentialXslRr : IRandomNumberGenerator {
+  private UInt128 _state;
+
+  public ulong Next() {
+    var state = this._state * MULTIPLIER + INCREMENT;
+    this._state = state;
+    var rotation = (int)(state >> 122);                          // top 6 bits choose the rotation
+    var xored = (ulong)(state >> 64) ^ (ulong)state;             // fold high into low
+    return BitOperations.RotateRight(xored, rotation);
+  }
+}
+```
+
+The pattern — *use one part of the LCG state to choose how to mix the rest* — is the core PCG insight: it gives a non-linear output transform "for free" (no extra state, one extra rotate) while the underlying LCG core remains amenable to mathematical analysis.
+
 ## CSRNG Algorithms
 
 ### Blum-Micali (BM) [^31]
@@ -2065,7 +2745,26 @@ Here’s how you can implement ChaCha20 as an RNG:
 
 2. **Keystream Generation**: ChaCha20 generates a keystream by processing the state through its quarter-round functions over multiple rounds. This keystream can then be directly used as random numbers.
 
-3. **Output**: The output of the ChaCha20 block function is a series of 32-bit words, which can be used as random numbers. By repeatedly generating new blocks, you can produce as many random numbers as needed.
+3. **Output**: The output of the ChaCha20 block function is a series of 16 × 32-bit words (a 512-bit block), which can be used as random numbers. The implementation in this repository takes only the first two 32-bit words per block, concatenated into one 64-bit result. That trades efficiency (the other 14 words are recomputed on the next call) for simplicity and resistance to side-channel state leakage; a production CSPRNG would buffer the full block instead.
+
+The core operation is the **quarter-round** — four 32-bit words `a, b, c, d` are mixed via the ARX (Add-Rotate-XOR) pattern below. Each round of the cipher applies this to four columns, then four diagonals; ChaCha20 does 10 such double-rounds.
+
+```mermaid
+flowchart LR
+  A0[a] --> AB1((+))
+  B0[b] --> AB1
+  AB1 --> A1[a += b]
+  A1 --> XD1((XOR))
+  D0[d] --> XD1
+  XD1 --> R1["d = ROTL d 16"]
+  R1 --> CD1((+))
+  C0[c] --> CD1
+  CD1 --> C1[c += d]
+  C1 --> XB1((XOR))
+  B0 --> XB1
+  XB1 --> R2["b = ROTL b 12"]
+  R2 --> note["... repeat with rotations 8 and 7"]
+```
 
 ```cs
 class ChaCha20 : IRandomNumberGenerator {
@@ -2169,6 +2868,188 @@ class ChaCha20 : IRandomNumberGenerator {
 > [!TIP]
 > The NuGet library may contain an implementation that supports parametrized **constants** and **round count**.
 
+### Salsa20 (SAL20) [^81]
+
+[^81]: [SAL20](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)
+
+The direct predecessor of [ChaCha20](#chacha20-cc20-35), also by Daniel J. Bernstein. Both ciphers operate on a 512-bit state (sixteen 32-bit words) and produce keystream blocks via repeated *quarter-round* mixing of four words, but the wiring differs: Salsa20 alternates four **column rounds** and four **row rounds**, while ChaCha20 uses **column + diagonal** rounds. The quarter-round itself is also slightly different — Salsa20 mixes via additions in a 4-cycle pattern (`b ^= rotl(a+d, 7); c ^= rotl(b+a, 9); d ^= rotl(c+b, 13); a ^= rotl(d+c, 18)`), whereas ChaCha20 uses pair-of-pairs additions.
+
+ChaCha20 won out for new deployments because its diagonal-round wiring gives slightly better diffusion per round; Salsa20 remains relevant because it underlies the widely-deployed XSalsa20 / NaCl variants.
+
+```cs
+class Salsa20 : IRandomNumberGenerator {
+  public ulong Next() {
+    var working = (uint[])_state.Clone();
+    for (var r = 0; r < _rounds; r += 2) {
+      // Column rounds (four parallel quarter-rounds on each column)
+      QuarterRound(ref working[0], ref working[4], ref working[8], ref working[12]);
+      QuarterRound(ref working[5], ref working[9], ref working[13], ref working[1]);
+      QuarterRound(ref working[10], ref working[14], ref working[2], ref working[6]);
+      QuarterRound(ref working[15], ref working[3], ref working[7], ref working[11]);
+      // Row rounds (four parallel quarter-rounds on each row)
+      QuarterRound(ref working[0], ref working[1], ref working[2], ref working[3]);
+      QuarterRound(ref working[5], ref working[6], ref working[7], ref working[4]);
+      QuarterRound(ref working[10], ref working[11], ref working[8], ref working[9]);
+      QuarterRound(ref working[15], ref working[12], ref working[13], ref working[14]);
+    }
+    for (var i = 0; i < 16; ++i) working[i] += _state[i];
+    IncrementCounter();
+    return ((ulong)working[0] << 32) | working[1];
+
+    static void QuarterRound(ref uint a, ref uint b, ref uint c, ref uint d) {
+      b ^= RotateLeft(a + d, 7);
+      c ^= RotateLeft(b + a, 9);
+      d ^= RotateLeft(c + b, 13);
+      a ^= RotateLeft(d + c, 18);
+    }
+  }
+}
+```
+
+### ISAAC-64 (ISAAC) [^51]
+
+[^51]: [ISAAC](https://burtleburtle.net/bob/rand/isaacafa.html)
+
+This was developed by Bob Jenkins (1996), also the author of [JSF](#jenkins-small-fast-jsf-47). ISAAC (Indirection, Shift, Accumulate, Add, and Count) uses array indirection as its primary source of non-linearity. ISAAC-64 is the 64-bit variant; the 32-bit variant historically appeared in some BSD kernels (e.g. NetBSD's `/dev/urandom` and an earlier version of `arc4random`), though modern OpenBSD and FreeBSD have moved to ChaCha20-based generators. ISAAC has been called "cryptographically secure" by its author, but later analysis (Aumasson, 2006) found small biases in the output distribution; treat its claim of security as historical rather than current best practice.
+
+Characteristics
+
+* **Indirection-Based**: Uses table lookups indexed by the current state, creating a highly non-linear mapping that resists cryptanalysis.
+* **Large State**: 256 × 64-bit internal array plus three auxiliary variables — the large state space makes state recovery infeasible.
+* **Batch Generation**: Produces 256 random values per generation cycle, amortizing the cost of the mixing pass.
+* **No Multiplication**: Uses only shifts, additions, XOR, and array indexing — efficient on all platforms.
+
+Algorithm
+
+ISAAC-64 maintains a 256-element array and three accumulators (aa, bb, cc). Each generation pass iterates through the array, applying a cycle of four different shift patterns to the accumulator, combined with indirect table lookups. The indirection `mem[(x >> 3) & 255]` introduces non-linearity that is the core of ISAAC's security.
+
+```cs
+class Isaac : IRandomNumberGenerator {
+  private const int SIZE = 256;
+  private const int MASK = SIZE - 1;
+
+  private readonly ulong[] _mem = new ulong[SIZE];
+  private readonly ulong[] _results = new ulong[SIZE];
+  private ulong _aa, _bb, _cc;
+  private int _index;
+
+  public void Seed(ulong seed) {
+    for (var i = 0; i < SIZE; ++i)
+      this._results[i] = SplitMix64.Next(ref seed);
+    Initialize();
+  }
+
+  public ulong Next() {
+    if (this._index >= SIZE) {
+      Generate();
+      this._index = 0;
+    }
+    return this._results[this._index++];
+  }
+
+  private void Generate() {
+    ++this._cc;
+    this._bb += this._cc;
+    for (var i = 0; i < SIZE; ++i) {
+      var x = this._mem[i];
+      this._aa = (i % 4) switch {
+        0 => ~(this._aa ^ (this._aa << 21)),
+        1 => this._aa ^ (this._aa >> 5),
+        2 => this._aa ^ (this._aa << 12),
+        _ => this._aa ^ (this._aa >> 33),
+      } + this._mem[(i + SIZE / 2) & MASK];
+
+      var y = this._mem[(x >> 3) & MASK] + this._aa + this._bb;
+      this._mem[i] = y;
+      this._bb = this._mem[(y >> 11) & MASK] + x;
+      this._results[i] = this._bb;
+    }
+  }
+}
+```
+
+### AES-CTR DRBG [^60]
+
+[^60]: [NIST SP 800-90A Rev. 1](https://nvlpubs.nist.gov/nistpubs/specialpublications/nist.sp.800-90ar1.pdf)
+
+This is one of the four DRBGs ("Deterministic Random Bit Generators") specified by NIST in SP 800-90A — the standard construction used when the platform already has a strong block cipher available. The internal state is a 256-bit key $K$ and a 128-bit counter $V$. Each Generate step increments $V$, encrypts $V$ under $K$ via AES-256, and returns 64 bits of the ciphertext block. Immediately after, an internal *Update* step replaces $(K, V)$ with the encryption of two further counter values, so an attacker who later learns $(K, V)$ cannot recover prior outputs (this property is called *backtracking resistance*).
+
+```cs
+class AesCtrDrbg : IRandomNumberGenerator {
+  private readonly Aes _aes = Aes.Create();           // AES-256, ECB, no padding
+  private readonly byte[] _key = new byte[32];        // K
+  private readonly byte[] _v = new byte[16];          // V (counter)
+
+  public ulong Next() {
+    IncrementBigEndian(this._v);
+    var block = new byte[16];
+    using (var enc = this._aes.CreateEncryptor())
+      enc.TransformBlock(this._v, 0, 16, block, 0);
+    var result = BitConverter.ToUInt64(block, 0);
+    UpdateInternalState();                            // backtracking resistance
+    return result;
+  }
+}
+```
+
+The full SP 800-90A specification also covers reseeding from a fresh entropy source, derivation functions for non-uniform seed material, and "personalization strings" — all omitted here for brevity. For production, use a vetted library (e.g. .NET's `RandomNumberGenerator.Fill`, which itself wraps a vetted DRBG).
+
+### HMAC DRBG [^60]
+
+This is another NIST SP 800-90A construction, this time built around HMAC-SHA-256 rather than AES. It is the standard choice when a hash function is available but a block cipher is not (common in embedded TLS stacks). State consists of two 256-bit values $K$ (the HMAC key) and $V$ (the chaining value); each step computes $V \leftarrow \text{HMAC}(K, V)$, returns 64 bits of $V$, then performs a key-rotation Update.
+
+```cs
+class HmacDrbg : IRandomNumberGenerator {
+  private readonly byte[] _key = new byte[32];  // K (HMAC key)
+  private readonly byte[] _v = new byte[32];    // V (chaining value)
+
+  public ulong Next() {
+    var newV = HMACSHA256.HashData(this._key, this._v);
+    Array.Copy(newV, this._v, 32);
+    var result = BitConverter.ToUInt64(this._v, 0);
+    Update(null);                               // rotate K and V for backtracking resistance
+    return result;
+  }
+
+  private void Update(byte[]? providedData) {
+    // K = HMAC(K, V || 0x00 || providedData);  V = HMAC(K, V);
+    // if providedData != empty:  K = HMAC(K, V || 0x01 || providedData);  V = HMAC(K, V);
+    // (see SP 800-90A §10.1.2 for full pseudocode)
+  }
+}
+```
+
+Why two NIST DRBGs? Different platforms expose different primitives. AES-CTR DRBG is the fastest of the SP 800-90A constructions on x86-64 with AES-NI; HMAC DRBG is the most portable (any cryptographic hash function works); the original spec also defined Hash-DRBG (covered below) and Dual-EC DRBG, the latter of which was withdrawn after [the NSA backdoor was discovered](https://en.wikipedia.org/wiki/Dual_EC_DRBG#NSA_backdoor).
+
+### Hash DRBG (SHA-256) [^60]
+
+The third construction defined in NIST SP 800-90A: maintain a 440-bit secret state $V$ and a 440-bit constant $C$. Each Generate call produces output bytes by iteratively hashing $V$, then updates the state via $V \leftarrow V + H(\text{0x03} \mathbin\Vert V) + C + \text{reseed\_counter}$ (mod $2^{440}$) so that an attacker who later learns $V$ cannot recover prior outputs. The 440-bit width is the SP 800-90A "seedlen" for the SHA-256 instantiation.
+
+```cs
+class HashDrbg : IRandomNumberGenerator, IDisposable {
+  private const int SEED_BYTES = 55; // 440 bits
+  private readonly byte[] _v = new byte[SEED_BYTES];
+  private readonly byte[] _c = new byte[SEED_BYTES];
+  private ulong _reseedCounter;
+
+  public ulong Next() {
+    // Hashgen: output = SHA256(V)
+    var block = SHA256.HashData(_v);
+    var result = BitConverter.ToUInt64(block, 0);
+
+    // V update: V = V + H(0x03 || V) + C + reseed_counter   (mod 2^440)
+    var h = SHA256.HashData(Concat(new byte[] { 0x03 }, _v));
+    AddInto(_v, h);
+    AddInto(_v, _c);
+    AddInto(_v, BitConverter.GetBytes(_reseedCounter));
+    ++_reseedCounter;
+    return result;
+  }
+}
+```
+
+Hash DRBG completes the SP 800-90A trio: pick the construction that matches your available primitive — AES (CTR DRBG), HMAC (HMAC DRBG), or any cryptographic hash function (Hash DRBG).
+
 ### Yarrow (YAR) [^36]
 
 [^36]: [YAR](https://www.schneier.com/wp-content/uploads/2016/02/paper-yarrow.pdf)
@@ -2219,6 +3100,26 @@ Yarrow is designed to be robust against several types of attacks:
 
 * **Predictable Entropy Sources:**
   Yarrow is designed to handle cases where some entropy sources may be less random or potentially biased. By combining multiple sources and carefully managing entropy, Yarrow ensures the randomness of its output remains high.
+
+The implementation in this repository uses AES-256 in counter mode for output and SHA-256 to mix the fast pool into the key on reseed. Since no real entropy source is wired in, output bytes are stirred back into the fast pool as an educational substitute — production use requires real entropy injection from a hardware RNG or OS service.
+
+```cs
+class Yarrow : IRandomNumberGenerator, IDisposable {
+  public ulong Next() {
+    if (FastPoolReady() || OutputCapReached()) Reseed();
+    IncrementCounter(_counter);
+    var block = AesEncrypt(_counter);
+    StirIntoFastPool(block);             // educational: real Yarrow takes entropy here
+    return BitConverter.ToUInt64(block);
+  }
+
+  private void Reseed() {
+    // K = SHA256(K || fastPool); reset fast pool and output counter.
+    _key = SHA256.HashData(Concat(_key, _fastPool[.._fastPoolFill]));
+    _aes.Key = _key;
+  }
+}
+```
 
 ### Fortuna (FORT) [^37] [^38]
 
@@ -2276,6 +3177,34 @@ Fortuna was designed with several key security principles in mind:
 * **Defense Against Entropy Source Attacks:**
   Fortuna’s design assumes that some entropy sources may be compromised or less random. By using multiple independent pools, the generator mitigates the risk of any single source influencing the overall security of the system.
 
+The implementation in this repository uses 32 SHA-256 pools, AES-256 in counter mode for output, and the geometric reseed schedule (pool $i$ contributes when $2^i \mid \text{reseedCount}$). As with Yarrow, the educational version stirs output back into pools rather than collecting real entropy.
+
+```cs
+class Fortuna : IRandomNumberGenerator, IDisposable {
+  public ulong Next() {
+    if (_pool0Bytes >= ResetThreshold) Reseed();
+    IncrementCounter(_counter);
+    var block = AesEncrypt(_counter);
+    _pools[_nextPool].TransformBlock(block);  // stir into round-robin pool
+    _nextPool = (_nextPool + 1) % 32;
+    return BitConverter.ToUInt64(block);
+  }
+
+  private void Reseed() {
+    ++_reseedCount;
+    var combiner = SHA256.Create();
+    combiner.TransformBlock(_key);
+    for (int i = 0; i < 32; ++i) {
+      if ((_reseedCount & ((1 << i) - 1)) != 0) break;  // 2^i must divide _reseedCount
+      combiner.TransformBlock(_pools[i].FinalHash());
+      _pools[i] = SHA256.Create();
+    }
+    _key = combiner.FinalHash();
+    _aes.Key = _key;
+  }
+}
+```
+
 ### ANSI X9.17 (ANSI) [^39]
 
 [^39]: [ANSI](https://www.researchgate.net/publication/267297736_EFFICIENT_COMBINATION_OF_SEVERAL_TECHNIQUES_IN_THE_DESIGN_AND_IMPLEMENTATION_OF_A_NETWORKS_SECURITY_SYSTEM)
@@ -2302,6 +3231,20 @@ This standard specifies a method for generating cryptographically secure random 
 * DES Dependency: The security of the ANSI X9.17 RNG is tightly coupled with the security of DES. As DES has a 56-bit key length, which is now considered insecure against brute-force attacks, the ANSI X9.17 standard is generally considered obsolete for modern cryptographic applications.
 * Key Management: The secrecy of the key $𝐾$ is critical. If the key is compromised, the entire sequence of generated random numbers can be predicted, undermining the security of the system.
 * Entropy Source: The initial seed $𝑉_0$ and the date/time component must be chosen carefully to ensure that the generator's output remains unpredictable. Any weakness in these components can lead to predictability in the generated numbers.
+
+The implementation in this repository follows the modernised ANSI X9.31 update: AES-128 replaces DES, and the date/time component is substituted with a monotonic counter so the algorithm becomes self-contained for testing.
+
+```cs
+class AnsiX931 : IRandomNumberGenerator, IDisposable {
+  public ulong Next() {
+    var d = CounterAsBlock(_counter++);          // D substitute (was: date/time)
+    var i = AesEncrypt(d);                       // I = E(K, D)
+    var r = AesEncrypt(Xor(i, _v));              // R = E(K, I XOR V) — this is the output
+    _v = AesEncrypt(Xor(r, i));                  // V = E(K, R XOR I) — state update
+    return BitConverter.ToUInt64(r);
+  }
+}
+```
 
 ## Drinking Bit-Soup
 
@@ -2680,11 +3623,16 @@ byte NextD12(IRandomNumberGenerator instance) {
 This method involves normalizing the RNG's output to a floating-point value between $[0.0, 1.0]$, then scaling it to the desired range.
 
 ```cs
-byte NextD4(IRandomNumberGenerator instance) => (byte)(1 + ((double)instance.Next() / ulong.MaxValue) * 4);
+byte NextD4(IRandomNumberGenerator instance) {
+  // Divide by (ulong.MaxValue + 1.0) instead of ulong.MaxValue so the quotient is strictly in [0.0, 1.0),
+  // never exactly 1.0; otherwise (1 + 1.0 * 4) would produce 5, which is out of range.
+  double u = instance.Next() / (ulong.MaxValue + 1.0);
+  return (byte)(1 + u * 4);
+}
 ```
 
 > [!CAUTION]
-> The method relies on floating-point arithmetic, which may introduce inaccuracies due to the finite precision of `double`. However, for typical RNG ranges and moderate scaling factors, this is usually negligible.
+> The method relies on floating-point arithmetic, which may introduce inaccuracies due to the finite precision of `double`. Note also that dividing by `ulong.MaxValue` (rather than `ulong.MaxValue + 1.0`) makes the upper bound *inclusive*, producing one out-of-range value at the very largest input.
 
 #### Reals
 
@@ -2698,8 +3646,8 @@ float NextSingle() {
 }
 
 double NextDouble() {
-  uint mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
-  uint doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
+  ulong mantissa = rng.Next() >> (64 - 52);         // Extract 52 bits for the mantissa
+  ulong doubleBits = (1023UL << 52) | mantissa;     // 1023 is the biased exponent for 2^0 in double-precision
   return BitConverter.Int64BitsToDouble((long)doubleBits) - 1.0d;
 }
 ```
@@ -2984,6 +3932,17 @@ Vector256<ulong> SplitMix256() {
 #### Feistel-Network
 
 The [Feistel network](https://en.wikipedia.org/wiki/Feistel_cipher) technique enhances the randomness of bits generated by a basic RNG by applying a structure commonly used in cryptographic algorithms like [DES (Data Encryption Standard)](https://en.wikipedia.org/wiki/Data_Encryption_Standard). A Feistel network splits the data into two halves, applies a round function with a key, and then swaps the halves, repeating this process to achieve strong diffusion. This makes it an excellent method to improve the distribution and randomness of the output bits, ensuring they are more secure and less predictable.
+
+One round of a 64-bit Feistel network looks like this — the right half passes through a key-dependent round function `F`, the result is XORed into the left half, then the halves swap. Repeating the round many times yields strong diffusion even when `F` is relatively simple:
+
+```mermaid
+flowchart LR
+  L0[Left 32-bit] --> X1((XOR))
+  R0[Right 32-bit] --> F[F: round function + key]
+  F --> X1
+  X1 --> R1[Right' = old Left XOR F]
+  R0 -.-> L1[Left' = old Right]
+```
 
 ```cs
 IEnumerable<byte> FeistelGenerator() {
@@ -3443,7 +4402,84 @@ partial class ArbitraryNumberGenerator {
 }
 ```
 
+## Quasi-Random Sequences
+
+Quasi-random (or *low-discrepancy*) sequences are a separate concept from the PRNGs above. They are not designed to look random — in fact they fail every statistical-randomness test by design — but to fill the unit interval (or hypercube) as **evenly** as possible. This makes them an excellent fit for Monte Carlo integration, where the goal is uniform coverage rather than unpredictability: a quasi-Monte Carlo estimator converges as $O(\log^d(n) / n)$ versus $O(1/\sqrt{n})$ for ordinary Monte Carlo.
+
+They implement the same `IRandomNumberGenerator` interface here for convenience, but be aware that running statistical tests on them will (correctly) flag them as biased.
+
+### Halton (HLT) [^56]
+
+[^56]: [Halton](https://link.springer.com/article/10.1007/BF01386213)
+
+This sequence was introduced by John H. Halton in 1960. The 1-dimensional base-$b$ Halton sequence is the [van der Corput sequence](https://en.wikipedia.org/wiki/Van_der_Corput_sequence) in base $b$ — the $n$-th element is obtained by writing $n$ in base $b$, reversing the digits and placing them after the decimal point. The base-2 variant therefore reduces to a single `BitReverse` of the counter, which is what the implementation in this repository uses by default.
+
+```cs
+class Halton : IRandomNumberGenerator {
+  private ulong _counter;
+
+  public void Seed(ulong seed) => this._counter = seed;
+
+  // For base 2 only: bit-reverse the counter to produce the van der Corput sequence.
+  public ulong Next() => BitReverse(++this._counter);
+}
+```
+
+### Sobol' (SOB) [^57]
+
+[^57]: [Sobol'](https://www.sciencedirect.com/science/article/pii/0041555367901449)
+
+Introduced by Ilya M. Sobol' in 1967, Sobol' sequences improve on Halton's even coverage in higher dimensions and are the most widely-used quasi-random sequence in finance and computational physics. The construction uses precomputed *direction numbers* and the Gray-code trick: the $i$-th and $(i+1)$-th points differ in exactly one bit, identified by the trailing-zero count of $i+1$, so the next point can be produced by a single XOR.
+
+```cs
+class Sobol : IRandomNumberGenerator {
+  private readonly ulong[] _direction = new ulong[64];
+  private ulong _state, _counter;
+
+  public Sobol() {
+    // 1-D direction numbers are just bit-position masks.
+    for (var i = 0; i < 64; ++i) this._direction[i] = 1UL << (63 - i);
+  }
+
+  public void Seed(ulong seed) {
+    this._state = 0; this._counter = 0;
+    for (var i = 0UL; i < seed; ++i) this.Next();
+  }
+
+  public ulong Next() {
+    var c = BitOperations.TrailingZeroCount(++this._counter);
+    this._state ^= this._direction[c];
+    return this._state;
+  }
+}
+```
+
+Multi-dimensional Sobol' (used in practice) requires per-dimension direction-number tables from Joe-Kuo or similar — out of scope here.
+
 ## NURNG-Algorithms
+
+The previous sections covered *uniform* random numbers — every output equally likely across a fixed range. Many applications need numbers drawn from a non-uniform distribution: Gaussian noise for a signal-processing simulation, Poisson-distributed arrival times for a queueing model, Pareto-distributed wait times for a heavy-tailed network analysis. The NURNG (Non-Uniform Random Number Generator) algorithms below build on a uniform RNG to produce samples from these and other distributions.
+
+**Distribution catalog at a glance:**
+
+| Distribution | Type | Domain | Parameters | Generator method |
+|---|---|---|---|---|
+| [Exponential](#inverse-transform-sampling-its-40) | Continuous | $[0, \infty)$ | rate $\lambda$ | Inverse-CDF |
+| [Standard Normal](#box-muller-method-bm-41) | Continuous | $(-\infty, \infty)$ | μ=0, σ=1 | Box-Muller polar transform |
+| [Standard Normal](#marsaglia-polar-method-mp-42) | Continuous | $(-\infty, \infty)$ | μ=0, σ=1 | Marsaglia rejection |
+| [Standard Normal](#ziggurat-zig-43) | Continuous | $(-\infty, \infty)$ | μ=0, σ=1 | Ziggurat layered rejection |
+| [Poisson](#poisson-psn-61) | Discrete | $\{0, 1, 2, \ldots\}$ | rate $\lambda$ | Knuth / Atkinson PA |
+| [Gamma](#gamma-gam-62) | Continuous | $[0, \infty)$ | shape $k$, scale $\theta$ | Marsaglia-Tsang squeeze |
+| [Beta](#beta-bet-63) | Continuous | $(0, 1)$ | shape $\alpha$, $\beta$ | Ratio of two Gammas |
+| [Bernoulli](#bernoulli-brn-64) | Discrete | $\{0, 1\}$ | probability $p$ | Direct |
+| [Binomial](#binomial-bin-65) | Discrete | $\{0, 1, \ldots, n\}$ | trials $n$, prob $p$ | Sum of Bernoullis |
+| [Geometric](#geometric-geo-66) | Discrete | $\{0, 1, 2, \ldots\}$ | probability $p$ | Inverse-CDF |
+| [Chi-Squared](#chi-squared-chi-67) | Continuous | $[0, \infty)$ | df $k$ | Gamma($k/2$, 2) |
+| [Cauchy](#cauchy-ccy-68) | Continuous | $(-\infty, \infty)$ | location, scale | Inverse-CDF (tan) |
+| [Log-normal](#log-normal-lnm-69) | Continuous | $(0, \infty)$ | μ, σ | exp of normal |
+| [Weibull](#weibull-wbl-70) | Continuous | $[0, \infty)$ | shape $k$, scale $\lambda$ | Inverse-CDF |
+| [Triangular](#triangular-tri-71) | Continuous | $[\text{min}, \text{max}]$ | min, mode, max | Inverse-CDF (two branches) |
+| [Pareto](#pareto-par-72) | Continuous | $[\text{scale}, \infty)$ | shape, scale | Inverse-CDF (power) |
 
 For the upcoming algorithms we'll utilize a different interface than above to generate floating-point 64-bit values with specific distribution properties:
 
@@ -3496,6 +4532,9 @@ double Exponential(double lambda, IRandomNumberGenerator rng) {
 }
 ```
 
+![Exponential distribution: tallest bar at 0, decaying smoothly to near-zero by x=6](Images/dist_exponential.png)
+*200,000 samples with λ=1. Look for the strictly-decreasing shape with no peak away from zero — the exponential's "memoryless" property is what makes the curve a single monotone decay.*
+
 ### Box-Muller Method (BM) [^41]
 
 [^41]: [BM](https://www.researchgate.net/publication/264324131_Box-Muller_transformation)
@@ -3517,6 +4556,23 @@ The BM operates in two main steps:
   $$z_1 = r \cdot \sin(\theta)$$
 
   These transformations are derived from the properties of the normal distribution and trigonometric identities.
+
+  Intuitively, this is a polar-coordinate construction: $x$ chooses a *radius* via $r = \sqrt{-2 \ln x}$ (so that the radius distribution matches the Rayleigh distribution that drops out of two independent Gaussians), and $y$ chooses an *angle* $\theta$ uniformly around the circle. Projecting that single point onto the $X$ and $Y$ axes via cosine and sine yields two independent Gaussian samples in one shot.
+
+  ![Standard Normal: symmetric bell curve centered at 0, tails fading to negligible counts by ±3](Images/dist_normal.png)
+  *200,000 samples binned across [-4, 4]. Look for the symmetric bell shape peaking at 0 and the rapid fall-off past about ±3 — these are the visual fingerprints of a clean Gaussian.*
+
+  ```mermaid
+  flowchart LR
+    U1["x ~ Uniform(0,1]"] --> Radius["r = √(-2 ln x)"]
+    U2["y ~ Uniform(0,1]"] --> Angle["θ = 2πy (random angle 0..2π)"]
+    Radius --> Project
+    Angle --> Project
+    Project["Point (r, θ) in polar coords"]
+    Project --> Z0["z0 = r·cos θ  (one Gaussian sample)"]
+    Project --> Z1["z1 = r·sin θ  (a second, independent Gaussian sample)"]
+  ```
+
 
 ```cs
 (double, double) Next() {
@@ -3577,9 +4633,32 @@ The MP relies on the fact that a pair of independent, uniformly distributed vari
 
 This is an efficient algorithm for generating random numbers from a variety of probability distributions, most notably the normal (Gaussian) distribution. It is particularly well-suited for high-performance applications where speed is critical, such as simulations and cryptographic systems.
 
-The ZIG generates random numbers by partitioning the target distribution into multiple layers, resembling a ziggurat (a terraced structure from ancient Mesopotamia). Each layer is either a rectangle or a tail region, and the method efficiently samples from these regions. The key steps in the Ziggurat Method are:
+The ZIG generates random numbers by partitioning the target distribution into multiple layers, resembling a ziggurat (a terraced structure from ancient Mesopotamia). Each layer is either a rectangle or a tail region, and the method efficiently samples from these regions.
 
-* **Precompute Layers**: The distribution is divided into a series of layers, each represented by a rectangle. These layers cover the bulk of the distribution, with the top layer accounting for the distribution's tails.
+```mermaid
+flowchart TB
+  subgraph "Half of the bell curve, sliced into rectangular layers"
+    direction TB
+    L7["Layer 7  ████"]
+    L6["Layer 6  ███████"]
+    L5["Layer 5  ████████"]
+    L4["Layer 4  █████████"]
+    L3["Layer 3  ██████████"]
+    L2["Layer 2  ███████████"]
+    L1["Layer 1  ████████████"]
+    L0["Layer 0  ████████████ + ~~~ infinite tail ~~~"]
+    L7 --- L6 --- L5 --- L4 --- L3 --- L2 --- L1 --- L0
+  end
+  Pick["Pick a layer uniformly at random"] --> Sample
+  Sample["Pick (x, y) uniformly inside that rectangle"] --> Check{"Is (x, y) below f(x)?"}
+  Check -->|yes ~99%| Accept["Return x"]
+  Check -->|no, in 'wedge'| Compute["Compute f(x); accept if y < f(x)"]
+  L0 -.->|"layer 0 only"| Tail["Use exponential-rejection fallback for the tail"]
+```
+
+The key steps in the Ziggurat Method are:
+
+* **Precompute Layers**: The distribution is divided into a series of layers, each represented by a rectangle. These layers cover the bulk of the distribution, with the *bottom* layer (the one extending out to infinity, since it is not bounded above by the next layer) handling the distribution's tails via a separate fallback sampler.
 
 * **Uniform Sampling**: A random rectangle is selected uniformly from the precomputed layers. Within this rectangle, a random point is chosen uniformly.
 
@@ -3661,15 +4740,547 @@ class Ziggurat(ArbitraryNumberGenerator generator) {
 }
 ```
 
+### Poisson (PSN) [^61]
+
+[^61]: [Poisson](https://en.wikipedia.org/wiki/Poisson_distribution)
+
+This generates integer samples from the **Poisson distribution** — the discrete distribution that models the number of independent events occurring in a fixed interval, given an average rate $\lambda$. Used everywhere queues, arrivals, decays or "rare events" come up: server-request modelling, particle counts, network packet rates.
+
+The implementation uses two branches:
+
+* **Small λ (default branch, λ < 30):** Knuth's algorithm — multiply successive Uniform(0,1) draws until the product drops below $e^{-\lambda}$; the count of draws (minus one) is the sample. Per-sample cost is $O(\lambda)$.
+* **Large λ:** Atkinson's PA method — a rejection sampler whose expected cost per output stays bounded as λ grows, by drawing from a Cauchy-like proposal and accepting with the appropriate ratio.
+
+```cs
+class Poisson {
+  public int Next() => _lambda < 30 ? KnuthSmall() : AtkinsonLarge();
+
+  private int KnuthSmall() {
+    var L = Math.Exp(-_lambda);
+    var k = 0; var p = 1.0;
+    do { ++k; p *= _generator.NextDouble(); }
+    while (p > L);
+    return k - 1;
+  }
+}
+```
+
+![Poisson(λ=4): bars rise to peak at k=3 or 4, then decay to negligible by k=12](Images/dist_poisson.png)
+*200,000 samples with λ=4. Look for the discrete bars peaking near the rate λ and tailing off both ways — mean and variance both equal λ for a Poisson, so the spread should match the peak location.*
+
+### Gamma (GAM) [^62]
+
+[^62]: [Gamma](https://en.wikipedia.org/wiki/Gamma_distribution)
+
+This generates samples from the **Gamma distribution** — a continuous distribution on $(0, \infty)$ parameterised by *shape* $k$ and *scale* $\theta$, with mean $k\theta$. It generalises the exponential distribution (which is Gamma with $k = 1$) and underpins many other distributions, including chi-squared and Erlang.
+
+We use **Marsaglia and Tsang's "squeeze method" (2000)**, which is fast and provides a uniform algorithm for any $k \geq 1$. For $k < 1$ we sample at shape $k+1$ then apply Stuart's correction $G(k) = G(k+1) \cdot U^{1/k}$.
+
+```cs
+class Gamma {
+  // For shape >= 1: Marsaglia-Tsang squeeze.
+  public double Next() {
+    double d = _effectiveShape - 1.0 / 3.0;
+    double c = 1.0 / Math.Sqrt(9.0 * d);
+    for (;;) {
+      double x, v;
+      do { x = StandardNormal(); v = 1.0 + c * x; } while (v <= 0);
+      v = v * v * v;
+      double u = _generator.NextDouble();
+      if (u < 1.0 - 0.0331 * x * x * x * x) return d * v * _scale;
+      if (Math.Log(u) < 0.5 * x * x + d * (1.0 - v + Math.Log(v))) return d * v * _scale;
+    }
+  }
+}
+```
+
+![Gamma(2, 2): right-skewed bell with peak around x=2 and a long tail extending past x=10](Images/dist_gamma.png)
+*200,000 samples with shape=2, scale=2 (mean=4). Look for the right-skewed bell rising from zero, peaking around x=(shape−1)·scale, and tailing off — Gamma generalises the exponential, so shape=1 would give pure decay and large shapes approach a normal.*
+
+### Beta (BET) [^63]
+
+[^63]: [Beta](https://en.wikipedia.org/wiki/Beta_distribution)
+
+This generates samples from the **Beta distribution** — a continuous distribution on $(0, 1)$ parameterised by two shape values $\alpha$ and $\beta$, with mean $\alpha / (\alpha + \beta)$. Heavily used in Bayesian statistics (as a conjugate prior for binomial likelihoods), A/B testing, and machine learning (especially as a prior on probabilities).
+
+The standard construction is to draw two independent Gamma variates and take their normalised ratio:
+
+$$X \sim \text{Gamma}(\alpha, 1), \quad Y \sim \text{Gamma}(\beta, 1), \quad B = \frac{X}{X + Y} \sim \text{Beta}(\alpha, \beta)$$
+
+```cs
+class Beta {
+  public double Next() {
+    double x = _x.Next();   // Gamma(alpha, 1)
+    double y = _y.Next();   // Gamma(beta, 1)
+    return x / (x + y);
+  }
+}
+```
+
+![Beta(2, 5): asymmetric peak around 0.2-0.3, falling to zero at both 0 and 1](Images/dist_beta.png)
+*200,000 samples with α=2, β=5 (mean ≈ 0.286). Look for the bounded shape on [0, 1] peaking at (α−1)/(α+β−2) — Beta(α, β) is symmetric if α = β, skewed toward 0 when α < β, and toward 1 when α > β.*
+
+### Bernoulli (BRN) [^64]
+
+[^64]: [Bernoulli](https://en.wikipedia.org/wiki/Bernoulli_distribution)
+
+This is the simplest non-uniform distribution: a single trial that returns `true` with probability $p$ and `false` with probability $1-p$. Every other discrete distribution can be built from a sequence of Bernoulli trials, which is why it appears here as a separate class even though one line of arithmetic suffices.
+
+```cs
+class Bernoulli {
+  public bool Next() => _generator.NextDouble() < _probability;
+}
+```
+
+### Binomial (BIN) [^65]
+
+[^65]: [Binomial](https://en.wikipedia.org/wiki/Binomial_distribution)
+
+This counts the number of successes in $n$ independent Bernoulli trials. Mean $= np$, variance $= np(1-p)$. Ubiquitous in A/B testing, quality control ("k defective items out of n inspected"), and any "k of n" simulation.
+
+The implementation simulates the $n$ Bernoulli draws directly. For very large $n \cdot \min(p, 1-p)$ a more sophisticated algorithm (BTRS, Devroye's rejection method) would be preferable; that optimisation is left as a future addition.
+
+```cs
+class Binomial {
+  public int Next() {
+    int successes = 0;
+    for (int i = 0; i < _trials; ++i)
+      if (_generator.NextDouble() < _probability) ++successes;
+    return successes;
+  }
+}
+```
+
+![Binomial(20, 0.4): bars peaking around k=8 with binomial-shape spread, falling to near-zero by k=15](Images/dist_binomial.png)
+*200,000 samples with n=20 trials, p=0.4. Look for the bars peaking near the expected value np=8; the shape becomes more symmetric and Gaussian-like as n grows.*
+
+### Geometric (GEO) [^66]
+
+[^66]: [Geometric](https://en.wikipedia.org/wiki/Geometric_distribution)
+
+This gives the number of *failures* before the first success in a sequence of Bernoulli$(p)$ trials. Mean $= (1-p)/p$. Common in queueing theory ("how many empty-handed lookups until a cache hit?"), reliability analysis, and any "wait until the first event" simulation.
+
+Generated in constant time via the inverse-CDF method:
+
+$$x = \left\lfloor \frac{\ln U}{\ln(1-p)} \right\rfloor$$
+
+```cs
+class Geometric {
+  public int Next() {
+    double u = _generator.NextDouble();
+    return (int)Math.Floor(Math.Log(u) / Math.Log(1.0 - _probability));
+  }
+}
+```
+
+![Geometric(0.3): tallest bar at k=0, each subsequent bar (1-p) times smaller](Images/dist_geometric.png)
+*200,000 samples with p=0.3. Look for the strictly decreasing bars — each bar is (1−p) times the previous one, the discrete analogue of exponential decay.*
+
+### Chi-Squared (CHI) [^67]
+
+[^67]: [Chi-Squared](https://en.wikipedia.org/wiki/Chi-squared_distribution)
+
+The chi-squared distribution with $k$ degrees of freedom is the distribution of the sum of $k$ squared independent standard normals. It is the workhorse of hypothesis testing — goodness-of-fit, contingency tables, variance tests. Mathematically it is identical to $\text{Gamma}(k/2, 2)$, so the implementation is a thin wrapper over [Gamma](#gamma-gam-62):
+
+```cs
+class ChiSquared {
+  public ChiSquared(ArbitraryNumberGenerator gen, double df)
+    => _gamma = new Gamma(gen, shape: df / 2.0, scale: 2.0);
+
+  public double Next() => _gamma.Next();
+}
+```
+
+![Chi-Squared(k=4): right-skewed peak around x=2, long tail extending to x≈14](Images/dist_chisquared.png)
+*200,000 samples with df=4. Look for the shape peaking near k−2 (here 2), with mean equal to k (here 4); the shape becomes more symmetric and Gaussian-like as df grows.*
+
+### Cauchy (CCY) [^68]
+
+[^68]: [Cauchy](https://en.wikipedia.org/wiki/Cauchy_distribution)
+
+The Cauchy (also called Lorentz) distribution is a famously badly-behaved heavy-tailed distribution: its mean and variance are *undefined* because the tails decay only as $1/x^2$, so the sample mean does not converge to anything. It is the canonical example of a stable distribution other than the normal, and shows up in physics (resonance peaks) and robust-statistics counterexamples.
+
+Generated via inverse-CDF:
+
+$$x = \text{location} + \text{scale} \cdot \tan\left(\pi \left(U - \tfrac{1}{2}\right)\right)$$
+
+```cs
+class Cauchy {
+  public double Next() {
+    double u = _generator.NextDouble();
+    return _location + _scale * Math.Tan(Math.PI * (u - 0.5));
+  }
+}
+```
+
+![Cauchy(0, 1): tall narrow peak at 0 with visibly heavy tails that decay only as 1/x²](Images/dist_cauchy.png)
+*200,000 samples with location=0, scale=1. Look for the much taller central peak compared to a Gaussian and the visibly *fatter* tails — these heavy tails are why the Cauchy distribution has no defined mean or variance: extreme outliers happen far more often than the bell-shape suggests.*
+
+### Log-normal (LNM) [^69]
+
+[^69]: [Log-normal](https://en.wikipedia.org/wiki/Log-normal_distribution)
+
+A continuous distribution whose *logarithm* is normally distributed. Arises naturally wherever multiplicative effects compound: stock prices (geometric Brownian motion), particle sizes in milling, body weights in a population, file sizes on a server.
+
+Generated by sampling a standard normal $Z$ and exponentiating:
+
+$$X = e^{\mu + \sigma Z}$$
+
+```cs
+class Lognormal {
+  public double Next() => Math.Exp(_mu + _sigma * StandardNormal(_generator));
+}
+```
+
+![Lognormal(0, 0.5): right-skewed shape with peak around x=0.8 and long upper tail](Images/dist_lognormal.png)
+*200,000 samples with μ=0, σ=0.5. Look for the strictly positive support (no values below 0) and the asymmetric shape with a long right tail — the median equals exp(μ) but the mean is shifted right by σ²/2.*
+
+### Weibull (WBL) [^70]
+
+[^70]: [Weibull](https://en.wikipedia.org/wiki/Weibull_distribution)
+
+A continuous distribution on $[0, \infty)$ heavily used in reliability engineering and survival analysis. The shape parameter $k$ encodes the *failure-rate trend*:
+
+* $k < 1$: failure rate decreasing with time (the "infant mortality" or burn-in phase).
+* $k = 1$: constant failure rate (reduces to exponential).
+* $k > 1$: failure rate increasing with time (wear-out).
+
+Generated via inverse-CDF:
+
+$$x = \lambda \cdot \left(-\ln(1 - U)\right)^{1/k}$$
+
+```cs
+class Weibull {
+  public double Next() {
+    double u = _generator.NextDouble();
+    return _scale * Math.Pow(-Math.Log(1.0 - u), 1.0 / _shape);
+  }
+}
+```
+
+The three shapes side-by-side show the failure-mode interpretation:
+
+| shape=0.5 (infant mortality) | shape=1 (exponential / constant rate) | shape=2.5 (wear-out) |
+| --- | --- | --- |
+| ![Weibull shape=0.5: bars decay rapidly from a peak at zero — most failures happen immediately, survivors stick around](Images/dist_weibull_0_5.png) | ![Weibull shape=1: clean exponential decay — identical to an exponential distribution](Images/dist_weibull_1.png) | ![Weibull shape=2.5: bell-like shape peaking around x=1 — items become more likely to fail with age](Images/dist_weibull_2_5.png) |
+| *Failure rate decreases over time. Look for the very tall bar at small x, then sparse populated bars to the right — items that survive the burn-in tend to keep surviving.* | *Failure rate is constant. Look for the strict exponential decay — this is the memoryless regime, identical to the exponential distribution.* | *Failure rate increases over time. Look for the bell-like shape with a definite peak — items become **more** likely to fail as they age.* |
+
+### Triangular (TRI) [^71]
+
+[^71]: [Triangular](https://en.wikipedia.org/wiki/Triangular_distribution)
+
+A continuous distribution on $[\text{min}, \text{max}]$ with peak (mode) at a configurable point inside that range. Popular in PERT analysis and risk modeling where the only available information is an *optimistic*, *most-likely* and *pessimistic* estimate of some quantity.
+
+The inverse-CDF has two branches — rising on $[\text{min}, \text{mode}]$, falling on $[\text{mode}, \text{max}]$ — selected by a single comparison against the threshold $(\text{mode} - \text{min}) / (\text{max} - \text{min})$.
+
+```cs
+class Triangular {
+  public double Next() {
+    double u = _generator.NextDouble();
+    double span = _max - _min;
+    return u < _threshold
+      ? _min + Math.Sqrt(u * span * (_mode - _min))
+      : _max - Math.Sqrt((1.0 - u) * span * (_max - _mode));
+  }
+}
+```
+
+![Triangular(min=0, mode=2, max=10): rising bars from 0 to a peak at x=2, then linear decline to 10](Images/dist_triangular.png)
+*200,000 samples with min=0, mode=2, max=10. Look for the literal triangular shape: a straight rising line on the left of the mode, a straight falling line on the right. This makes Triangular the obvious choice for "best guess" / PERT analysis where only three numbers are known.*
+
+### Pareto (PAR) [^72]
+
+[^72]: [Pareto](https://en.wikipedia.org/wiki/Pareto_distribution)
+
+The Pareto Type-I distribution is the classic power-law distribution: $P(X > x) = (\text{scale} / x)^{\text{shape}}$ for $x \geq \text{scale}$. It is the source of the "80/20 rule" (a small fraction of inputs account for most of the output) and models income, city sizes, file sizes, network-flow lengths, and natural-language word frequencies (Zipf's law is a discrete cousin).
+
+Generated via inverse-CDF:
+
+$$x = \text{scale} / U^{1/\text{shape}}$$
+
+```cs
+class Pareto {
+  public double Next() {
+    double u = _generator.NextDouble();
+    return _scale / Math.Pow(u, 1.0 / _shape);
+  }
+}
+```
+
+![Pareto(shape=2, scale=1): tallest bars near x=1 (the minimum), power-law decay over the visible range](Images/dist_pareto.png)
+*200,000 samples with shape=2, scale=1 (note all samples are ≥ scale=1). Look for the steep decay from the left edge — the area under the right portion of the curve is non-negligible even though it looks tiny, which is what gives rise to the "80/20 rule" in real data.*
+
+### Discrete Uniform (DUN) [^73]
+
+[^73]: [DUN](https://en.wikipedia.org/wiki/Discrete_uniform_distribution)
+
+The simplest discrete distribution: each integer in $[\text{min}, \text{max}]$ (inclusive) is equally likely. The canonical "fair die roll" generator. Built on `ModuloRejectionSampling` so that no value is biased even when the range is not a divisor of $2^{64}$.
+
+```cs
+class DiscreteUniform {
+  public long Next() => _min + (long)_generator.ModuloRejectionSampling(_range);
+}
+```
+
+### Categorical (CAT) [^74]
+
+[^74]: [Categorical](https://en.wikipedia.org/wiki/Categorical_distribution)
+
+Weighted choice among a finite set of items, each with its own probability — the discrete generalisation of Bernoulli to $n$ outcomes. Used for loot tables in games, mixture-model component selection, weighted sampling for A/B variants, and any "pick one with these probabilities" scenario.
+
+Internally the constructor builds a cumulative-distribution array once, then each sample is an $O(\log n)$ binary search:
+
+```cs
+class Categorical<T> {
+  public T Next() {
+    var u = _generator.NextDouble();
+    var idx = Array.BinarySearch(_cumulative, u);
+    if (idx < 0) idx = ~idx;
+    return _items[Math.Min(idx, _items.Length - 1)];
+  }
+}
+```
+
+### Hypergeometric (HYP) [^75]
+
+[^75]: [Hypergeometric](https://en.wikipedia.org/wiki/Hypergeometric_distribution)
+
+The discrete distribution behind the **urn problem**: how many successes do you observe when you draw $n$ items *without replacement* from a population of $N$ items, $K$ of which are successes? Unlike the binomial (which assumes replacement), the hypergeometric correctly accounts for the depleting population.
+
+Used in survey sampling, quality control ("how many defective items in this batch sample?") and card-game probability calculations. Implementation simulates the draws directly:
+
+```cs
+class Hypergeometric {
+  public int Next() {
+    int remaining = _populationSize, successesLeft = _successCount, observed = 0;
+    for (int i = 0; i < _draws; ++i) {
+      double p = (double)successesLeft / remaining;
+      if (_generator.NextDouble() < p) { --successesLeft; ++observed; }
+      --remaining;
+    }
+    return observed;
+  }
+}
+```
+
+### Student's t (TDF) [^76]
+
+[^76]: [Student's t](https://en.wikipedia.org/wiki/Student%27s_t-distribution)
+
+Symmetric around zero, heavier-tailed than the normal for small df, and approaches the standard normal as $\text{df} \to \infty$. The workhorse distribution for small-sample hypothesis testing (the *t*-test) and for robust regression as a heavy-tailed error model.
+
+Constructed from a standard normal $Z$ and a chi-squared $V$ via:
+
+$$T = \frac{Z}{\sqrt{V / \text{df}}}$$
+
+```cs
+class StudentT {
+  public double Next() {
+    double z = StandardNormal();
+    double v = _chiSquared.Next();
+    return z / Math.Sqrt(v / _df);
+  }
+}
+```
+
+### Negative Binomial (NBN) [^77]
+
+[^77]: [Negative Binomial](https://en.wikipedia.org/wiki/Negative_binomial_distribution)
+
+Generalises the geometric distribution: instead of counting failures before the *first* success, it counts failures before the *k*-th success. Mean $= k(1-p)/p$. Used in queueing models, overdispersed count data (real-world counts often have variance > mean, which the Poisson cannot model but Negative Binomial can), and "wait for $k$ events" simulations.
+
+```cs
+class NegativeBinomial {
+  public int Next() {
+    int successes = 0, failures = 0;
+    while (successes < _successesRequired) {
+      if (_generator.NextDouble() < _probability) ++successes;
+      else ++failures;
+    }
+    return failures;
+  }
+}
+```
+
 # Points of Interest
 
 ## Comparative Tests
 
 There nearly infinite methods to compare algorithms against each other so I have to decide which I want to include even though the table won't ever be complete.
 
+**One picture from each family — what does randomness actually look like?**
+
+The grid below shows the 256×256 randogram (each pixel encodes the (low-8-bits, low-8-bits) pair from two *consecutive outputs* of the generator) for one representative generator from each major family. The plotting convention matches the one used in Melissa O'Neill's PCG analysis ["Visualizing the heart of some PRNGs"](https://www.pcg-random.org/posts/visualizing-the-heart-of-some-prngs.html): 65,536 samples (so the expected visit count per cell is exactly 1), and intensity *halves* on each occurrence — 0 visits = white, 1 = 50% grey, 2 = 25% grey, etc. A good RNG produces a uniform random-looking speckle pattern; a broken one shows immediately visible regular structure.
+
+Reading left-to-right, top-to-bottom gives a guided tour of the field: from broken historical designs (Middle Square, basic LCG), through classical good PRNGs (Mersenne Twister, Xoshiro), modern counter-based and Romu-style fast generators, cryptographic constructions, and finally the quasi-random and cellular-automaton paradigms.
+
+| Family | Generator | Randogram | What to look for |
+| --- | --- | --- | --- |
+| **Historical broken** | Middle Square | ![](Images/MiddleSquare_randogram.png) | Nearly blank with a single dot near (0, 0) — the generator collapsed to zero, so every consecutive pair is (0, 0) |
+| **Basic LCG** | Linear Congruential Generator | ![](Images/LinearCongruentialGenerator_randogram.png) | **Marsaglia lattice** — the famous regular dot grid that classical LCGs produce when consecutive outputs are plotted as (x, y). This is exactly the failure mode that O'Neill's PCG paper highlights. |
+| **LCG (weak low bits)** | Multiplicative LCG | ![](Images/MultiplicativeLCG_randogram.png) | Even sparser lattice — MLCG with default parameters concentrates consecutive pairs onto a tiny subset of cells |
+| **Mersenne Twister** | MT19937 | ![](Images/MersenneTwister_randogram.png) | Uniform speckle — the classical baseline of "looks random" |
+| **XorShift / Xoshiro** | Xoshiro256** | ![](Images/Xoshiro256SS_randogram.png) | Uniform speckle — modern small-state generator that matches MT |
+| **PCG** | PCG XSL-RR | ![](Images/PermutedCongruentialXslRr_randogram.png) | Uniform speckle — the output permutation hides the LCG core's lattice, the whole point of the PCG design |
+| **Counter-based** | Philox 2x64-10 | ![](Images/Philox_randogram.png) | Uniform speckle — parallel-friendly bijective design |
+| **Romu family** | RomuTrio | ![](Images/RomuTrio_randogram.png) | Uniform speckle — rotation+multiply with a non-linear cycle structure |
+| **128-bit MCG** | Lehmer128 | ![](Images/Lehmer128_randogram.png) | Uniform speckle — pure multiplication on 128-bit state |
+| **Hash-based** | WyRand | ![](Images/WyRand_randogram.png) | Uniform speckle — single-multiply mixing from the wyhash family |
+| **SIMD-first** | SHISHUA | ![](Images/SHISHUA_randogram.png) | Uniform speckle — AVX2 256-bit lanes interleaved |
+| **Stream cipher CSPRNG** | ChaCha20 | ![](Images/ChaCha20_randogram.png) | Uniform speckle — cryptographic-strength diffusion |
+| **NIST DRBG** | AES-CTR DRBG | ![](Images/AesCtrDrbg_randogram.png) | Uniform speckle — AES-CTR output, cryptographic |
+| **Older CSPRNG** | ISAAC-64 | ![](Images/Isaac_randogram.png) | Uniform speckle — known to have minor biases (Aumasson 2006) but visually indistinguishable |
+| **Quasi-random** | Halton (base 2) | ![](Images/Halton_randogram.png) | Looks blank: base-2 Halton bit-reverses the counter, so for the first ~2⁴⁸ samples the low 16 bits of every output are *structurally* zero, and every consecutive pair plots at (0, 0). The sequence is correct — it covers the *high* bits uniformly — but this particular visualisation can't show it. The bit-index histogram (`Images/Halton_bit_index.png`) is the right tool for inspecting Halton. |
+| **Cellular automaton** | Rule 30 | ![](Images/Rule30_randogram.png) | Uniform speckle — Stephen Wolfram's classic CA generator. Passes the statistical tests in this repository; known to fail BigCrush at extreme sample volumes due to subtle serial correlations. |
+
+The visual pattern crystallises what the chi-squared and serial-correlation numbers measure: every family with "★★★" or better quality produces speckle indistinguishable from cryptographic-strength noise, while broken or biased generators show *immediately* visible structure (bands, lines, single-point collapses). A useful diagnostic when evaluating a generator: if its randogram doesn't look like uniform TV-static, neither will any application that depends on it.
+
+**One randogram is not enough — different bit-selection methods reveal different failures.**
+
+A single randogram only shows one *projection* of the joint distribution of bits in the RNG's output. The "Consecutive" projection (above) reveals serial correlation, but other projections expose different defects:
+
+| Method | What goes on (x, y) | What it detects |
+| --- | --- | --- |
+| **Consecutive** | low 8 bits of output_n, low 8 bits of output_{n+1} | Serial correlation between successive outputs — the Marsaglia plane test |
+| **Adjacent** | bits 0–7 vs bits 8–15 of the *same* output | Dependence between adjacent bit positions inside one output |
+| **OppositeHalves** | bits 0–7 vs bits 32–39 of the same output | Long-range dependence between low and middle 32-bit halves |
+| **StartAndReverse** | bits 0–7 of value vs bits 0–7 of bit-reversed value | High-bit vs low-bit symmetry — e.g. a generator whose high bits are good but low bits aren't, or vice versa |
+
+The grid below shows the same seven generators under all four methods. Notice how each generator fails (or passes) in a different way depending on which bits we project:
+
+| RNG | Consecutive | Adjacent | OppositeHalves | StartAndReverse |
+| --- | --- | --- | --- | --- |
+| **Linear Congruential** | ![](Images/LinearCongruentialGenerator_randogram.png) | ![](Images/LinearCongruentialGenerator_randogram_adjacent.png) | ![](Images/LinearCongruentialGenerator_randogram_oppositehalves.png) | ![](Images/LinearCongruentialGenerator_randogram_startandreverse.png) |
+| **Multiplicative LCG** | ![](Images/MultiplicativeLCG_randogram.png) | ![](Images/MultiplicativeLCG_randogram_adjacent.png) | ![](Images/MultiplicativeLCG_randogram_oppositehalves.png) | ![](Images/MultiplicativeLCG_randogram_startandreverse.png) |
+| **Middle Square** | ![](Images/MiddleSquare_randogram.png) | ![](Images/MiddleSquare_randogram_adjacent.png) | ![](Images/MiddleSquare_randogram_oppositehalves.png) | ![](Images/MiddleSquare_randogram_startandreverse.png) |
+| **Mersenne Twister** | ![](Images/MersenneTwister_randogram.png) | ![](Images/MersenneTwister_randogram_adjacent.png) | ![](Images/MersenneTwister_randogram_oppositehalves.png) | ![](Images/MersenneTwister_randogram_startandreverse.png) |
+| **Xoshiro256\*\*** | ![](Images/Xoshiro256SS_randogram.png) | ![](Images/Xoshiro256SS_randogram_adjacent.png) | ![](Images/Xoshiro256SS_randogram_oppositehalves.png) | ![](Images/Xoshiro256SS_randogram_startandreverse.png) |
+| **PCG XSL-RR** | ![](Images/PermutedCongruentialXslRr_randogram.png) | ![](Images/PermutedCongruentialXslRr_randogram_adjacent.png) | ![](Images/PermutedCongruentialXslRr_randogram_oppositehalves.png) | ![](Images/PermutedCongruentialXslRr_randogram_startandreverse.png) |
+| **ChaCha20** | ![](Images/ChaCha20_randogram.png) | ![](Images/ChaCha20_randogram_adjacent.png) | ![](Images/ChaCha20_randogram_oppositehalves.png) | ![](Images/ChaCha20_randogram_startandreverse.png) |
+
+Some of the most striking observations:
+
+* **LCG**: the Marsaglia lattice is *only visible* in Consecutive. Adjacent projects to a uniform field — the low and next-low 8 bits of a single LCG output really are independent within one value. **A single-method analysis would wrongly conclude this LCG is fine.**
+* **Multiplicative LCG**: produces clean vertical stripes in Adjacent — the bottom bit of any MLCG output cycles between a tiny number of values, which projects onto a few columns. The Consecutive projection shows the lattice; the Adjacent projection shows the low-bit weakness — *two different failure modes from the same generator*.
+* **Mersenne Twister, Xoshiro256\*\*, PCG XSL-RR, ChaCha20**: uniform speckle in *every* projection. That's what it means to be a well-behaved generator — no single bit-projection reveals structure.
+* **Middle Square**: empty in every method. Collapsed to a fixed point, so all consecutive pairs sit at the same single coordinate.
+
+The takeaway: **always test multiple projections** when evaluating a new generator. A passing Consecutive randogram alone is necessary but not sufficient.
+
+> Detailed per-generator histograms (bit index, bit count, spacing, repetition, Hamming distance, longest run) are available for Xoshiro256SS, ChaCha20, MultiplicativeLCG and MiddleSquare in the **Comparative Tests** section below; the other family representatives are evaluated using their randograms only, since the histogram comparisons told us little new for well-behaved generators.
+
+
+**Quick-pick table — which generator should I use?**
+
+The table below summarises the practical trade-offs for the algorithms in this repository. Period is given as $\log_2$; "Speed" is a qualitative class (★ slow / ★★ medium / ★★★ fast / ★★★★ very fast); "Quality" reflects published test-suite results (BigCrush in particular) and known weaknesses. Use this table to narrow down a candidate, then read the algorithm's section for details.
+
+| Algorithm | Year | State | log₂(period) | Speed | Quality | Best for |
+|---|---:|---:|---:|:---:|:---:|---|
+| **General-purpose PRNGs** | | | | | | |
+| Linear Congruential | 1949 | 64 | 64 | ★★★★ | ★ | Toy / non-statistical use only |
+| Mersenne Twister | 1997 | 19937 | 19937 | ★★ | ★★ | When you genuinely need huge period |
+| WELL | 2006 | 1024 | 1024 | ★★ | ★★ | Drop-in MT replacement |
+| Xoshiro256** | 2018 | 256 | 256 | ★★★★ | ★★★ | **General-purpose default** |
+| Xoshiro256+ | 2018 | 256 | 256 | ★★★★ | ★★★ | Floating-point output (.NET 6+ default) |
+| Xoroshiro128++ | 2018 | 128 | 128 | ★★★★ | ★★★ | When 256 bits of state is too much |
+| Lehmer128 | 2019 | 128 | 126 | ★★★★ | ★★★ | Fastest general-purpose (BMI2 platforms) |
+| RomuTrio | 2020 | 192 | ~64 | ★★★★ | ★★★ | Speed-critical, short runs |
+| LXM (L64X128Mix) | 2021 | 192 | 64 × 2¹²⁸ | ★★★ | ★★★ | Splittable streams (Java compat) |
+| WyRand | 2020 | 64 | 64 | ★★★★ | ★★ | Hash-table speeds, casual use |
+| JSF64 | 2007 | 256 | ~64 | ★★★★ | ★★★ | Tiny state, easy to embed |
+| PCG (RXS-M-XS) | 2014 | 128 | 128 | ★★★ | ★★★ | Statistically strong, jumpable |
+| PCG (XSL-RR) | 2014 | 128 | 128 | ★★★ | ★★★ | Same core, canonical 128→64 variant |
+| PCG (XSH-RR) | 2014 | 128 | 128 | ★★★ | ★★★ | Same core, third PCG output transform |
+| Xoroshiro128+ | 2018 | 128 | 128 | ★★★★ | ★★★ | Floating-point output; small state |
+| Xoshiro128** / ++ / + | 2018 | 128 | 128 | ★★★★ | ★★★ | 32-bit-output variants (embedded, GPU) |
+| Xoshiro512** / ++ / + | 2018 | 512 | 512 | ★★★ | ★★★ | Larger-state variants for massive parallelism |
+| RomuQuad | 2020 | 256 | ~64 | ★★★★ | ★★★ | Largest-capacity Romu variant |
+| RomuDuo / RomuDuoJr | 2020 | 128 | ~64 | ★★★★ | ★★★ | Smallest/fastest Romu variants |
+| TinyMT | 2011 | 127 | 2¹²⁷-1 | ★★★ | ★★ | Memory-constrained MT (~17× smaller state) |
+| SHISHUA | 2020 | 1024 | ≥ 2⁵¹² | ★★★★★ | ★★★ | SIMD-first; "fastest PRNG" claim, passes BigCrush |
+| SplitMix64 | 2014 | 64 | 64 | ★★★★ | ★★ | **Seeding** other generators |
+| **Counter-based (parallel-friendly)** | | | | | | |
+| Philox-2x64-10 | 2011 | 128 | 128 | ★★★ | ★★★ | GPU / massively-parallel work |
+| Threefry-2x64-20 | 2011 | 256 | 256 | ★★ | ★★★ | Same as Philox; ARX-only (no multiply) |
+| Squares (4+1) | 2022 | 128 | 64 | ★★★★ | ★★★ | Tiny counter-based |
+| sfc64 | 2019 | 256 | ≥ 64 | ★★★★ | ★★★ | NumPy default alternative |
+| MRG32k3a | 1999 | 192 | ~191 | ★★ | ★★★ | Scientific / MATLAB / R compat |
+| **Cryptographic** | | | | | | |
+| ChaCha20 | 2008 | 512 | ≥ 256 | ★★ | ★★★★ | **Default CSPRNG choice** |
+| ChaCha12 | 2008 | 512 | ≥ 256 | ★★★ | ★★★★ | Rust's default CSPRNG; ~1.7× faster than ChaCha20 |
+| ChaCha8 | 2008 | 512 | ≥ 256 | ★★★★ | ★★★ | Go 1.22+ default PRNG; ~2.5× faster, narrower margin |
+| Salsa20 | 2005 | 512 | ≥ 256 | ★★ | ★★★★ | Predecessor of ChaCha20; underlies NaCl/XSalsa |
+| Salsa20/12 | 2008 | 512 | ≥ 256 | ★★★ | ★★★★ | eSTREAM speed-security middle ground |
+| Salsa20/8 | 2008 | 512 | ≥ 256 | ★★★★ | ★★★ | Fastest Salsa; non-crypto use only |
+| Ascon-PRF | 2024 | 320 | high | ★★★ | ★★★★ | NIST lightweight crypto winner; sponge-based |
+| AES-CTR DRBG | 2007 | 384 | 2¹²⁸ | ★★★ | ★★★★ | When AES-NI is available |
+| HMAC-SHA256 DRBG | 2007 | 512 | high | ★ | ★★★★ | Hash-only platforms |
+| Hash DRBG (SHA-256) | 2007 | 880 | high | ★★ | ★★★★ | Hash-only; third NIST DRBG variant |
+| ISAAC-64 | 1996 | ~16k | ≥ 2⁵⁰ | ★★★ | ★★ | Historical; known biases (Aumasson 2006) |
+| Trivium | 2008 | 288 | ≥ 2⁸⁰ | ★ | ★★★ | Hardware/embedded |
+| Yarrow | 1999 | 256 | high | ★★ | ★★★ | Pre-Fortuna design; two-pool reseeding |
+| Fortuna | 2003 | 256 + 32 pools | high | ★★ | ★★★★ | 32-pool design with geometric reseeding |
+| ANSI X9.31 | 1985 | 256 | ≥ 2⁶⁴ | ★★ | ★★★ | Modernised X9.17 with AES instead of DES |
+| Blum-Blum-Shub | 1986 | small | factor-of-pq | ★ | ★★★★ | Theoretical / educational |
+| **Quasi-random (NOT random — for QMC integration)** | | | | | | |
+| Halton (base 2) | 1960 | 64 | n/a | ★★★★ | n/a | Monte Carlo integration |
+| Sobol (1D) | 1967 | 64 + table | n/a | ★★★★ | n/a | Same, with finer convergence |
+| **Historical / educational** | | | | | | |
+| Middle Square | 1946 | 64 | very short | ★★★★ | ✗ | Don't use; teaching what not to do |
+| Wichmann-Hill | 1982 | 96 (3×32 orig.) | ~2⁴² (orig.) | ★★ | ★★ | Historical interest |
+| XorShift (basic) | 2003 | 64 | 2⁶⁴-1 | ★★★★ | ★ | Educational; fails BigCrush |
+| Rule 30 (CA) | 1986 | 256 | long | ★ | ✗ | Educational; fails statistical tests |
+
+> Speed and quality columns are qualitative summaries based on published evaluations (PractRand, TestU01) and the design intent of each algorithm; for the exact numbers on your hardware, regenerate the speed benchmark via `dotnet run --configuration Release` and inspect this repository's chi-squared/correlation outputs.
+
+
+**Field timeline — 80 years of generator design:**
+
+```mermaid
+timeline
+  title PRNG history at a glance
+  1946 : Middle Square (von Neumann)
+  1949 : Linear Congruential Generator (Lehmer)
+  1958 : Box-Muller transform
+  1965 : Lagged Fibonacci Generator
+  1967 : Sobol' low-discrepancy sequence
+  1982 : Wichmann-Hill / BBS / Blum-Micali
+  1986 : MINSTD (Park & Miller) / Rule 30 CA (Wolfram)
+  1991 : Subtract-with-Borrow (Marsaglia)
+  1994 : ISAAC (Jenkins)
+  1997 : Mersenne Twister (Matsumoto & Nishimura)
+  1999 : MRG32k3a (L'Ecuyer) / Multiply-with-Carry / Yarrow (Schneier-Kelsey-Ferguson)
+  2003 : XorShift (Marsaglia) / Fortuna (Schneier-Ferguson)
+  2005 : Salsa20 (Bernstein)
+  2006 : WELL (Panneton, L'Ecuyer, Matsumoto) / NIST SP 800-90A DRBGs published
+  2008 : ChaCha20 (Bernstein) / Trivium (eSTREAM)
+  2011 : Philox / Threefry (Salmon et al.)
+  2014 : PCG (O'Neill) / SplitMix (Steele, Lea, Flood)
+  2018 : Xoshiro256** / Xoroshiro128++ (Blackman & Vigna)
+  2019 : sfc64 (Doty-Humphrey) / Lehmer128 popularised
+  2020 : RomuTrio (Overton) / wyrand (Wang Yi)
+  2021 : LXM family (JEP 356, Java 17)
+  2022 : Squares (Widynski)
+```
+
+**State size vs period — the fundamental trade-off:**
+
+```mermaid
+xychart-beta
+  title "log2(period) as a function of state size (bits) — selected generators"
+  x-axis "State size (bits)" [64, 64, 128, 128, 192, 256, 256, 256, 288, 19937]
+  y-axis "log2(period)" 0 --> 20000
+  line [64, 64, 64, 128, 96, 128, 256, 256, 288, 19937]
+```
+
+Reading order on the x-axis: WyRand (64), Squares (64), Lehmer128 (128), Xoshiro128 (128), RomuTrio (192), Xoshiro256 (256), sfc64 (256), JSF (256), Trivium (288), Mersenne Twister (19937). The line shows that period mostly tracks state size 1:1 (every extra state bit roughly doubles the period). MT19937 dwarfs everything in the chart — its monstrous 19,937-bit state is exactly what gives it its $2^{19937}-1$ period, but as Vigna and others have argued, periods past $\sim 2^{256}$ are rarely useful in practice and the extra state space mostly costs cache footprint.
+
 **Speed:**
 
 To evaluate the speed of the random number generator, we simply measure how many random numbers are generated in a given timeframe and then normalize that to obtain an iterations per second metric. This metric helps compare the performance of different PRNGs and identify which ones are more efficient. A higher iterations per second value indicates a faster generator, which can be crucial in applications where large amounts of random data are needed quickly.
+
+> [!NOTE]
+> The chart below reflects an earlier benchmark run and does **not** include the generators added in subsequent updates: WyRand, sfc64, MRG32k3a, Philox, Threefry, Squares, JSF, RomuTrio, Lehmer128, LXM. Run `dotnet run --project Randomizer/Randomizer.csproj --configuration Release` to regenerate against the full current set.
 
 ```mermaid
 xychart-beta
@@ -3682,10 +5293,13 @@ bar [25860404, 41502895, 24141225, 41068247, 41180385, 41121380, 41185898, 42286
 ```mermaid
 xychart-beta
 title "Iterations (CSRNG)"
-x-axis "Generator" [".Net","BBS","CC20","BM","SSG"]
+x-axis "Generator" [".Net","BBS","CC20","BlumMicali","SSG"]
 y-axis "n per second" 0 --> 11000000
 bar [10941568,3076239,1673562,3708,668359]
 ```
+
+> [!NOTE]
+> The CSRNG chart label "BlumMicali" was previously abbreviated "BM", which collides with "BM" used elsewhere for Box-Muller. The chart also predates the addition of **ISAAC** and **Trivium** — re-run the benchmark to refresh.
 
 **Histogram of 64 1-Bits:**
 
@@ -3693,7 +5307,15 @@ We create a histogram to analyze how often each bit position in a 64-bit sequenc
 
 For each bit position (0 to 63), count how often it is set to 1 and how often it is set to 0 across the entire sample. Plot these counts on a histogram where the counts of 1s are displayed above a central horizontal line, and the counts of 0s are displayed below. This creates a visual resembling a horizon with skyscrapers above and their reflections in water below. This visualization helps reveal any potential bias by showing if certain bit positions are set more frequently than others.
 
-tbd:insert results
+A well-behaved RNG (Xoshiro256SS) shows perfectly balanced bars — each bit is roughly 50% ones and 50% zeros. The Middle Square generator with the seed used here collapses very quickly to zero — every middle-of-the-square iteration with a value whose square has too few significant digits truncates to 0, and once it hits 0 it stays there. This is the classic failure mode von Neumann documented in 1946; *which* seeds collapse and how fast depends on the modulus and starting value.
+
+| Xoshiro256SS — bars uniform height above and below the centre line: every bit is ~50% ones | Middle Square — no bars at all above the line: the generator has stopped emitting ones |
+| --- | --- |
+| ![Xoshiro256SS bit index](Images/Xoshiro256SS_bit_index.png) | ![MiddleSquare bit index](Images/MiddleSquare_bit_index.png) |
+
+The Multiplicative LCG with default parameters shows the classic weakness of multiplicative generators — *look at the leftmost few bars*: bit 0 is missing entirely (stuck at zero), and the next few bit positions show progressively shrinking heights compared to the upper bits.
+
+![MultiplicativeLCG bit index — leftmost bars are stunted while the right side is balanced](Images/MultiplicativeLCG_bit_index.png)
 
 **Histogram of 1-Bit Counts:**
 
@@ -3701,7 +5323,9 @@ The histogram of 1-bit counts helps determine the distribution of the number of 
 
 The goal is to observe how uniformly the 1-bits are distributed among the generated numbers. A balanced random generator should yield a roughly bell-shaped distribution centered around 32 (assuming 50% of bits are expected to be 1s). Significant deviations from this pattern may indicate non-uniformity or bias in the generator.
 
-tbd:insert results
+| Xoshiro256SS — bell-shaped curve symmetric around popcount 32, fading to zero by ~20 and ~44 | Middle Square — single tall bar at popcount 0, all other positions empty |
+| --- | --- |
+| ![Xoshiro256SS bit count](Images/Xoshiro256SS_bit_count.png) | ![MiddleSquare bit count](Images/MiddleSquare_bit_count.png) |
 
 **Longest Run of Ones and Zeroes in a Histogram:**
 
@@ -3709,7 +5333,9 @@ The longest run test measures the maximum consecutive sequence of 1s or 0s in th
 
 To implement this test, generate a series of random numbers and analyze each bit sequence to determine the longest contiguous run of 1s and 0s. Track the maximum length found for both 1s and 0s across the entire sample, and plot these values on a histogram. For a truly random sequence, the longest run should fall within expected limits based on the sample size.
 
-tbd:insert results
+The distribution of longest-run lengths follows a known geometric-like distribution — runs of length 4-6 should be most common in a 64-bit value, with longer runs becoming exponentially rarer.
+
+![Xoshiro256SS longest run — symmetric peak at run length 4-6, exponential decay on both sides; if instead you see a flat band, suspiciously short peak, or runs significantly longer than ~12 dominating, the generator is biased](Images/Xoshiro256SS_longest_run.png)
 
 **Histogram of Spacing Between Consecutive Values:**
 
@@ -3717,7 +5343,11 @@ To further evaluate randomness quality, we create a histogram of the spacing bet
 
 By accumulating these differences into a histogram, we can visualize the distribution of gaps between values.
 
-tbd:insert results
+For a uniformly distributed RNG, the distribution of the *raw* signed difference $x_n - x_{n-1}$ (treated on a circle of $2^{64}$ values, i.e. allowing wrap-around) is uniform; the distribution of the *absolute* difference $|x_n - x_{n-1}|$ ignoring wrap-around — which is what the implementation here measures — follows a triangular shape, peaking at 0 and decreasing linearly toward the maximum possible difference.
+
+| Xoshiro256SS — bars tallest on the left and shrinking linearly to the right edge (classic triangular shape) | ChaCha20 — identical triangular profile, confirming the two unrelated algorithms agree on what "uniform" looks like |
+| --- | --- |
+| ![Xoshiro256SS spacing](Images/Xoshiro256SS_spacing.png) | ![ChaCha20 spacing](Images/ChaCha20_spacing.png) |
 
 **Repetition Histogram:**
 
@@ -3725,7 +5355,11 @@ The repetition histogram helps determine how often numbers from all buckets are 
 
 To conduct this test, we divide the output range into n buckets and generate n random numbers, recording how many times each bucket is hit. We expect a uniform distribution, where each bucket is hit roughly the same number of times. If the distribution is uneven, it may indicate bias or flaws in the random number generation process.
 
-tbd:insert results
+A good RNG produces a flat histogram — each bin receives approximately n/k hits with statistical noise. The Middle Square repetition histogram concentrates all values in the very first bin because the generator is producing only zero.
+
+| Xoshiro256SS — all 64 bars at roughly the same height, with only small statistical noise between bins | Middle Square — only the leftmost bin has any height; the remaining 63 bins are empty |
+| --- | --- |
+| ![Xoshiro256SS repetition](Images/Xoshiro256SS_repetition.png) | ![MiddleSquare repetition](Images/MiddleSquare_repetition.png) |
 
 **Repeat Streak Histogram:**
 
@@ -3733,13 +5367,24 @@ The repeat streak histogram tracks how often runs of length 1 to k occur in an n
 
 To perform this test, use k buckets to track runs of length 1 to k. For each sliding window of size n, determine all runs of length 1 to k and count how often they occur, accumulating these counts in the corresponding buckets. Ideally, shorter runs should appear more frequently, while longer runs should be rare. If longer runs are observed too often, it may indicate a bias or flaw in the PRNG, reducing unpredictability.
 
-tbd:insert results
+A related visualization is the **Hamming-distance histogram** between consecutive outputs — i.e. how many bits change from one value to the next. A good RNG should peak at 32 (half the bits flip on average) with binomial spread. A weak generator will show shifted or narrowed distributions.
+
+| Xoshiro256SS — symmetric bell curve peaking exactly at 32 (half the bits flip between outputs) | Multiplicative LCG — peak visibly shifted away from 32 and the curve is narrower, meaning each step changes a non-random number of bits |
+| --- | --- |
+| ![Xoshiro256SS hamming](Images/Xoshiro256SS_hamming.png) | ![MultiplicativeLCG hamming](Images/MultiplicativeLCG_hamming.png) |
 
 **Randograms:**
 
 To construct these randograms, generate random values and assign them to points in the corresponding 3D or 2D space. The goal is to observe whether the points are uniformly distributed or if there are patterns, clusters, or gaps. Ideally, a good random generator should produce a uniform scatter without discernible patterns.
 
-tbd: insert results 8x8x8, 4x256x256
+The four 256×256 randograms below show how dramatic the differences can be. Each pixel's intensity reflects how often that (x, y) pair occurred over 100,000 samples; uniform speckle indicates uniformity, while visible patterns or single-pixel concentration reveal structural flaws.
+
+| | |
+| --- | --- |
+| **Xoshiro256SS** — uniform grey-and-white speckle covering the entire square, no lines, bands, or empty regions | **ChaCha20** — same uniform speckle pattern as Xoshiro: a cryptographic and a non-cryptographic generator agree on what "random" should look like |
+| ![Xoshiro256SS randogram](Images/Xoshiro256SS_randogram.png) | ![ChaCha20 randogram](Images/ChaCha20_randogram.png) |
+| **Multiplicative LCG** — visible horizontal striping/banding: certain y-values (built from low-order bits) recur far more often than others | **Middle Square** — almost entirely blank: every sample landed at the same (x, y) coordinate so a single dot (sometimes invisible at this zoom) contains all the data |
+| ![MultiplicativeLCG randogram](Images/MultiplicativeLCG_randogram.png) | ![MiddleSquare randogram](Images/MiddleSquare_randogram.png) |
 
 ## The NuGet package
 
