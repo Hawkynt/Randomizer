@@ -1,6 +1,24 @@
 <!-- omit from toc -->
 # Demystifying Randomness
 
+[![License](https://img.shields.io/github/license/Hawkynt/Randomizer)](https://github.com/Hawkynt/Randomizer/blob/main/LICENSE)
+[![Language](https://img.shields.io/github/languages/top/Hawkynt/Randomizer?color=8957D5)](https://github.com/Hawkynt/Randomizer)
+
+[![CI](https://github.com/Hawkynt/Randomizer/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/Randomizer/actions/workflows/ci.yml)
+![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/Randomizer?branch=main)
+![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/Randomizer)
+
+[![Stars](https://img.shields.io/github/stars/Hawkynt/Randomizer?color=FFD700)](https://github.com/Hawkynt/Randomizer/stargazers)
+[![Forks](https://img.shields.io/github/forks/Hawkynt/Randomizer?color=008080)](https://github.com/Hawkynt/Randomizer/network/members)
+[![Issues](https://img.shields.io/github/issues/Hawkynt/Randomizer)](https://github.com/Hawkynt/Randomizer/issues)
+![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/Randomizer?color=4CAF50)
+![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/Randomizer?color=FF9800)
+
+[![Release](https://img.shields.io/github/v/release/Hawkynt/Randomizer?sort=semver)](https://github.com/Hawkynt/Randomizer/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/Randomizer?include_prereleases=true&sort=date&label=nightly&color=FF9800)](https://github.com/Hawkynt/Randomizer/releases)
+[![Downloads](https://img.shields.io/github/downloads/Hawkynt/Randomizer/total)](https://github.com/Hawkynt/Randomizer/releases)
+[![NuGet RandomNumberGenerators](https://img.shields.io/nuget/v/Hawkynt.RandomNumberGenerators?label=RandomNumberGenerators)](https://www.nuget.org/packages/Hawkynt.RandomNumberGenerators/)
+
 > A Deep Dive into Random Number Generators and their Implementations.
 
 # Introduction

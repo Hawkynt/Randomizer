@@ -1,0 +1,76 @@
+name: Build artifacts
+
+# Shared build/pack block, called by release.yml (manual) and nightly.yml (auto).
+# Per-package versioning: version.pl --stamp writes each csproj's OWN <Version> +
+# its folder's commit count. Builds the Windows app binary and packs the NuGet
+# library; pushes to NuGet only when asked.
+on:
+  workflow_call:
+    inputs:
+      push-nuget:
+        type: boolean
+        default: false
+      ref:
+        type: string
+        required: false
+        default: ""
+    secrets:
+      NUGET_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    runs-on: windows-latest               # the app targets net8.0-windows
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Stamp per-package versions
+        shell: bash
+        run: perl .github/workflows/scripts/version.pl --stamp
+
+      - name: Publish app (win-x64, self-contained single file)
+        run: dotnet publish Randomizer/Randomizer.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist/Randomizer-win-x64 --nologo
+      - name: Zip app
+        shell: pwsh
+        run: Compress-Archive -Path dist/Randomizer-win-x64/* -DestinationPath dist/Randomizer-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-artifacts
+          path: dist/*.zip
+          if-no-files-found: ignore
+
+      - name: Pack NuGet (Hawkynt.RandomNumberGenerators)
+        run: dotnet pack RandomNumberGenerators/RandomNumberGenerators.csproj -c Release -o dist-nuget --nologo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: dist-nuget/*.nupkg
+          if-no-files-found: ignore
+
+      - name: Push to NuGet.org
+        if: ${{ inputs.push-nuget }}
+        env:
+          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "$NUGET_TOKEN" ]; then
+            echo "::warning::NUGET_TOKEN secret is not set; skipping publish."
+            exit 0
+          fi
+          dotnet nuget push "dist-nuget/*.nupkg" \
+            --api-key "$NUGET_TOKEN" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

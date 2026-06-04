@@ -1,0 +1,69 @@
+name: Release
+
+# Stable release — MANUAL dispatch only. Runs CI, builds the app + packs/pushes
+# the NuGet package (each at its own per-csproj <Version> + commit count), then
+# cuts a dated GitHub Release. Versions never come from a git tag; with two
+# independently-versioned projects there is no single repo version, so the
+# repo-level marker is the date: the Release/tag is `vyyyyMMdd`.
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why are you cutting this release? (optional, for the audit log)'
+        required: false
+
+permissions:
+  contents: write
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each action to a Node-24-native major version.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: ci
+    uses: ./.github/workflows/_build.yml
+    with:
+      push-nuget: true
+    secrets:
+      NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compute release marker
+        run: echo "REL=v$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-artifacts
+          path: dist
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: dist
+        continue-on-error: true
+      - name: Compose release notes (commit-prefix changelog)
+        run: |
+          node .github/workflows/scripts/update-changelog.mjs --release "$REL" --notes CHANGES.md
+          echo "## Randomizer $REL" > RELEASE_NOTES.md
+          echo >> RELEASE_NOTES.md
+          cat CHANGES.md >> RELEASE_NOTES.md
+      - name: Create GitHub Release (dated marker; tags vyyyyMMdd)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.REL }}
+          name: ${{ env.REL }}
+          files: dist/*
+          body_path: RELEASE_NOTES.md
