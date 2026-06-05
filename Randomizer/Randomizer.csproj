@@ -21,6 +21,18 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
+  <!--
+    ILRepack.FullAuto merges managed dependencies into the main assembly after
+    Build. A self-contained / single-file publish copies the .NET runtime's
+    NATIVE DLLs (clrgc.dll, coreclr.dll, mscordaccore.dll, …) into the output
+    folder; ILRepack cannot merge non-.NET libraries and fails with MSB3073.
+    Disable ILRepack for those publish flavours — managed deps are fine to ship
+    as separate DLLs inside the single-file bundle.
+  -->
+  <PropertyGroup>
+    <ILRepackBuildEnable Condition="'$(SelfContained)' == 'true' OR '$(PublishSingleFile)' == 'true'">False</ILRepackBuildEnable>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="FrameworkExtensions.Corlib" Version="1.0.2.*" />
     <PackageReference Include="FrameworkExtensions.System.Drawing" Version="1.0.0.35" />
