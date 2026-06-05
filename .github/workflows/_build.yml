@@ -70,7 +70,20 @@ jobs:
             echo "::warning::NUGET_TOKEN secret is not set; skipping publish."
             exit 0
           fi
-          dotnet nuget push "dist-nuget/*.nupkg" \
-            --api-key "$NUGET_TOKEN" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
+          # Loop instead of glob-passing because `dotnet nuget push 'dist-nuget/*.nupkg'`
+          # (quoted) treats the literal `*.nupkg` as a filename and silently fails;
+          # an unquoted glob works on bash but breaks if zero files match.
+          shopt -s nullglob
+          pkgs=(dist-nuget/*.nupkg)
+          if [ ${#pkgs[@]} -eq 0 ]; then
+            echo "::warning::No .nupkg files found in dist-nuget/; nothing to push."
+            exit 0
+          fi
+          echo "Pushing ${#pkgs[@]} package(s):"
+          printf '  %s\n' "${pkgs[@]}"
+          for pkg in "${pkgs[@]}"; do
+            dotnet nuget push "$pkg" \
+              --api-key "$NUGET_TOKEN" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
