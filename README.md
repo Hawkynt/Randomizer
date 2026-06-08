@@ -14,7 +14,7 @@
 ![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/Randomizer?color=4CAF50)
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/Randomizer?color=FF9800)
 
-[![Release](https://img.shields.io/github/v/release/Hawkynt/Randomizer?sort=semver)](https://github.com/Hawkynt/Randomizer/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Hawkynt/Randomizer)](https://github.com/Hawkynt/Randomizer/releases/latest)
 [![Nightly](https://img.shields.io/github/v/release/Hawkynt/Randomizer?include_prereleases&sort=date&label=nightly&color=FF9800)](https://github.com/Hawkynt/Randomizer/releases)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/Randomizer/total)](https://github.com/Hawkynt/Randomizer/releases)
 [![NuGet RandomNumberGenerators](https://img.shields.io/nuget/v/Hawkynt.RandomNumberGenerators?label=RandomNumberGenerators)](https://www.nuget.org/packages/Hawkynt.RandomNumberGenerators/)
