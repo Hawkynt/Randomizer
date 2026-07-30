@@ -3,20 +3,15 @@ name: Build artifacts
 # Shared build/pack block, called by release.yml (manual) and nightly.yml (auto).
 # Per-package versioning: version.pl --stamp writes each csproj's OWN <Version> +
 # its folder's commit count. Builds the Windows app binary and packs the NuGet
-# library; pushes to NuGet only when asked.
+# library. It never pushes to NuGet — publishing is release-only and lives in
+# release.yml, so neither a plain build nor a nightly can ship a package.
 on:
   workflow_call:
     inputs:
-      push-nuget:
-        type: boolean
-        default: false
       ref:
         type: string
         required: false
         default: ""
-    secrets:
-      NUGET_TOKEN:
-        required: false
 
 permissions:
   contents: read
@@ -59,31 +54,3 @@ jobs:
           name: nuget-packages
           path: dist-nuget/*.nupkg
           if-no-files-found: ignore
-
-      - name: Push to NuGet.org
-        if: ${{ inputs.push-nuget }}
-        env:
-          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
-        shell: bash
-        run: |
-          if [ -z "$NUGET_TOKEN" ]; then
-            echo "::warning::NUGET_TOKEN secret is not set; skipping publish."
-            exit 0
-          fi
-          # Loop instead of glob-passing because `dotnet nuget push 'dist-nuget/*.nupkg'`
-          # (quoted) treats the literal `*.nupkg` as a filename and silently fails;
-          # an unquoted glob works on bash but breaks if zero files match.
-          shopt -s nullglob
-          pkgs=(dist-nuget/*.nupkg)
-          if [ ${#pkgs[@]} -eq 0 ]; then
-            echo "::warning::No .nupkg files found in dist-nuget/; nothing to push."
-            exit 0
-          fi
-          echo "Pushing ${#pkgs[@]} package(s):"
-          printf '  %s\n' "${pkgs[@]}"
-          for pkg in "${pkgs[@]}"; do
-            dotnet nuget push "$pkg" \
-              --api-key "$NUGET_TOKEN" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
-          done
