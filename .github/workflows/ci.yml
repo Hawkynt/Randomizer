@@ -52,3 +52,9 @@ jobs:
         shell: bash
         run: perl .github/workflows/scripts/version.pl --stamp
       - run: dotnet build Randomizer.slnx --configuration Release
+      # The package README must follow the house template, and its API reference must still match
+      # the assembly just built. The template lives in RepositoryTemplate; nothing is copied here.
+      # One OS only, so the reference cannot depend on which runner produced it.
+      - name: Check package READMEs
+        if: matrix.os == 'ubuntu-latest'
+        uses: Hawkynt/RepositoryTemplate/package-readme@v1
