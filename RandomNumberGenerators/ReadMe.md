@@ -325,7 +325,7 @@ Implements `IDisposable`, `IRandomNumberGenerator`.
 
 #### `HashDrbg`
 
-Hash DRBG (SHA-256 instantiation, NIST SP 800-90A Rev. 1). Maintains a 440-bit secret state V and a 440-bit constant C; each Generate call repeatedly hashes V to produce output bytes, then updates V via V = V + H(0x03 \|\| V) + C + reseed_counter to provide backtracking resistance.
+Hash DRBG (SHA-256 instantiation, NIST SP 800-90A Rev. 1). Maintains a 440-bit secret state V and a 440-bit constant C; each Generate call repeatedly hashes V to produce output bytes, then updates V via V = V + H(0x03 || V) + C + reseed_counter to provide backtracking resistance.
 
 Implements `IDisposable`, `IRandomNumberGenerator`.
 
@@ -1246,7 +1246,7 @@ Implements `IRandomNumberGenerator`.
 
 | Member | Signature | Summary |
 | --- | --- | --- |
-| `Halton` | `Halton(int base = 2)` |  |
+| `Halton` | `Halton(int @base = 2)` |  |
 | `Next` | `ulong Next()` |  |
 | `Seed` | `void Seed(ulong seed)` |  |
 
