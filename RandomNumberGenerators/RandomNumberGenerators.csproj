@@ -9,6 +9,9 @@
     <Authors>Hawkynt</Authors>
     <Description>This package provides various implementations of random number generators.</Description>
     <PackageReadmeFile>ReadMe.md</PackageReadmeFile>
+    <!-- The package README's API reference takes its summaries and <example> blocks from this. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageProjectUrl>https://github.com/Hawkynt/Randomizer</PackageProjectUrl>
     <PackageTags>Random;Hawkynt</PackageTags>
     <RepositoryUrl>https://github.com/Hawkynt/Randomizer/tree/master/RandomNumberGenerators</RepositoryUrl>
